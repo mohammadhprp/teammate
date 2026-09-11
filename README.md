@@ -1,4 +1,8 @@
-# Team Mate 🧊
+# Team Mate
+
+<p align="center">
+  <img src=".github/assets/overview.png" alt="Team Mate Architecture" />
+</p>
 
 An AI-powered engineering teammate that turns a single conversation into a
 coordinated software development workflow. The developer talks to one primary
