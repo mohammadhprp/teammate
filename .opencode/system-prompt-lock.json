@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "agentType": "opencode",
+  "installedAt": "2026-09-11T13:47:11.233Z",
+  "includeAgentsMd": true,
+  "skills": {
+    "adhd": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/adhd",
+      "computedHash": "33514d348bfd5f4af3ddbd913365e74b990a3bc5a54e66e5a5cb56d375ea38a2",
+      "files": {
+        "skills/adhd/SKILL.md": "279f72ac8db96ca29014a5aca84ebaf68d15793a745dcba06b7e5eaa82a7fc69",
+        "skills/adhd/examples.md": "d755188578bf2720563ab8617945421bb7259b6220b6825a029a95953bd82543"
+      }
+    },
+    "architect": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/architect",
+      "computedHash": "89bdfa4d45f40c5af71545c9a163d5bf487847714295fcf2c0461366dbaee4a3",
+      "files": {
+        "skills/architect/SKILL.md": "9dc60bcf8d8d09000cdd88636ddb7371c576282880a8bb17993d2a1ea1900285",
+        "skills/architect/examples.md": "2ee06ac07488cd1c17cab7a10e059b83a7b6cf5b62b1026348e6a21862a6811d",
+        "skills/architect/references/design-red-flags.md": "905066f9bbac81c573c2b325be47751d2c0f9325e0a0772bd4384e82dafe9336",
+        "skills/architect/references/rationale-template.md": "6645a0e5f68c003298ec95b85a23262bdda0c79f998b926060169b54d9f23fbb",
+        "skills/architect/references/runner-prompt.md": "3ef8c1452a0382a15b7601c7c94f2a16a00954170d705b7af8cc49ac78080ec9"
+      }
+    },
+    "arena": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/arena",
+      "computedHash": "fa279d51881d6a01d22bd9da1d1e4e750e831790df7e90d6f4927e82e06fc6e3",
+      "files": {
+        "skills/arena/SKILL.md": "c090878efc50d71605e8be518d12e71d00b451b76c2fd38ea9e0bb2a3e2f6cda",
+        "skills/arena/examples.md": "51cf94f67203326e7795c2476725cf3a48e213762899c28c32e251a27dd5af55"
+      }
+    },
+    "bro": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/bro",
+      "computedHash": "4ba054a9389e497b0a2a3a55f8101135d5c8b2e9df789eae6f353b49acc1d664",
+      "files": {
+        "skills/bro/SKILL.md": "aa329d0ceeeecb6822a7174ad76bb07a7826a3c52ceb6a588dec4138815084bb",
+        "skills/bro/examples.md": "0389bf05b48f589f1bbf4fba7acdd0d78e0b0735e09f286a22e23b48b33b78f0"
+      }
+    },
+    "commit": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/commit",
+      "computedHash": "bbce510741b734d472934e15e1293b7826901a81e32c0f63daaa4d63d5d379f1",
+      "files": {
+        "skills/commit/SKILL.md": "b53f273933e224c18941bb804ef5210c505504b624ef73d7fc87a5c3e103464c",
+        "skills/commit/examples.md": "da2868dacf8954331f754a213cbf830f331004f4a4c274b6cd2ea950ec77282d"
+      }
+    },
+    "docs-writer": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/docs-writer",
+      "computedHash": "1c43fa814744c3e7ca14a0398c718750f05b972f2f436dc012fb8f080dbf16bb",
+      "files": {
+        "skills/docs-writer/SKILL.md": "2d7b01308e5076b4a56488643d05873d5017fa360ae78fb7baa7343d2f83fc7e",
+        "skills/docs-writer/examples.md": "1c2aea9897af0b039abfc39136f0ab2cc2bbd769fd56264f61f633047c6bb99c",
+        "skills/docs-writer/references/style-guide.md": "1b55350f52aa1b3bf0abc469f54b24b27556c1d32719a6d4d917c14304ea6248"
+      }
+    },
+    "grilling": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/grilling",
+      "computedHash": "89f49302c726415664cf0f351171c6fb851238f32338276ca773333e3574c6ce",
+      "files": {
+        "skills/grilling/SKILL.md": "3e92baca87ba0796831d2dd72347c4e629c64630e36067246d7eeb49371ed816",
+        "skills/grilling/examples.md": "5af702787b61f8da0223c537379e130ed0dc8a915026e8868fbfa78a22868f9b"
+      }
+    },
+    "gh": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/gh",
+      "computedHash": "3cbfacbf462b1d69b5c58d2ef8f23120ecf61990a550ad6e8e6929074b379414",
+      "files": {
+        "skills/gh/SKILL.md": "5f88e953594ec1c2d82057a4c77d5fc434d7a3414db0ddccb78012c41a7c8416",
+        "skills/gh/examples.md": "d77fd4bca6e730c96de768a38e52785179b08f010c6073168907292a58988e56"
+      }
+    },
+    "how": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/how",
+      "computedHash": "d017f98211647d5148034bbaddba6122285bd46322cd68d6e130afe4567c0701",
+      "files": {
+        "skills/how/SKILL.md": "3a554ff564d66a4200a07e20164558e820ea7a9795beb98a4a06546146c98f5f",
+        "skills/how/examples.md": "efd2365a7b0e9349983b422dc3c753cf70e8c3f4654a87f6c80da0fd101f9ddb",
+        "skills/how/references/critic-prompt.md": "aa77a15590814c814bd5cb074842029ab7b790c2e8379050525bdbc20739d1bb",
+        "skills/how/references/critique-rubric.md": "5774ff2caf51796e54c4a61b63620a165de5801f23c8f47406e527abfbe9addc",
+        "skills/how/references/explainer-prompt.md": "04336086e7c415394459ca2f461717d920e15339517dbf5a56ca042f8b4fead3",
+        "skills/how/references/explorer-prompt.md": "fd1218b8cf1f467c644d4ce6fa5e54e6089ede65a28fbbae61f6ee7a2d462f85"
+      }
+    },
+    "improve": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/improve",
+      "computedHash": "2f45ed5a90b4ea2666780534ccd8eb605baeecd4ce43bfce824e4207e4f2004b",
+      "files": {
+        "skills/improve/SKILL.md": "0147c3ff095420273727afcb17ef2eb76fd2735152dc226d984f652e9a2cafd9",
+        "skills/improve/examples.md": "5e652a23e5ca08e85a7eaf5d7dd312a7a72deff3463724f671c271d8580998a4",
+        "skills/improve/references/audit-playbook.md": "587c1b927070f3c28139ad95ac34cc21a7da32618cfeb966cb774e58a865d4c8",
+        "skills/improve/references/closing-the-loop.md": "5d526bb378e1783bbeb68d7af527776cbe98cde27a1aeccbd13e818e5b73b454",
+        "skills/improve/references/plan-template.md": "7be76dd3c29442288fa7cee4432fc6e95c2fdbf748c9b356344bf647c5f8722e"
+      }
+    },
+    "merge-request": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/merge-request",
+      "computedHash": "c570967e5bc58d5a85fbe6b57fc5ee406ce1ca721a99d0bc9e30d2af8fbf1383",
+      "files": {
+        "skills/merge-request/SKILL.md": "b4eeb997793502c9af3c4d8e5ec79e65017e831bb3bf07a0dc4d466c20b8c111",
+        "skills/merge-request/examples.md": "0481ff97ff796221e63a175994c54014254d6a04fed80037413ad83b2c539558"
+      }
+    },
+    "ponytail": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/ponytail",
+      "computedHash": "41c166216496001f1d6b975d39202bc3bd42e2a7251469e74403f258f00cd491",
+      "files": {
+        "skills/ponytail/SKILL.md": "ce7066c4455811dd0e180d44f2c38fc93ef1ec788a11f43eecc9f51ce6c6ff63",
+        "skills/ponytail/references/ponytail-audit.md": "5d9f5f61f9ed1f48c5f93e3bacccec8dce70e3afe29386e1247973fe830bd84e",
+        "skills/ponytail/references/ponytail-debt.md": "e9c5c4e770626ed302a6e8aeeb6935a79502610406e28bdeeac9d3a9d93750cb",
+        "skills/ponytail/references/ponytail-gain.md": "16b3018dd30337c7a5516bb630afcbe176dc78e3f1fbaba345fb628e5b42bf42",
+        "skills/ponytail/references/ponytail-help.md": "0b7db26bce827d5c5bf712ade74132e85c94e8c5590e70cf5612538808520b3e",
+        "skills/ponytail/references/ponytail-mode.md": "d3672e92a36acdf1f4ffd31bb734e2a13ee93341a12a500220bebe05f5febf6c",
+        "skills/ponytail/references/ponytail-review.md": "5e9b9be3830cee8cc4f60d6db1b98fd597aad65ebcff5f1ab9edc2d31d376a02",
+        "skills/ponytail/references/ponytail-rules.md": "6278c6d8dc0870b0a85a555b74079cceaaf49a5001f8e04f1ab3d5cbe87cfc2f",
+        "skills/ponytail/references/principle-boundary-discipline.md": "cc36be89efb45662f5a116fa45e978dd5321cc2edd182b97b2c4ce05d01a4a9c",
+        "skills/ponytail/references/principle-encode-lessons-in-structure.md": "6e3a649b0c3219ee226d1efcd7e006a6104312c650b46a57bb34127d51ac39da",
+        "skills/ponytail/references/principle-fix-root-causes.md": "befa63e779f4acbe476b3a1ec0c73d3fa9ecfb44a52bb641fb2849bcd55cbce4",
+        "skills/ponytail/references/principle-make-operations-idempotent.md": "315e50172e1b7fc76e5144678bd58f555fda1d5c73a85ab2b71e9ddddf58050e",
+        "skills/ponytail/references/principle-model-the-domain.md": "6dc4ba3638f9b2d3289c4e4259cea31b00d1813b936121660187f8db9f6508d1",
+        "skills/ponytail/references/principle-prove-it-works.md": "503b7b6fa81ef53753898cb691d1b0b1f0cbdb1c786fb2a5e23907f31301f9a0",
+        "skills/ponytail/references/principle-sequence-verifiable-units.md": "82d8e2d96bb911a88d6e7e9fcd3cdf7a473520360934c767c5958d92041443d6"
+      }
+    },
+    "release": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/release",
+      "computedHash": "701463f4a465ea785a09067e9e26ebf5495998d383d9b8dc12380d683ad9e521",
+      "files": {
+        "skills/release/SKILL.md": "cdb9fe084fff05f3f512ccab4afa4372abbb975217366f2f98b87f0be9a50fb0",
+        "skills/release/examples.md": "4c13a00a18b5505cb8d15e736c203a048ea5cf705e0881ff0a778d46f5d61594"
+      }
+    },
+    "review": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/review",
+      "computedHash": "93d3b5b50a4962b9dfbb84d6dbc24589267a45ac4a9e36a1065182190fed7e0c",
+      "files": {
+        "skills/review/SKILL.md": "8212003b33d9bf506263694dd37c028f1d150a00f05e5bdd6391f62e6f7b450e",
+        "skills/review/examples.md": "7686878acef0834344de89d021a84126c752445c2009dd25796f3b9e32af6f75",
+        "skills/review/scripts/render_review.py": "d4b7267fddd66cbe97285c1b34bbf4f14b338072f0c4a9b0b45c7d17b956984d",
+        "skills/review/scripts/resolve_spec_context.py": "c5af43835d448f8e77d4f32695cbda3e191360f54e95ab3a7b1cbc8aad5bca6a",
+        "skills/review/scripts/validate_review_json.py": "7643db46fcc315c565569e49b644bfbe9150ff3d8b0301811a3e3ebef8bc52d3"
+      }
+    },
+    "show-me": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/show-me",
+      "computedHash": "2bfe61c1fcefc3424b3c938997753abaee49326b2ad496f122cceb135c565cd4",
+      "files": {
+        "skills/show-me/SKILL.md": "bea6da70a58096730b9aeb0bae293ddf4726103a98efc9ce13c481619942a810",
+        "skills/show-me/examples.md": "def7e3ba6846cf281396c477a4bd75ae5409f1f02831f6089e7ad1af058c3f20"
+      }
+    },
+    "tdd": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/tdd",
+      "computedHash": "2cd3077366a0056bfedf6e4f44beb834964f46b57bb7b90820128ea95ba0b1b8",
+      "files": {
+        "skills/tdd/SKILL.md": "adad031f9e79d7f7389fa128f7af8e03344831270e282cf4e40bdacb8418c386",
+        "skills/tdd/examples.md": "d1c3d12759b6fbbcbd53e48ea84e1969bbdd5c0443c25b4ea9d27f2fa7ddf72d"
+      }
+    },
+    "tlc-spec-driven": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/tlc-spec-driven",
+      "computedHash": "311690a439efc17c7db7b9865218a357e4aebc1d4174c2204ba2c37ac0f0db70",
+      "files": {
+        "skills/tlc-spec-driven/SKILL.md": "127a54fdc984939c4953d0a14120563e73f37488befcd885bb9a1dae95b18524",
+        "skills/tlc-spec-driven/examples.md": "4260576212823da169cb91857eecf9c4bf0a1aeab9c7947888b3d1d76bf02d75",
+        "skills/tlc-spec-driven/references/code-analysis.md": "38b571c81d98e390b9ac8947563ad19a33843db425d4ff94ad73db70a054f828",
+        "skills/tlc-spec-driven/references/coding-principles.md": "8c548affbcdaa4c62bd75bf27b39a81af41ec16bd603e5e634f30771bebd4fbb",
+        "skills/tlc-spec-driven/references/context-limits.md": "bff0c86980d41897b70216fa18b6a05a0c9d74a0e80940939fc0f314a55da482",
+        "skills/tlc-spec-driven/references/design.md": "1c17dd93d0a5618f002300a362683c8dca74185037aa61d9aeef83b9750b5d40",
+        "skills/tlc-spec-driven/references/discuss.md": "c601fedf2266047c0f6da372abafe81b35bc97e04d1b3fb15e1a2c65e4dc75ce",
+        "skills/tlc-spec-driven/references/implement.md": "03ec93c9713b2ebb373c6684f6c8d62588192e865dce0c53970c2c913b9c50c4",
+        "skills/tlc-spec-driven/references/lessons.md": "77cdc271f6ade34f8b47274456c72fc16731c7af9992967cfd5f548d328fb022",
+        "skills/tlc-spec-driven/references/memory.md": "ade5d5550146767719c524ba3ef559bc5431c22a08fddce33bc35bc9e762bc38",
+        "skills/tlc-spec-driven/references/specify.md": "99f1f5693308b8c7ee4ba1152b40f4f00b24abd57767084adaecd409a5aecc17",
+        "skills/tlc-spec-driven/references/sub-agents.md": "08481bbe05cf1f29062cc504d3d4f204c10f12fc4f683c330bea8e4adb01f1b2",
+        "skills/tlc-spec-driven/references/tasks.md": "8ea4731f59271029d90db8fbf1ce800333f859b32529016134fcb19de9a570c6",
+        "skills/tlc-spec-driven/references/validate.md": "149b78e32927ff601fab88366f29d254020c92ca98fa7b3a147bbeaee11ff403",
+        "skills/tlc-spec-driven/scripts/check_commit.py": "20a0fc0f8423b958ea7bae5eec9286d47e8593c157d87fd9d92c2f17a1464567",
+        "skills/tlc-spec-driven/scripts/lessons.py": "258cdb508d9787aee1a840bf811e13637c52ef0dd76273b08fab8c19ebac9b09",
+        "skills/tlc-spec-driven/scripts/validate_spec.py": "2a0b7e334d026f9556c665fbd0386cfa5b17c62a5e921fed52a9422bc27bc006",
+        "skills/tlc-spec-driven/scripts/validate_state.py": "dc0997e2af32faeeb5e4cd241ce41c3a03a37c6ef25a77850557752988205d3c",
+        "skills/tlc-spec-driven/scripts/validate_tasks.py": "bfa8533fc3c63e19d999ed25dd79bddeb8ead5d43dc2c0149a0cfc0d9d2bc5d7"
+      }
+    },
+    "why": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/skills/why",
+      "computedHash": "61b3f3dc8c627cd5c078dc05683ec85d1394c1f1e9e50503169ecfac4441f4b2",
+      "files": {
+        "skills/why/SKILL.md": "a9423bb7bab7c3280d17478ebe97bb283ea6ed12d9dcae590fc2f81f41660990",
+        "skills/why/examples.md": "7fd66156e3cb9c1f139f49e32b85a81a3411fb4b8d60e949c14cb2b6325e46f7",
+        "skills/why/references/epistemics.md": "ba99dcdc4fbce91a83b50fc0c9b2c5769febd95540b1722c6b87fe8f900bb60a",
+        "skills/why/references/investigator-prompt.md": "e35d8eaea13f0a027dd35572d525e9f66e8f8918ca9e555237dc228f26278d5f",
+        "skills/why/references/source-playbook.md": "3cfb0245d5b2019eeeaa7a0e023579d390f2cdcdff6942d2fe009b9efac0eb11",
+        "skills/why/references/sources/code-archaeology.md": "8c14aa382f0de40829b2668d43e3f54814480bb93a486c9282ada4003f6b9dbd",
+        "skills/why/references/sources/databricks.md": "269a22032f027ee30a33c1b5e30443d13dd6d127ff20d8d1e8a20715b06a69cc",
+        "skills/why/references/sources/datadog.md": "db80803f1635a5015e3190f4753c4228083e6cebf222c84e24fc3c3919aa5574",
+        "skills/why/references/sources/incident-postmortem.md": "486132457d3782eea64292ce7a2d3bbe3b24b372b20ca00de4329e820f74cd42",
+        "skills/why/references/sources/linear.md": "7e1b72ba459089168efd701502f8c268d2481154aeeda1ddd84f840f7e974760",
+        "skills/why/references/sources/notion.md": "2ce336dd3052967187a56ec33d308c7a69e7ef3b04ba7b17386a8b3914a0f000",
+        "skills/why/references/sources/sentry.md": "0eef902cb0f835f7fa9bd85a8e19ba1505d05e59a0173dfe852d8d52d828266d",
+        "skills/why/references/sources/slack.md": "60e4c8dbb941f563c86aec7267cde66443b1dc651422569c8d112bc9da7551f6",
+        "skills/why/references/synthesizer-prompt.md": "f4076451693582295d5873f2b449054811fb0159093e9cc7f80951bee51f288c"
+      }
+    }
+  },
+  "agents": {},
+  "commands": {
+    "summarize-changes": {
+      "source": "system-prompt@0.13.1",
+      "sourceType": "bundled",
+      "itemPath": "framework/commands/summarize-changes.md",
+      "computedHash": "2b38112ab2e27fd7dcf27cd557554a2ef2798e9d58497ab2d94644f2c9a0eb55",
+      "files": {
+        "commands/summarize-changes.md": "2b38112ab2e27fd7dcf27cd557554a2ef2798e9d58497ab2d94644f2c9a0eb55"
+      }
+    }
+  },
+  "mcps": {},
+  "plugins": {},
+  "styles": {},
+  "modes": {},
+  "memory": {},
+  "standards": {},
+  "templates": {},
+  "generated": {
+    "AGENTS.md": {
+      "computedHash": "edfd4336b9eebd19119cd4b6b21baa1ca6e9d9b7e16bb806cab40269da3cc6ec"
+    },
+    "opencode.json": {
+      "computedHash": "a1b32911865e11d7203101bc2a91f8337ff03f19e5f3330bc2d0c7d1898fff51"
+    },
+    "tui.json": {
+      "computedHash": "4db0b73005b8e3471567c6134b181aba2f92b9324cb9b3010569c53b8dae2092"
+    },
+    ".gitignore": {
+      "computedHash": "534e4a65fab2e338d43847d2df73487128868de317143cb06207a66197e51bbd"
+    }
+  }
+}
