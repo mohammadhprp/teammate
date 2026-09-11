@@ -280,7 +280,7 @@ export const registerSkill = (ctx: Context) =>
         id: "team-mate-delegate",
         name: "Team Mate delegate",
         description: "Delegate a scoped task to a Team Mate worker",
-        location: "opencode-teammate/skills/delegate.md",
+        location: "teammate/skills/delegate.md",
         content:
           "Turn the request into a task with acceptance criteria, then call " +
           "team_mate_delegate_task. Review the result before approving.",

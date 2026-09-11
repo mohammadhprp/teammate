@@ -33,7 +33,7 @@ The package exports a single default implementation.
 
 ```json title="package.json"
 {
-  "name": "opencode-teammate",
+  "name": "teammate",
   "version": "0.1.0",
   "type": "module",
   "exports": {
