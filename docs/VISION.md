@@ -1,378 +1,325 @@
-# Team Mate
+# Team Mate vision
 
-## Vision
+**Team Mate is a primary AI engineering agent that manages a team of other
+agents across multiple software projects.**
 
-**Team Mate is an AI-powered engineering teammate that turns a single conversation into a coordinated software development workflow.**
+The developer talks to one Team Mate session through a coding agent such as
+OpenCode, Codex, or Pi. Team Mate understands its role from `AGENTS.md`, uses
+shared Team Mate capabilities, and uses Herdr as the agent orchestration
+runtime.
 
-The goal is to let a developer communicate with **one primary agent** while Team Mate handles the coordination of other agents working on the developer's behalf.
+Team Mate is not itself an OpenCode plugin. The repository is a collection of
+skills, scripts, workflows, prompts, and documentation that make the Team Mate
+operating model reusable across coding-agent environments.
 
-Instead of the developer manually creating sessions, assigning tasks, checking progress, reviewing changes, finding bugs, and repeatedly sending feedback to another agent, Team Mate manages this workflow automatically.
+## The problem
 
-The developer should be able to say:
+Working with multiple AI coding agents normally makes the developer responsible
+for coordination:
 
-> "Implement this feature."
+1. Decide which agent should do each task.
+2. Create and configure sessions.
+3. Give agents enough project context.
+4. Monitor their progress.
+5. Collect results and logs.
+6. Review their work.
+7. Send feedback and request fixes.
+8. Coordinate work across projects.
+9. Decide when the overall task is complete.
 
-And Team Mate should take responsibility for turning that request into a controlled development process.
+Team Mate should take responsibility for this coordination while keeping the
+developer informed and in control.
 
----
+## The Team Mate role
 
-## The Problem
+Team Mate is the **primary agent**, not a fixed worker or a predefined team.
 
-Working with AI coding agents often requires the developer to act as the coordinator.
+It can create as many agents as necessary and choose the type of agent based on
+the task. An agent may be used for implementation, review, debugging, testing,
+investigation, planning, documentation, or any other useful role.
 
-A typical workflow looks like:
+Team Mate decides:
 
-1. Create or open an agent session.
-2. Explain the task.
-3. Wait for the agent to finish.
-4. Inspect what it changed.
-5. Find problems or missing requirements.
-6. Send feedback.
-7. Wait again.
-8. Review the changes again.
-9. Decide whether the work is acceptable.
-10. Tell the agent what to do next.
-11. Commit or otherwise finalize the work.
+- when to delegate work;
+- how many agents are useful;
+- which project each agent should work on;
+- what context each agent needs;
+- when an agent should be monitored or queried;
+- when work should be reviewed;
+- when another agent should fix a problem;
+- when the developer needs to be informed or asked to decide.
 
-This creates a significant amount of coordination overhead.
+## Multi-project operation
 
-The developer becomes the **project manager, reviewer, tester, and messenger** between themselves and the coding agent.
-
-Team Mate exists to remove this coordination burden.
-
----
-
-## The Product
-
-Team Mate introduces a **primary agent** that acts as the developer's single point of interaction.
-
-The primary agent understands the developer's request and takes responsibility for coordinating the work.
-
-When a task requires implementation, the primary agent creates a **dedicated working session** for another agent.
-
-The working agent receives the task, works independently, and reports its progress through its session.
-
-The primary agent remains responsible for the overall task.
-
-The developer does not need to directly interact with the working agent.
-
----
-
-## Core Workflow
-
-The intended workflow is:
-
-```text
-Developer
-    │
-    ▼
-Primary Agent
-    │
-    ├── Create Working Session
-    │
-    ▼
-Working Agent
-    │
-    ├── Implement
-    ├── Investigate
-    ├── Test
-    └── Report
-    │
-    ▼
-Primary Agent
-    │
-    ├── Review
-    ├── Identify Bugs
-    ├── Identify Missing Requirements
-    └── Provide Feedback
-    │
-    ▼
-Working Agent
-    │
-    ├── Fix Issues
-    └── Rework
-    │
-    ▼
-Primary Agent
-    │
-    └── Final Review
-    │
-    ▼
-Developer
-```
-
-The important principle is that **the primary agent owns the process**.
-
----
-
-## Delegation
-
-The developer should not need to think about which agent should perform a task.
-
-The primary agent determines when work should be delegated and creates the appropriate working session.
-
-The delegated task should contain enough context for the working agent to understand:
-
-- What needs to be accomplished
-- Why it needs to be accomplished
-- The expected outcome
-- Relevant requirements
-- Constraints
-- Acceptance criteria
-- Any information discovered by the primary agent
-
-The working agent should be able to begin working without requiring the developer to repeat the original request.
-
----
-
-## Monitoring
-
-After delegating work, the primary agent should remain aware of the working session.
-
-It should be able to determine:
-
-- Whether the agent is still working
-- What progress has been made
-- Whether the task appears complete
-- Whether the agent encountered a problem
-- Whether additional intervention is required
-- Whether the result is ready for review
-
-The developer should not have to continuously monitor the working session.
-
-Team Mate should make the delegated agent feel like a **member of the team working in the background**.
-
----
-
-## Review
-
-Completing a task is not the same as completing it correctly.
-
-When the working agent reports that the task is complete, the primary agent performs an independent review.
-
-The review should look for:
-
-- Bugs
-- Incorrect behavior
-- Missing requirements
-- Incomplete implementation
-- Unexpected side effects
-- Poor handling of edge cases
-- Regressions
-- Inconsistencies with the requested scope
-- Work that does not actually satisfy the original task
-
-The primary agent should not simply accept the working agent's claim that the task is complete.
-
-It should act as a **second pair of eyes**.
-
----
-
-## Feedback Loop
-
-If the review identifies problems, the primary agent sends the findings back to the working agent.
-
-The working agent then continues the task and addresses the identified issues.
-
-The cycle can repeat:
-
-```text
-Work
-  ↓
-Review
-  ↓
-Issues Found?
-  ├── Yes → Feedback → Fix → Review
-  └── No  → Final Result
-```
-
-The objective is to move the task toward a state where the primary agent is confident that the requested work has been completed correctly.
-
----
-
-## Human Approval
-
-The developer remains the final decision-maker.
-
-Team Mate should not hide the work performed by the agents.
-
-When the work reaches a reviewable state, the primary agent presents the developer with a clear report containing:
-
-- What was requested
-- What was implemented
-- What the working agent changed
-- What was reviewed
-- Issues that were discovered
-- Issues that were fixed
-- Remaining concerns
-- The final assessment of the work
-
-The developer can then decide what should happen next.
+One Team Mate session can coordinate work across multiple projects.
 
 For example:
 
-- Approve the work
-- Request additional changes
-- Reject the implementation
-- Ask for another review
-- Ask the agent to finalize the work
-- Commit the changes
-- Continue development
-
-The developer remains **in control of consequential decisions**.
-
----
-
-## The Primary Agent
-
-The primary agent is more than a conversational interface.
-
-It acts as the **technical coordinator** of the development process.
-
-Its responsibilities include:
-
-- Understanding the developer's intent
-- Breaking work into actionable tasks when necessary
-- Creating working sessions
-- Assigning work
-- Providing context
-- Monitoring progress
-- Reviewing results
-- Finding problems
-- Sending feedback
-- Coordinating iterations
-- Producing a final report
-- Waiting for developer approval
-- Executing the next requested action
-
-The primary agent should behave like a **senior teammate responsible for making sure the work gets done correctly**, rather than simply passing messages between the developer and another agent.
-
----
-
-## Working Agents
-
-Working agents are temporary or persistent team members responsible for executing delegated work.
-
-They focus on the task assigned to them.
-
-A working agent should:
-
-1. Understand its assignment.
-2. Inspect the relevant project context.
-3. Perform the work.
-4. Validate the result.
-5. Report what it did.
-6. Respond to review feedback.
-7. Continue working until the task reaches an acceptable state.
-
-The working agent should not require the developer's direct involvement for normal development iterations.
-
----
-
-## Separation of Responsibilities
-
-Team Mate creates a separation between **execution and supervision**.
-
-### Developer
-
-Defines the goal and makes final decisions.
-
-### Primary Agent
-
-Coordinates, supervises, reviews, and communicates with the developer.
-
-### Working Agent
-
-Executes the assigned work.
-
-This separation allows each participant to focus on a different responsibility.
-
 ```text
 Developer
-  └── Defines intent & approves outcome
-
-Primary Agent
-  └── Coordinates & reviews
-
-Working Agent
-  └── Executes
+    │
+    ▼
+Team Mate
+    │
+    ├── Project A
+    │     ├── Agent A1
+    │     └── Agent A2
+    │
+    └── Project B
+          ├── Agent B1
+          └── Agent B2
 ```
 
----
+A project has its own context and instructions. Agents created for that project
+must use that project's `AGENTS.md`, `CONTEXT.md`, skills, scripts, and other
+relevant resources.
 
-## Transparency
+Team Mate's shared skills and scripts are available in addition to the
+project-specific resources.
 
-Automation should never come at the cost of visibility.
+The goal is to prevent unrelated project context from leaking between projects
+while still allowing Team Mate to coordinate the overall work.
 
-The developer should be able to understand what happened during a task.
+## How a session starts
 
-Team Mate should preserve the important history of:
+The developer can open a normal coding-agent session and say what they want.
+The repository's `AGENTS.md` establishes that the agent is operating as Team
+Mate.
 
-- The original request
-- Delegated tasks
-- Agent sessions
-- Progress
-- Reviews
-- Feedback
-- Fixes
-- Final decisions
+Conceptually:
 
-The developer should be able to trace the path from **request → implementation → review → approval**.
+```text
+Developer opens OpenCode / Codex / Pi
+                │
+                ▼
+        AGENTS.md is loaded
+                │
+                ▼
+       Agent assumes Team Mate role
+                │
+                ▼
+      Developer gives a task or goal
+                │
+                ▼
+       Team Mate coordinates work
+```
 
----
+There is no requirement for the developer to manually create every worker
+session.
 
-## Trust
+## Herdr as the runtime
 
-The central purpose of Team Mate is not simply to automate more work.
+Herdr provides the runtime capabilities Team Mate needs to coordinate agents.
+Team Mate should build on those capabilities rather than reimplementing an
+agent runtime or creating an OpenCode-specific plugin.
 
-It is to make autonomous development **more trustworthy**.
+The Team Mate repository should therefore focus on the **coordination layer**:
 
-Trust comes from multiple layers:
+- reusable skills;
+- reusable scripts;
+- agent instructions;
+- workflows;
+- project-context conventions;
+- review protocols;
+- monitoring and reporting patterns;
+- experiments and research.
 
-**Execution**
+Herdr is an implementation dependency of the coordination model, not the
+product itself.
 
-An agent performs the work.
+## Shared and project-specific capabilities
 
-**Verification**
+There are two layers of agent knowledge.
 
-Another agent reviews the result.
+### Team Mate layer
 
-**Iteration**
+Shared capabilities that can be reused across projects, such as:
 
-Problems are sent back for correction.
+- agent creation and coordination;
+- monitoring and waiting;
+- progress reporting;
+- review workflows;
+- delegation patterns;
+- debugging workflows;
+- testing workflows;
+- investigation patterns;
+- common scripts and utilities.
 
-**Transparency**
+### Project layer
 
-The developer can see what happened.
+Capabilities belonging to one project, such as:
 
-**Approval**
+- project architecture;
+- coding conventions;
+- project-specific skills;
+- scripts and commands;
+- deployment knowledge;
+- domain rules;
+- project context;
+- project-specific acceptance criteria.
 
-The developer remains in control of the final outcome.
+The agent should combine both layers when working.
 
-Team Mate should make it possible to delegate work without feeling like the developer has lost control of it.
+## Delegation
 
----
+Team Mate should provide each agent with a clear, self-contained assignment.
+The assignment should include the relevant goal, constraints, expected outcome,
+acceptance criteria, and discovered context.
 
-## Long-Term Vision
+The created agent should also inspect the target project's own `AGENTS.md`,
+`CONTEXT.md`, skills, scripts, and relevant documentation before working.
 
-Team Mate should evolve toward the experience of having a **virtual engineering team** available through a single conversation.
+Team Mate should not assume that every task needs the same number or type of
+agents. It should use the smallest useful team, while being free to create more
+agents when parallelism or specialization provides value.
 
-The developer should be able to communicate goals at a high level while Team Mate handles the operational complexity behind those goals.
+## Monitoring
 
-Instead of:
+After delegation, Team Mate remains responsible for the work it delegated.
 
-> "I need to manage several AI agents."
+It should be able to determine:
 
-The experience should be:
+- whether agents are working;
+- what progress they have made;
+- whether they are blocked;
+- whether they finished;
+- what they changed;
+- whether their result requires review;
+- whether another intervention is needed.
 
-> "I have a teammate who manages the work for me."
+Monitoring should be practical rather than noisy. Team Mate should collect
+useful state, output, and logs and present them to the developer when they are
+important for understanding progress or making a decision.
 
-The ultimate goal is to make AI-assisted software development feel less like operating a collection of tools and more like **working with a capable engineering team**.
+## Review
 
----
+Agent completion is not proof of correctness.
 
-## Guiding Principle
+Team Mate should use independent review when the task warrants it. A reviewer
+can inspect the implementation, tests, diffs, requirements, and project
+conventions and report findings back to Team Mate.
 
-> **One conversation for the developer. A coordinated team behind it.**
+A review may result in:
 
-Team Mate should make delegation, execution, review, iteration, and approval feel like one continuous development workflow rather than a collection of disconnected agent sessions.
+- approval of the work;
+- findings that require rework;
+- a request for additional testing;
+- a request for another specialized agent;
+- escalation to the developer.
+
+## Iteration
+
+Team Mate can coordinate repeated work and review cycles:
+
+```text
+Delegate
+   ↓
+Work
+   ↓
+Review
+   ↓
+Issues?
+ ┌─┴───────────┐
+Yes            No
+ │              │
+Fix            Report
+ │              │
+ └──→ Review    │
+                ▼
+             Developer
+```
+
+The number of iterations should be bounded by practical policies and should
+escalate when agents repeatedly fail to converge.
+
+## Developer visibility
+
+Automation must not make the process opaque.
+
+The developer should receive a useful report when work reaches an important
+state. Depending on the situation, the report can include:
+
+- requested work;
+- projects involved;
+- agents created;
+- current status;
+- important progress;
+- relevant logs or output;
+- files or changes produced;
+- review findings;
+- fixes performed;
+- remaining concerns;
+- blockers;
+- recommended next action.
+
+The developer should not receive every low-level event unless requested or
+useful for debugging the workflow.
+
+## Developer control
+
+The developer remains the final decision-maker for consequential actions.
+
+Team Mate can autonomously coordinate normal development work, but it should
+escalate when a decision requires developer intent, when the work is ambiguous,
+when agents are blocked, or when an action has meaningful risk.
+
+The developer can then:
+
+- approve the result;
+- request changes;
+- ask for more investigation;
+- ask for another review;
+- stop the workflow;
+- change the goal;
+- continue working on another project.
+
+## Transparency and traceability
+
+A useful Team Mate system should preserve enough history to reconstruct what
+happened:
+
+```text
+Request
+  ↓
+Plan / Delegation
+  ↓
+Agent Work
+  ↓
+Progress / Logs
+  ↓
+Review
+  ↓
+Rework
+  ↓
+Final Report
+  ↓
+Developer Decision
+```
+
+The implementation of this history is an R&D topic. The vision only requires
+that the important workflow remains observable and explainable.
+
+## Long-term vision
+
+Team Mate should feel like a **virtual engineering manager and teammate** that
+can operate across the developer's projects.
+
+The developer should be able to say:
+
+> "Work on project A and implement feature X."
+
+and later:
+
+> "Now investigate the bug in project B and have two agents look at it."
+
+Team Mate should understand the active project context, create the appropriate
+agents, coordinate them through Herdr, use the shared Team Mate capabilities,
+and report the outcome.
+
+The developer should think about **what needs to happen**, not about manually
+operating a collection of agent sessions.
+
+## Guiding principle
+
+> **One primary agent. Many specialized agents. Multiple projects. Shared
+> capabilities. The developer stays in control.**

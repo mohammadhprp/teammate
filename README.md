@@ -4,17 +4,50 @@
   <img src=".github/assets/overview.png" alt="Team Mate Architecture" />
 </p>
 
-An AI-powered engineering teammate that turns a single conversation into a
-coordinated software development workflow. The developer talks to one primary
-agent; a coordinated team works behind it.
+Team Mate is a **primary AI engineering agent** that coordinates other coding
+agents across multiple projects.
+
+The developer talks to Team Mate through any supported coding agent such as
+OpenCode, Codex, or Pi. Team Mate understands its role from the project's
+`AGENTS.md` and uses [Herdr](https://herdr.dev) to create, manage, monitor, and coordinate other
+agents.
+
+## Core idea
+
+```text
+Developer
+    │
+    ▼
+Team Mate (Primary Agent)
+    │
+    ├── Project A
+    │     ├── Agent A1
+    │     └── Agent A2
+    │
+    ├── Project B
+    │     ├── Agent B1
+    │     └── Agent B2
+    │
+    └── Project C
+          └── Agent C1
+```
+
+Each project keeps its own context, `AGENTS.md`, skills, scripts, and other
+project-specific resources. Team Mate supplies shared capabilities on top of
+that project context.
 
 ## Documentation
 
-- [Vision](docs/VISION.md) — the product and the workflow it targets.
-- [Implementation](docs/implementation/README.md) — the technical design.
-- [Context](docs/CONTEXT.md) — repository guidance for contributors.
+- [Vision](docs/VISION.md) — product vision and operating model.
+- [Context](docs/CONTEXT.md) — repository guidance.
+- [Research and architecture](docs/implementation/README.md) — long-term R&D,
+  architecture questions, and decisions.
+- [Next steps](docs/NEXT.md) — current research priorities.
 
 ## Status
 
-Design phase. The repository contains documentation only. Verify OpenCode v2
-API signatures against the installed packages before writing code.
+**Research and design phase.** The repository intentionally does not commit to
+a specific implementation architecture yet. Herdr is the current runtime
+foundation for agent orchestration, while the Team Mate repository focuses on
+the reusable coordination knowledge, skills, scripts, and workflows built on
+top of it.

@@ -1,64 +1,113 @@
-# Team Mate implementation
+# Team Mate research and implementation
 
-This directory contains the technical design for Team Mate, an OpenCode v2
-plugin that coordinates a primary agent, one or more working agents, and an
-iterative review loop.
+This directory contains the long-term R&D for Team Mate.
 
-The design builds on [VISION.md](../VISION.md) and targets the
-[OpenCode v2 Effect plugin API](https://opencode.ai/v2/docs/build/plugins/effect/)
-and the [OpenCode v2 HTTP API](https://opencode.ai/v2/docs/api).
+Team Mate is a primary AI engineering agent that coordinates dynamically
+created agents across multiple projects. Herdr is the current runtime used for
+agent orchestration. The Team Mate repository provides reusable skills, scripts,
+workflows, instructions, and conventions rather than an OpenCode plugin.
+
+The implementation is intentionally **research-driven**. We should validate the
+operating model with real agents before committing to a large framework.
 
 ## Reading order
 
-1. [Architecture](01-architecture.md) describes the components, roles, and
-   flow of a task.
-2. [Plugin anatomy](02-plugin-anatomy.md) maps Team Mate onto the Effect plugin
-   lifecycle, context domains, and configuration.
-3. [Domain model](03-domain-model.md) defines the persisted types and state
-   machine.
-4. [Tools](04-tools.md) specifies the tools the primary agent calls.
-5. [Orchestration](05-orchestration.md) describes the background engine that
-   delegates, monitors, reviews, and iterates.
-6. [Agents and commands](06-agents-and-commands.md) configures the primary
-   agent, the worker agent, and slash commands.
-7. [Review and approval](07-review-and-approval.md) defines the review protocol,
-   the feedback loop, and the developer approval gate.
-8. [Security and isolation](08-security-and-isolation.md) covers permissions,
-   work isolation, and blast radius.
-9. [Roadmap](09-roadmap.md) phases delivery and lists open questions.
-10. [API mapping](10-api-mapping.md) maps every Team Mate operation to a v2 API
-    call.
+1. [Architecture](01-architecture.md) — the proposed responsibility boundaries
+   between the developer, Team Mate, workers, project context, and Herdr.
+2. [Skill system](02-skill-system.md) — how shared Team Mate skills and
+   project-local skills should compose.
+3. [Agent lifecycle](03-agent-lifecycle.md) — research into creating,
+   monitoring, reviewing, reworking, and stopping agents.
+4. [Multi-project context](04-multi-project-context.md) — isolation and context
+   loading when one Team Mate session works across projects.
+5. [Workflows](05-workflows.md) — reusable delegation, implementation, review,
+   debugging, testing, and investigation workflows.
+6. [Reporting and observability](06-reporting-and-observability.md) — progress,
+   logs, reports, and workflow history.
+7. [Security and boundaries](07-security-and-boundaries.md) — permissions,
+   trust boundaries, and safe autonomous operation.
+8. [R&D roadmap](08-rd-roadmap.md) — experiments, open questions, and proposed
+   milestones.
 
-## Summary
+## Core architecture
 
-Team Mate is a location-scoped OpenCode plugin. It registers a tool namespace
-and two agents, then runs a supervised background engine that:
+```text
+Developer
+    │
+    ▼
+Team Mate
+(primary agent)
+    │
+    ├── Project A ──┬── Agent A1
+    │                └── Agent A2
+    │
+    └── Project B ──┬── Agent B1
+                     └── Agent B2
 
-1. Creates a worker session for each delegated task.
-2. Sends the worker a structured brief.
-3. Watches the worker until it goes idle.
-4. Asks the primary agent to review the result.
-5. Routes review findings back to the worker.
-6. Repeats until the primary agent passes the work.
-7. Presents a report to the developer and waits for a decision.
+Shared Team Mate skills/scripts
+            │
+            ▼
+         Herdr
+      agent runtime
+```
 
-The developer talks to one agent. The plugin coordinates the rest.
+Team Mate decides what work needs to happen and which agents are useful. Herdr
+provides the runtime mechanisms for operating those agents. Project-local
+context defines how work should be performed in each project.
+
+## Responsibility boundaries
+
+### Developer
+
+Defines goals, supplies intent, receives important reports, and makes final
+consequential decisions.
+
+### Team Mate
+
+Understands the goal, plans and delegates work, creates agents, monitors them,
+coordinates reviews and rework, and reports progress and results.
+
+### Worker agents
+
+Execute specialized assignments. They can be implementation agents, reviewers,
+debuggers, testers, investigators, planners, documentation agents, or any
+other role Team Mate determines is useful.
+
+### Herdr
+
+Provides the agent orchestration runtime. Team Mate should use Herdr rather
+than implementing another agent-session runtime.
+
+### Target project
+
+Provides its own `AGENTS.md`, `CONTEXT.md`, skills, scripts, code, and domain
+knowledge.
 
 ## Design principles
 
-- **The primary agent owns the process.** The plugin is deterministic
-  infrastructure; the primary agent makes quality judgments.
-- **The developer owns consequential decisions.** The plugin never merges,
-  commits, or finalizes without an explicit developer decision.
-- **Evidence over claims.** A worker saying "done" moves the task to review, not
-  to approval.
-- **Everything is traceable.** Task state, reviews, findings, feedback, and
-  decisions persist in plugin storage.
+- **One primary agent.** The developer interacts with Team Mate rather than
+  manually coordinating workers.
+- **Dynamic teams.** There is no fixed set of worker agents.
+- **Multiple projects.** A Team Mate session may coordinate independent project
+  contexts.
+- **Shared plus local knowledge.** Team Mate capabilities compose with the
+  target project's capabilities.
+- **Verification.** Agent completion is a signal to inspect the result, not
+  proof that the task is correct.
+- **Observable autonomy.** Important progress, logs, decisions, and outcomes
+  should be available to the developer.
+- **Developer control.** Consequential decisions remain with the developer.
+- **Research before abstraction.** Build only after workflows have been
+  validated through experiments.
 
-## Assumptions
+## What this repository should not become
 
-This design assumes a greenfield repository. It documents API surface from the
-OpenCode v2 documentation as of the linked pages. Where the public Effect
-plugin surface is narrower than the HTTP API, [API mapping](10-api-mapping.md)
-records the gap and a mitigation. Verify signatures against the installed
-`@opencode/plugin` package before implementation.
+At this stage, avoid turning Team Mate into:
+
+- an OpenCode plugin;
+- a replacement for Herdr;
+- a mandatory application or daemon;
+- a fixed collection of predefined agents;
+- a large orchestration framework built before the workflows are understood.
+
+Those may become useful later, but they are not current assumptions.

@@ -1,30 +1,37 @@
 # Next steps
 
-Current state: the plugin implements the full delegate, monitor, review,
-rework, and approve loop in `src/`. Typecheck and the review-gate selfcheck
-pass. `list_tasks` was smoke-tested through the running plugin.
+Current state: Team Mate has moved from an OpenCode-plugin design to a
+Herdr-based primary-agent model. The repository is now focused on R&D,
+reusable skills, scripts, workflows, and project-context conventions.
 
-## 1. Caller-specified worker directory
+## 1. Validate Herdr workflows
 
-`delegate_task` needs an optional `directory`. The orchestrator creates the
-worker session with `session.create({ location: { directory } })`, stores it
-as the task directory, and scopes `vcs.diff` to it. Monitoring stays
-API-based (`session.wait`, `session.get`, `session.context`). Defaults to the
-current project directory when omitted.
+Use a real Team Mate session to create multiple agents, monitor them, collect
+results, and coordinate review/rework.
 
-## 2. Verify in a live OpenCode session
+## 2. Define the first shared skills
 
-Reload the plugin and confirm the `team_mate` tools and the `team-mate` and
-`team-mate-worker` agents resolve. Fix any config key drift against the
-installed release (agents key, permission action names).
+Identify the smallest useful set of Team Mate skills. Start with delegation,
+monitoring, review, and reporting before adding specialized workflows.
 
-## 3. End-to-end smoke test
+## 3. Validate multi-project operation
 
-Delegate a trivial task, let the worker finish, submit a failing review with
-one finding, confirm the worker reworks, then pass and approve. Check the
-timeline in storage covers request to decision.
+Run one Team Mate session against multiple projects. Verify that each worker
+loads the correct `AGENTS.md`, `CONTEXT.md`, local skills, and scripts without
+mixing unrelated project context.
 
-## 4. Continue the roadmap
+## 4. Research reliability
 
-See [implementation/09-roadmap.md](implementation/09-roadmap.md). Hardening
-(recovery, cancellation, limits) comes before per-task worktree isolation.
+Study cancellation, failure recovery, timeouts, blocked agents, orphaned
+agents, and persistent task history.
+
+## 5. Research portability
+
+Validate the operating model across OpenCode, Codex, and Pi where practical.
+Avoid relying on behavior that only one coding-agent environment provides unless
+there is a deliberate compatibility decision.
+
+## 6. Keep implementation minimal
+
+Do not build a dedicated Team Mate runtime until experiments demonstrate that
+skills, scripts, Herdr, and agent instructions are insufficient.
