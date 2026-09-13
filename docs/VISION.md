@@ -12,6 +12,28 @@ Team Mate is not itself an OpenCode plugin. The repository is a collection of
 skills, scripts, workflows, prompts, and documentation that make the Team Mate
 operating model reusable across coding-agent environments.
 
+## Core idea
+
+```mermaid
+flowchart TD
+    D[Developer]
+    TM[Team Mate<br/>Primary Agent]
+
+    D --> TM
+
+    TM --> PA[Project A]
+    TM --> PB[Project B]
+    TM --> PC[Project C]
+
+    PA --> A1[Agent A1]
+    PA --> A2[Agent A2]
+
+    PB --> B1[Agent B1]
+    PB --> B2[Agent B2]
+
+    PC --> C1[Agent C1]
+```
+
 ## The problem
 
 Working with multiple AI coding agents normally makes the developer responsible
