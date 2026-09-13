@@ -37,6 +37,11 @@ shared Team Mate capabilities.
 - `docs/implementation/` — long-term R&D, architecture, experiments, and
   decisions.
 - `docs/NEXT.md` — current research priorities.
+- `src/` — the portable Team Mate overlay. `src/AGENTS.md` defines the role;
+  `src/skills/` holds the skills, `src/scripts/` deterministic helpers,
+  and `src/templates/` the brief and report templates. Skills are installed
+  into the primary's `.agents/skills/`, so the overlay is copied into a primary
+  repository to make it a Team Mate primary.
 
 ## Documentation workflow
 

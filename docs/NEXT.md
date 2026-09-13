@@ -1,37 +1,68 @@
 # Next steps
 
-Current state: Team Mate has moved from an OpenCode-plugin design to a
-Herdr-based primary-agent model. The repository is now focused on R&D,
-reusable skills, scripts, workflows, and project-context conventions.
+Current state: Team Mate is a research-driven coordination layer built on the
+Herdr runtime. The `src/` overlay holds the role definition, skills, scripts,
+and templates. The repository does not commit to a runtime of its own.
 
-## 1. Validate Herdr workflows
+Each phase has a verification gate. Do not start the next phase until the gate
+passes.
 
-Use a real Team Mate session to create multiple agents, monitor them, collect
-results, and coordinate review/rework.
+## Phase 0 — Overlay foundation
 
-## 2. Define the first shared skills
+- Create the `src/` overlay: role `AGENTS.md`, config, skills directory,
+  scripts directory, templates.
+- Keep the authored documentation consistent with the Herdr model.
+- **Gate:** copy the overlay into a scratch repository and confirm a fresh
+  session there self-identifies as Team Mate.
 
-Identify the smallest useful set of Team Mate skills. Start with delegation,
-monitoring, review, and reporting before adding specialized workflows.
+## Phase 1 — Validate the loop by hand
 
-## 3. Validate multi-project operation
+- No persistence. Use the configured `worker_kind`.
+- Run delegate → wait → read → review → feedback → rework → report against a
+  scratch repository.
+- Record what workers actually need to be coordinated successfully.
+- **Gate:** an end-to-end report is produced from real Herdr evidence.
 
-Run one Team Mate session against multiple projects. Verify that each worker
-loads the correct `AGENTS.md`, `CONTEXT.md`, local skills, and scripts without
-mixing unrelated project context.
+## Phase 2 — First skills
 
-## 4. Research reliability
+- Write the smallest useful skills from the phase 1 evidence: `team-mate`,
+  `delegate-task`, `monitor-agents`, `review-work`, `report-progress`, and
+  `multi-project-context`.
+- **Gate:** the loop runs from the skills alone, with no plugin and no edits to
+  the existing `.agents/skills` pack.
 
-Study cancellation, failure recovery, timeouts, blocked agents, orphaned
-agents, and persistent task history.
+## Phase 3 — Deterministic scripts
 
-## 5. Research portability
+- Add Python scripts only for operations that proved awkward or unsafe as
+  prompts. Start with `tm_collect.py`.
+- Add the task ledger (`tm_state.py`, `tm_report.py`) only if persistence is
+  proven necessary.
+- **Gate:** scripts are idempotent, and no prompt duplicates a script.
 
-Validate the operating model across OpenCode, Codex, and Pi where practical.
-Avoid relying on behavior that only one coding-agent environment provides unless
-there is a deliberate compatibility decision.
+## Phase 4 — Multi-project coordination
 
-## 6. Keep implementation minimal
+- Run parallel work across independent projects and Herdr workspaces.
+- **Gate:** no context leaks between projects; each worker gets the correct
+  project context.
 
-Do not build a dedicated Team Mate runtime until experiments demonstrate that
-skills, scripts, Herdr, and agent instructions are insufficient.
+## Phase 5 — Reliability
+
+- Study cancellation, failure recovery, blocked escalation, orphaned agents,
+  and restart recovery.
+- **Gate:** each failure path is tested, not only designed.
+
+## Phase 6 — Portability
+
+- Repeat the loop with a second `worker_kind` such as codex or pi.
+- **Gate:** the same skills and config work across runtimes.
+
+## Open questions
+
+- What is the minimum set of Team Mate skills?
+- How should the overlay be distributed and updated in a project?
+- How should Team Mate identify projects?
+- How much state should be persistent, and where should it live?
+- What should happen when the primary Team Mate session is restarted?
+- How should agents coordinate dependencies?
+- How should cost, latency, and agent count influence delegation?
+- How portable is the model across OpenCode, Codex, Pi, and future agents?
