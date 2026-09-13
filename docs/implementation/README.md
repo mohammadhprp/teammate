@@ -24,9 +24,11 @@ operating model with real agents before committing to a large framework.
    debugging, testing, and investigation workflows.
 6. [Reporting and observability](06-reporting-and-observability.md) — progress,
    logs, reports, and workflow history.
-7. [Security and boundaries](07-security-and-boundaries.md) — permissions,
+7. [Review and approval](07-review-and-approval.md) — evidence, findings,
+   verdicts, rework, and developer approval.
+8. [Security and boundaries](08-security-and-boundaries.md) — permissions,
    trust boundaries, and safe autonomous operation.
-8. [R&D roadmap](08-rd-roadmap.md) — experiments, open questions, and proposed
+9. [R&D roadmap](09-rd-roadmap.md) — experiments, open questions, and proposed
    milestones.
 
 ## Core architecture

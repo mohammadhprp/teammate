@@ -1,14 +1,13 @@
 # Review and approval
 
-Completing a task is not the same as completing it correctly. Review is the
-step that separates the two. This document defines how the primary agent
-reviews worker output, how findings drive rework, and how the developer
-approves the result.
+Completing a task is not the same as completing it correctly. Review separates
+the two. This document defines how the primary agent reviews worker output, how
+findings drive rework, and how the developer approves the result.
 
 ## Review principles
 
 - **Review the work, not the summary.** The worker's report is a claim. The
-  primary agent inspects the repository independently.
+  primary agent inspects the project independently.
 - **Review against criteria.** Every acceptance criterion is checked
   explicitly.
 - **Findings are actionable.** Each finding names the problem, the evidence,
@@ -18,19 +17,16 @@ approves the result.
 
 ## Review trigger
 
-The orchestrator requests review when a worker session becomes idle. The
-request arrives in the primary session as a queued synthetic message. See
-[Orchestration](05-orchestration.md).
+Review starts when a worker settles into `idle` or `done`, as observed through
+Herdr (`herdr agent wait`, `herdr agent list`, `herdr agent get`). The primary
+agent then pulls fresh evidence before deciding anything.
 
-The review request contains:
+Before reviewing, the primary agent assembles:
 
 - The task goal and acceptance criteria.
-- The worker's structured report.
+- The worker's reported result.
 - The changed files and diff stat.
 - The current iteration and limit.
-
-The primary agent pulls fresh evidence with
-`team_mate_get_task({ taskID, detail: "full" })` and inspects files directly.
 
 ## Review checklist
 
@@ -88,20 +84,29 @@ A finding is one observation. Keep findings specific and testable.
 - **`inconclusive`** means the reviewer cannot determine correctness, usually
   because evidence is missing. Escalate to the developer.
 
-The plugin rejects a `pass` verdict with open blocking findings.
+A `pass` verdict must not include open blocker or major findings.
 
 ## Evidence collection
 
 Gather evidence before the verdict. Do not review from memory.
 
-1. Read the diff with `ctx.vcs.diff({ mode: "working", context: 3 })`.
-2. Read the changed files in full, not only the hunks.
-3. Run the relevant tests or checks. Use the project's own commands.
-4. Compare the implementation against each acceptance criterion.
-5. Re-read the original request and constraints.
+1. Read the worker transcript with
+   `herdr agent read <worker> --source recent-unwrapped --lines 120`.
+2. Inspect the project's working copy with its own VCS, for example
+   `git diff` for the full change and `git diff --stat` for the summary.
+3. Read the changed files in full, not only the hunks.
+4. Run the relevant tests or checks using the project's own commands.
+5. Compare the implementation against each acceptance criterion.
+6. Re-read the original request and constraints.
 
-Evidence is captured in the review record as a diff stat and, optionally, a
-stored snapshot for the timeline.
+Evidence is recorded as a diff stat and, where useful, a note of what was run.
+
+## Independent review
+
+For important work, the primary agent may create a separate reviewer agent so
+the worker is not the only judge of its own output. The reviewer receives the
+objective, the acceptance criteria, and the evidence, and returns findings.
+Independent review is optional and should be used when the task warrants it.
 
 ## Feedback loop
 
@@ -115,8 +120,8 @@ Open blocker or major findings?
   └── No  → Ready for approval
 ```
 
-On `fail`, the orchestrator sends only open findings to the worker. Each
-feedback prompt:
+On `fail`, the primary agent sends only the open findings back to the worker.
+Each feedback prompt:
 
 - Lists findings grouped by severity.
 - Names the file and line.
@@ -125,7 +130,8 @@ feedback prompt:
 - Requires the same structured report.
 
 The worker addresses the findings and becomes idle again, which triggers
-another review. The loop continues until a pass, or until the iteration limit.
+another review. The loop continues until a pass, or until the iteration limit
+from `team-mate.toml`.
 
 ## Escalation
 
@@ -142,85 +148,40 @@ decision in prose.
 
 ## Approval
 
-When review passes, the task moves to `ready_for_approval`. The primary agent
-requests approval and presents the report in its own message. The plugin
-returns the assembled report from `team_mate_request_approval` for convenience.
+When review passes, the task is ready for approval. The primary agent presents
+the report in its own message and asks the developer to decide.
 
 ### Report format
 
 The report is the durable, developer-facing summary. It answers the path from
-request to approval.
-
-```markdown
-## Team Mate report: <title>
-
-**Task:** tsk_...
-**Status:** ready for approval
-**Iterations:** 2 of 3
-
-### Requested
-<the original goal and acceptance criteria>
-
-### Implemented
-<what the worker built>
-
-### Changed
-<file list with additions and deletions>
-
-### Reviewed
-<what the primary agent checked and how>
-
-### Issues found and fixed
-- [major] <finding> — fixed in iteration 2
-- [minor] <finding> — fixed
-
-### Remaining concerns
-- [minor] <finding> — accepted, not blocking
-
-### Assessment
-<the primary agent's recommendation and confidence>
-
-### Decision
-Approve, request changes, reject, or finalize.
-```
+request to approval. See `src/templates/report.md`.
 
 ### Decision handling
 
 | Decision | Effect |
 | --- | --- |
-| `approve` | Task is `approved`. No further work. |
-| `request-changes` | Task returns to `rework`. The worker receives the note. |
-| `reject` | Task is `rejected`. Work stops. |
-| `finalize` | Task is `approved`. The primary agent may commit or complete it. |
+| `approve` | Task is approved. No further work. |
+| `request-changes` | Task returns to rework. The worker receives the note. |
+| `reject` | Task is rejected. Work stops. |
+| `finalize` | Task is approved. The primary agent may commit or complete it. |
 
-The plugin records the decision but does not commit, merge, or push. Finalizing
-is a deliberate act by the primary agent with the developer's approval.
+Finalizing is a deliberate act by the primary agent with the developer's
+approval. Team Mate does not commit, merge, or push on its own.
 
 ## Transparency
 
-Every stage writes to the timeline. The developer can reconstruct the entire
-history:
-
-- `task.created` — what the developer asked for.
-- `worker.prompted` — the brief the worker received.
-- `worker.idle` / `worker.failed` — how the worker finished.
-- `review.requested` — when review started.
-- `review.submitted` — the verdict and findings.
-- `feedback.sent` — what was sent back.
-- `approval.requested` — when the report was presented.
-- `decision.recorded` — what the developer chose.
-
-The report is assembled from the timeline and the stored reviews. It is always
-available through `team_mate_get_task`, `/report`, and the primary agent.
+The developer can reconstruct the task from the request, the worker prompts,
+worker state changes, review findings, feedback, the approval request, and the
+recorded decision. Whether this history is persisted, and where, remains an
+R&D topic — see [Reporting and observability](06-reporting-and-observability.md).
 
 ## Review quality safeguards
 
-- **No self-approval.** A worker cannot pass its own work. Only the primary
-  agent submits a review.
+- **No self-approval.** A worker cannot pass its own work.
 - **No rubber stamping.** A pass with zero checks is a process failure. The
-  primary agent must name the checks it ran.
+  reviewer must name the checks it ran.
 - **Bounded loops.** The iteration limit prevents endless rework.
-- **Visible dissent.** `inconclusive` and disputed findings reach the
-  developer instead of being resolved silently.
+- **Visible dissent.** `inconclusive` and disputed findings reach the developer
+  instead of being resolved silently.
 - **Fresh evidence.** Collect evidence at each iteration. Do not reuse a diff
   snapshot from a prior iteration as proof of the current state.
