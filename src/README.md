@@ -24,20 +24,23 @@ src/
 
 ## Install
 
-The easy path is the installer at the repository root. It copies the overlay
-into a primary repository and never overwrites existing files unless `--force`
-is given:
+Run the installer from the repository root. It creates `./teammate`, installs
+the overlay, initializes a git repository, checks for Herdr, and launches
+Herdr:
 
 ```bash
-./install.sh --dir ~/my-primary --kind opencode
+./install.sh --kind opencode
 ```
 
 Or without a local checkout:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh \
-  | sh -s -- --dir ~/my-primary
+  | sh -s -- --kind opencode
 ```
+
+Options: `--dir DIR` (default `./teammate`), `--kind KIND`, `--force`,
+`--no-launch`. Existing files are never overwritten unless `--force` is given.
 
 The installer maps `src/` into the primary:
 

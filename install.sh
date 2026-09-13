@@ -1,21 +1,26 @@
 #!/bin/sh
-# Team Mate installer — copies the Team Mate overlay into a primary repository.
+# Team Mate installer.
+#
+# Creates a primary repository, installs the Team Mate overlay into it, checks
+# for Herdr, and launches Herdr.
 #
 # Usage:
-#   ./install.sh [options] [dir]
+#   ./install.sh [options]
 #
 # One-liner (no local checkout):
-#   curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh | sh -s -- --dir ~/my-primary
+#   curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh | sh -s -- --kind opencode
 
 set -eu
 
 REPO="mohammadhprp/teammate"
 BRANCH="master"
 TARBALL_URL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz"
+HERDR_URL="https://herdr.dev"
 
-DEST="."
+DEST="teammate"
 KIND=""
 FORCE=0
+LAUNCH=1
 
 info() { printf '  %s\n' "$1"; }
 warn() { printf 'warning: %s\n' "$1" >&2; }
@@ -25,20 +30,22 @@ usage() {
   cat <<'EOF'
 Team Mate installer
 
-Installs the Team Mate overlay into a primary repository:
-  src/AGENTS.md       -> <dir>/AGENTS.md
-  src/team-mate.toml  -> <dir>/team-mate.toml
-  src/skills/         -> <dir>/.agents/skills/
-  src/scripts/        -> <dir>/scripts/
-  src/templates/      -> <dir>/templates/
+Creates ./teammate, installs the Team Mate overlay into it, then launches Herdr.
+
+  src/AGENTS.md       -> teammate/AGENTS.md
+  src/team-mate.toml  -> teammate/team-mate.toml
+  src/skills/         -> teammate/.agents/skills/
+  src/scripts/        -> teammate/scripts/
+  src/templates/      -> teammate/templates/
 
 Usage:
-  install.sh [options] [dir]
+  install.sh [options]
 
 Options:
-  -d, --dir DIR    primary repository to install into (default: current dir)
+  -d, --dir DIR    directory to create/use (default: ./teammate)
   -k, --kind KIND  set the default worker_kind (for example: opencode, omp)
   -f, --force      overwrite existing files (keeps a .bak copy)
+      --no-launch  set up only; do not launch Herdr
   -h, --help       show this help
 
 Existing files are not overwritten unless --force is given.
@@ -59,6 +66,10 @@ while [ $# -gt 0 ]; do
       ;;
     -f|--force)
       FORCE=1
+      shift
+      ;;
+    --no-launch)
+      LAUNCH=0
       shift
       ;;
     -h|--help)
@@ -92,10 +103,13 @@ else
   [ -n "$src" ] || die "could not find the overlay in the download"
 fi
 
-[ -d "$DEST" ] || die "target directory does not exist: $DEST"
+# Create the primary repository.
+if [ -e "$DEST" ] && [ ! -d "$DEST" ]; then
+  die "$DEST exists and is not a directory"
+fi
+mkdir -p "$DEST"
 DEST=$(CDPATH= cd -- "$DEST" && pwd)
-
-printf 'Installing Team Mate into %s\n' "$DEST"
+printf 'Setting up Team Mate in %s\n' "$DEST"
 
 install_file() {
   file_src=$1
@@ -139,15 +153,47 @@ if [ -n "$KIND" ] && [ -f "$DEST/team-mate.toml" ]; then
   info "worker_kind -> $KIND"
 fi
 
+# A git repository makes the directory a project root for skill discovery.
+if [ ! -d "$DEST/.git" ] && command -v git >/dev/null 2>&1; then
+  git -C "$DEST" init -q && info "initialized git repository"
+fi
+
+# Check for Herdr before launching.
+if ! command -v herdr >/dev/null 2>&1; then
+  warn "herdr is not installed; Team Mate uses it as its agent runtime"
+  printf '\nInstall Herdr from %s, then re-run this script.\n' "$HERDR_URL"
+  exit 1
+fi
 command -v python3 >/dev/null 2>&1 || warn "python3 not found; the tm CLI needs Python 3"
-command -v herdr >/dev/null 2>&1 || warn "herdr not found; install Herdr and put it on PATH"
-[ "${HERDR_ENV:-}" = "1" ] || warn "not running inside a Herdr pane; start Team Mate from Herdr"
 
-cat <<'EOF'
+label=$(basename -- "$DEST")
 
-Done. Next:
-  1. Open a coding agent in this directory inside Herdr; its AGENTS.md makes it Team Mate.
-  2. Check workers:  python3 scripts/tm.py status
-  3. Record a task:  python3 scripts/tm.py task new --project <name> --title <t> --goal <g> --acceptance <c>
-  4. For accurate worker lifecycle, install the agent integration: herdr integration install <kind>
-EOF
+if [ "$LAUNCH" -ne 1 ]; then
+  printf '\nDone. Start Team Mate with: cd %s && herdr\n' "$DEST"
+  exit 0
+fi
+
+# Already inside Herdr: open the primary workspace instead of nesting a TUI.
+if [ "${HERDR_ENV:-}" = "1" ]; then
+  existing=""
+  if command -v python3 >/dev/null 2>&1; then
+    existing=$(herdr workspace list 2>/dev/null | python3 -c "import sys,json;print(next((w['workspace_id'] for w in json.load(sys.stdin)['result']['workspaces'] if w['label']=='$label'),''))" 2>/dev/null || true)
+  fi
+  if [ -n "$existing" ]; then
+    info "Herdr workspace '$label' already exists ($existing)"
+  else
+    herdr workspace create --cwd "$DEST" --label "$label" --no-focus >/dev/null 2>&1 \
+      && info "created Herdr workspace '$label'" \
+      || warn "could not create the Herdr workspace"
+  fi
+  printf '\nDone. Team Mate is set up in %s.\n' "$DEST"
+  exit 0
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  printf '\nLaunching Herdr in %s ...\n' "$DEST"
+  cd "$DEST"
+  exec herdr
+fi
+
+printf '\nDone. Start Team Mate with: cd %s && herdr\n' "$DEST"
