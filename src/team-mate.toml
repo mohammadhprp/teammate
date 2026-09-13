@@ -1,0 +1,23 @@
+# Team Mate default configuration.
+#
+# Precedence: task override > target project team-mate.toml > this file.
+
+# Coding agent started for workers. Must be a kind recognized by
+# `herdr agent start --kind` (for example: opencode, codex, pi, claude).
+worker_kind = "opencode"
+
+# Workspace where the primary Team Mate agent runs. Each target project gets
+# its own Herdr workspace named after the project, with workers in tabs there.
+primary_workspace = "teammate"
+
+# Maximum worker agents running at once.
+max_concurrent = 3
+
+# Review/rework iterations before escalating to the developer.
+max_iterations = 3
+
+# Independent review policy: "always" | "on-risk" | "never".
+review_policy = "always"
+
+# Desktop notification when work reaches an important state.
+notify = true
