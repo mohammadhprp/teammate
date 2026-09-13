@@ -20,27 +20,29 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 
 
 class HerdrError(RuntimeError):
-    pass
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.code = code
 
 
-def _error_message(stderr, args):
+def _error(stderr, args):
     text = stderr.strip()
     if not text:
-        return f"herdr {' '.join(args)} failed"
+        return HerdrError(f"herdr {' '.join(args)} failed")
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
-        return text
+        return HerdrError(text)
     error = payload.get("error") if isinstance(payload, dict) else None
-    if isinstance(error, dict) and error.get("message"):
-        return error["message"]
-    return text
+    if isinstance(error, dict):
+        return HerdrError(error.get("message") or text, error.get("code"))
+    return HerdrError(text)
 
 
 def _run(args):
     proc = subprocess.run([HERDR, *args], capture_output=True, text=True)
     if proc.returncode != 0:
-        raise HerdrError(_error_message(proc.stderr, args))
+        raise _error(proc.stderr, args)
     return proc.stdout
 
 
@@ -176,7 +178,19 @@ def cmd_send(args):
         call.append("--wait")
     if args.timeout:
         call += ["--timeout", str(args.timeout)]
-    state = result(herdr(*call)).get("agent", {}).get("agent_status", "sent")
+    try:
+        payload = result(herdr(*call))
+    except HerdrError as exc:
+        if args.wait and exc.code == "agent_prompt_stalled":
+            print(
+                "prompt delivered but the agent reported no working state; "
+                "install its Herdr integration or poll with `tm status`",
+                file=sys.stderr,
+            )
+            print(f"{args.name}\tunconfirmed")
+            return
+        raise
+    state = payload.get("agent", {}).get("agent_status", "sent")
     print(f"{args.name}\t{state}")
 
 

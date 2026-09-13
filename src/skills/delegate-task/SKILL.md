@@ -13,7 +13,9 @@ control to the loop. Use the `tm` CLI so output stays concise.
 - Project root (`cwd`).
 - Goal and acceptance criteria (at least one).
 - Constraints.
-- Worker kind: `worker_kind` from `team-mate.toml`, or a task override.
+- Worker kind: `worker_kind` from `team-mate.toml`, or a task override. Any
+  kind accepted by `herdr agent start --kind` is supported; `tm` does not
+  restrict the list.
 - Worker name: unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`.
 
 ## Procedure
@@ -40,8 +42,12 @@ control to the loop. Use the `tm` CLI so output stays concise.
    python3 scripts/tm.py send "<name>" --brief "<brief-file>" --wait --timeout <ms>
    ```
 
-   Output is one line: `<name> <state>`. Use `--wait` for serial work. For
-   parallel work, omit it and track the worker with `monitor-agents`.
+   Output is one line: `<name> <state>`. Use `--wait` for serial work. If it
+   prints `<name> unconfirmed`, the prompt was delivered but the agent did not
+   report a working state; do not resend it — poll with `monitor-agents` and
+   confirm completion from evidence. For reliable lifecycle states, the worker
+   kind needs its Herdr integration (`herdr integration install <kind>`). For
+   parallel work, omit `--wait` and track the worker with `monitor-agents`.
 
 4. **Record** the worker name, project root, and tab for the task.
 

@@ -17,6 +17,17 @@ Use the `tm` CLI; it prints one line per check.
 | `blocked` | Herdr recognized an approval or question dialog waiting on input. |
 | `unknown` | Present but unclassified. **Unresolved, never success.** |
 
+## Agents without an integration
+
+Herdr classifies an agent from screen detection plus an optional integration.
+When a worker kind has no integration installed (`herdr integration status`),
+Herdr may report `idle` while the agent is actually working, so `wait` can
+return too early.
+
+- Install it when practical: `herdr integration install <kind>`.
+- Otherwise do not trust `idle` alone. Confirm completion from evidence:
+  `tm diff`, the project's tests, and `tm report`.
+
 ## Procedure
 
 1. **Wait for settle (serial).**

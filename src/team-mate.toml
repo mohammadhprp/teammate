@@ -2,8 +2,9 @@
 #
 # Precedence: task override > target project team-mate.toml > this file.
 
-# Coding agent started for workers. Must be a kind recognized by
-# `herdr agent start --kind` (for example: opencode, codex, pi, claude).
+# Worker coding agent. Any kind supported by `herdr agent start --kind`
+# (for example: omp, pi, claude, codex, opencode, gemini, cursor, droid, amp,
+# grok). Run `herdr agent` for the live list. Per-task override wins.
 worker_kind = "opencode"
 
 # Workspace where the primary Team Mate agent runs. Each target project gets
