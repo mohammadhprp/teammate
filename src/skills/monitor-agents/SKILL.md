@@ -53,7 +53,8 @@ return too early.
    python3 scripts/tm.py report "<name>" --lines 300
    ```
 
-   Use a generous `--lines`; too few truncates the final report.
+   Use a generous `--lines`; too few truncates the final report. Record the
+   settle with `tm task update <id> --status awaiting_review`.
 
 4. **Handle `blocked`.** Read the dialog, then escalate to the developer with
    the question. Do not answer it for the worker.

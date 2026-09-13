@@ -23,6 +23,26 @@ you may act directly.
   tab.
 - The `herdr` skill for raw runtime control when the CLI is not enough.
 
+## Task ledger
+
+Task state is persisted under `~/.teammate/` (from `state_dir` in
+`team-mate.toml`), shared across projects, so it survives the primary session
+ending or compacting. Use it for every delegated task:
+
+```bash
+tm task new --project <name> --title <t> --goal <g> --acceptance <c> [--acceptance <c>...]
+tm spawn --cwd <root> --project <name> --name <worker> --task <id>
+tm task list [--status <s>]
+tm task show <id>
+tm task find --worker <worker>
+tm task update <id> --status <s> [--iteration N] [--report-file <f>]
+```
+
+Statuses: `planned`, `working`, `awaiting_review`, `rework`,
+`ready_for_approval`, `approved`, `rejected`, `failed`, `cancelled`.
+
+After a restart, recover with `tm task list` and `tm task find --worker <name>`.
+
 ## Procedure
 
 1. **Understand.** Restate the goal and derive explicit, testable acceptance
@@ -33,14 +53,16 @@ you may act directly.
 3. **Plan.** Choose the smallest useful team. Use one worker for a single
    coherent change; add parallel workers only for independent work. Respect
    `max_concurrent`.
-4. **Delegate.** Follow `delegate-task` for each worker.
-5. **Monitor.** Follow `monitor-agents` until each worker settles.
-6. **Review.** Follow `review-work`. Verify evidence; do not trust the report.
-7. **Rework.** If blocking findings exist, send them to the same worker and
+4. **Record.** Create a ledger task with `tm task new` and keep its id.
+5. **Delegate.** Follow `delegate-task`; link the worker with `--task <id>`.
+6. **Monitor.** Follow `monitor-agents` until each worker settles.
+7. **Review.** Follow `review-work`. Verify evidence; do not trust the report.
+   Record the verdict with `tm task update`.
+8. **Rework.** If blocking findings exist, send them to the same worker and
    repeat monitor → review. Stop at `max_iterations` and escalate.
-8. **Report.** Follow `report-progress` and ask the developer to decide.
-9. **Finish.** On approval, complete or commit only with the developer's
-   approval, then stop or release the workers.
+9. **Report.** Follow `report-progress` and ask the developer to decide.
+10. **Finish.** On approval, set the task `approved` or `rejected`, complete or
+    commit only with the developer's approval, then stop the workers.
 
 ## Output
 

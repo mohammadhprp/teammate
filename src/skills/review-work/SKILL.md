@@ -48,6 +48,9 @@ Categories: `bug`, `missing-requirement`, `incorrect-behavior`, `regression`,
 - **fail** — at least one open `blocker`/`major`.
 - **inconclusive** — correctness cannot be determined; escalate.
 
+Record the result with
+`tm task update <id> --status ready_for_approval|rework|rejected [--report-file <f>]`.
+
 ## Rework
 
 On `fail`, send only the open findings to the same worker: grouped by severity,

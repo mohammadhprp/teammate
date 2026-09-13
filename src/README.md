@@ -16,8 +16,9 @@ src/
   skills/              # Team Mate skills:
                        #   team-mate, delegate-task, monitor-agents,
                        #   review-work, report-progress, multi-project-context
-  scripts/             # deterministic Python helpers:
+  scripts/             # Python helpers:
                        #   tm.py — low-noise Herdr wrapper (workers in tabs)
+                       #   task_store.py — file-backed task ledger (~/.teammate)
   templates/           # worker brief and developer report templates
 ```
 

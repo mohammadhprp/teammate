@@ -11,6 +11,10 @@ worker_kind = "opencode"
 # its own Herdr workspace named after the project, with workers in tabs there.
 primary_workspace = "teammate"
 
+# Directory for the persistent task ledger. Shared across projects and
+# survives the primary session ending.
+state_dir = "~/.teammate"
+
 # Maximum worker agents running at once.
 max_concurrent = 3
 

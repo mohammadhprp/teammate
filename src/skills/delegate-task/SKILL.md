@@ -22,10 +22,11 @@ control to the loop. Use the `tm` CLI so output stays concise.
 
 1. **Spawn the worker.** This reuses (or creates) the Herdr workspace named
    after the project and starts the agent in a new tab there. It does not
-   change the developer's focus.
+   change the developer's focus. Pass the ledger task id so the worker and
+   workspace are linked to it.
 
    ```bash
-   python3 scripts/tm.py spawn --cwd "<project-root>" --project "<project>" --name "<name>"
+   python3 scripts/tm.py spawn --cwd "<project-root>" --project "<project>" --name "<name>" --task "<id>"
    ```
 
    Output is one line: `<name> <state> <project> <workspace> <tab>`.

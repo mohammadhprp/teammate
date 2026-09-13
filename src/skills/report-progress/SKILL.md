@@ -18,9 +18,11 @@ Do not report routine worker activity.
 
 ## Procedure
 
-1. Assemble the report from `report.md`: task id, status, iterations,
-   requested, implemented, changed, reviewed, issues found and fixed, remaining
-   concerns, assessment, decision.
+1. Assemble the report from `report.md`. Pull the persisted task with
+   `tm task show <id>` so the report reflects the recorded goal, criteria,
+   iteration, and report rather than memory. It provides: task id, status,
+   iterations, requested, implemented, changed, reviewed, issues found and
+   fixed, remaining concerns, assessment, decision.
 2. Back every claim with evidence: diff stat, files, commands run, results.
 3. State remaining concerns honestly, including accepted minor findings.
 4. If `notify` is true in `team-mate.toml`, raise a desktop notification:

@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+import task_store
+
 HERDR = os.environ.get("TM_HERDR", "herdr")
 NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 
@@ -164,6 +166,19 @@ def cmd_spawn(args):
             pass
         raise HerdrError(f"could not start {name} in {cwd}")
 
+    if args.task:
+        task_store.update(
+            args.state_dir,
+            args.task,
+            worker=name,
+            status="working",
+            root=cwd,
+            workspace=workspace,
+        )
+        task_store.append_event(
+            args.state_dir, args.task, "worker.spawned", f"{name} in {project}"
+        )
+
     print(f"{name}\t{started.get('agent_status', '?')}\t{project}\t{workspace}\t{tab}")
 
 
@@ -257,6 +272,84 @@ def cmd_notify(args):
     print("notified")
 
 
+def _render_task(task):
+    lines = [
+        f"Task: {task['id']}",
+        f"Title: {task['title']}",
+        f"Status: {task['status']}",
+        f"Project: {task['project']} ({task.get('root') or '?'})",
+        f"Worker: {task.get('worker') or '-'} ({task.get('workspace') or '-'})",
+        f"Iteration: {task['iteration']} of {task['max_iterations']}",
+        "Goal:",
+        f"  {task['goal']}",
+        "Acceptance:",
+    ]
+    lines += [f"  {i}. {c}" for i, c in enumerate(task["acceptance"], 1)]
+    if task.get("constraints"):
+        lines.append("Constraints:")
+        lines += [f"  - {c}" for c in task["constraints"]]
+    lines.append(f"Findings: {len(task.get('findings') or [])}")
+    if task.get("report"):
+        lines += ["Report:", task["report"]]
+    return "\n".join(lines)
+
+
+def cmd_task_new(args):
+    task = task_store.create(
+        args.state_dir,
+        args.project,
+        args.title,
+        args.goal,
+        args.acceptance,
+        args.constraint,
+        args.worker,
+        args.max_iterations,
+    )
+    print(task["id"])
+
+
+def cmd_task_list(args):
+    tasks = task_store.list_tasks(args.state_dir, args.status)
+    if not tasks:
+        print("no tasks")
+        return
+    for task in tasks:
+        print(
+            f"{task['id']}\t{task['status']}\t{task['project']}\t"
+            f"i{task['iteration']}/{task['max_iterations']}\t"
+            f"{task.get('worker') or '-'}\t{task['title']}"
+        )
+
+
+def cmd_task_show(args):
+    print(_render_task(task_store.load(args.state_dir, args.id)))
+
+
+def cmd_task_find(args):
+    task = task_store.find_by_worker(args.state_dir, args.worker)
+    if not task:
+        raise HerdrError(f"no task for worker {args.worker}")
+    print(f"{task['id']}\t{task['status']}\t{task['title']}")
+
+
+def cmd_task_update(args):
+    fields = {}
+    if args.status:
+        fields["status"] = args.status
+    if args.iteration is not None:
+        fields["iteration"] = args.iteration
+    if args.report_file:
+        with open(args.report_file) as fh:
+            fields["report"] = fh.read()
+    if args.note:
+        fields["note"] = args.note
+    task = task_store.update(args.state_dir, args.id, **fields)
+    task_store.append_event(
+        args.state_dir, task["id"], "task.updated", f"status={task['status']}"
+    )
+    print(f"{task['id']}\t{task['status']}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="tm", description="Team Mate: low-noise Herdr wrapper"
@@ -266,6 +359,11 @@ def build_parser():
         default="team-mate.toml",
         help="config file (default: team-mate.toml)",
     )
+    parser.add_argument(
+        "--state-dir",
+        default=None,
+        help="task ledger directory (default: state_dir from config, else .teammate)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("spawn", help="start a worker in its project workspace")
@@ -274,6 +372,7 @@ def build_parser():
     p.add_argument("--kind", help="agent kind (default from config)")
     p.add_argument("--name", help="worker name")
     p.add_argument("--label", help="tab label (default: worker name)")
+    p.add_argument("--task", help="link the worker to a task id")
     p.set_defaults(func=cmd_spawn)
 
     p = sub.add_parser("send", help="prompt a worker with a brief")
@@ -318,14 +417,51 @@ def build_parser():
     p.add_argument("--sound", choices=["none", "done", "request"])
     p.set_defaults(func=cmd_notify)
 
+    p = sub.add_parser("task", help="manage the persistent task ledger")
+    actions = p.add_subparsers(dest="action", required=True)
+
+    a = actions.add_parser("new", help="record a task before delegating")
+    a.add_argument("--project", required=True)
+    a.add_argument("--title", required=True)
+    a.add_argument("--goal", required=True)
+    a.add_argument("--acceptance", action="append", required=True)
+    a.add_argument("--constraint", action="append")
+    a.add_argument("--worker")
+    a.add_argument("--max-iterations", type=int, default=3)
+    a.set_defaults(func=cmd_task_new)
+
+    a = actions.add_parser("list", help="list tasks")
+    a.add_argument("--status", choices=list(task_store.STATUSES))
+    a.set_defaults(func=cmd_task_list)
+
+    a = actions.add_parser("show", help="show one task")
+    a.add_argument("id")
+    a.set_defaults(func=cmd_task_show)
+
+    a = actions.add_parser("find", help="find the task for a worker")
+    a.add_argument("--worker", required=True)
+    a.set_defaults(func=cmd_task_find)
+
+    a = actions.add_parser("update", help="record task progress")
+    a.add_argument("id")
+    a.add_argument("--status", choices=list(task_store.STATUSES))
+    a.add_argument("--iteration", type=int)
+    a.add_argument("--report-file")
+    a.add_argument("--note")
+    a.set_defaults(func=cmd_task_update)
+
     return parser
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    config = load_config(args.config)
+    args.state_dir = os.path.expanduser(
+        args.state_dir or config.get("state_dir", "~/.teammate")
+    )
     try:
         args.func(args)
-    except HerdrError as exc:
+    except (HerdrError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 0
