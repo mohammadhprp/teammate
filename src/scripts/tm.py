@@ -23,10 +23,24 @@ class HerdrError(RuntimeError):
     pass
 
 
+def _error_message(stderr, args):
+    text = stderr.strip()
+    if not text:
+        return f"herdr {' '.join(args)} failed"
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if isinstance(error, dict) and error.get("message"):
+        return error["message"]
+    return text
+
+
 def _run(args):
     proc = subprocess.run([HERDR, *args], capture_output=True, text=True)
     if proc.returncode != 0:
-        raise HerdrError(proc.stderr.strip() or f"herdr {' '.join(args)} failed")
+        raise HerdrError(_error_message(proc.stderr, args))
     return proc.stdout
 
 
@@ -142,6 +156,10 @@ def cmd_spawn(args):
         except HerdrError:
             time.sleep(1)
     if not started:
+        try:
+            herdr("tab", "close", tab)
+        except HerdrError:
+            pass
         raise HerdrError(f"could not start {name} in {cwd}")
 
     print(f"{name}\t{started.get('agent_status', '?')}\t{project}\t{workspace}\t{tab}")
