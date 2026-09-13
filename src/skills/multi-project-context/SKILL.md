@@ -1,12 +1,21 @@
 ---
 name: multi-project-context
-description: "Resolve which project a task belongs to and keep project context isolated when one primary agent works across several projects. Use whenever a request names or spans multiple projects."
+description: "Resolve which project a task belongs to and keep project context isolated across projects, including the workspace-per-project model and context precedence. Use when a request names or spans multiple projects."
 ---
 
 # Multi-project context
 
 One primary agent may coordinate several independent projects. Context must not
 leak between them.
+
+## When to use
+
+- A request names a project, or several projects.
+- A task spans repositories, or workers from different projects run at once.
+
+## When not to use
+
+- A single-project task with an unambiguous root.
 
 ## Workspace model
 
@@ -28,8 +37,8 @@ leak between them.
 
 - A worker receives only its own project's `AGENTS.md`, `CONTEXT.md`, skills,
   scripts, and documentation.
-- The worker's tab is created with `--cwd` set to the project root. Do not
-  reuse a tab from another project for a different project's work.
+- The worker's tab is created with `--cwd` set to the project root. Do not reuse
+  a tab from another project for a different project's work.
 - Never pass one project's files, secrets, or context into another project's
   worker.
 
@@ -47,7 +56,7 @@ When instructions conflict, apply:
 A task may touch several projects, but each worker still has one project scope.
 State explicitly which repositories a cross-project worker may modify.
 
-## Escalate
+## Failure and escalation
 
 Confirm with the developer when a project is ambiguous, when a task would touch
 repositories outside the stated scope, or when context would have to cross a

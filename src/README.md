@@ -24,19 +24,32 @@ src/
 
 ## Install
 
-Copy the overlay into the primary repository. Skills live at `src/skills/` in
-the source and are installed into the primary's `.agents/skills/`:
+The easy path is the installer at the repository root. It copies the overlay
+into a primary repository and never overwrites existing files unless `--force`
+is given:
 
 ```bash
-mkdir -p <primary>/.agents/skills <primary>/scripts <primary>/templates
-cp    src/AGENTS.md      <primary>/AGENTS.md
-cp    src/team-mate.toml <primary>/team-mate.toml
-cp -R src/skills/.       <primary>/.agents/skills/
-cp -R src/scripts/.      <primary>/scripts/
-cp -R src/templates/.    <primary>/templates/
+./install.sh --dir ~/my-primary --kind opencode
 ```
 
-Do not copy this `README.md`. Target projects are separate: they keep their own
+Or without a local checkout:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh \
+  | sh -s -- --dir ~/my-primary
+```
+
+The installer maps `src/` into the primary:
+
+```text
+src/AGENTS.md       -> <primary>/AGENTS.md
+src/team-mate.toml  -> <primary>/team-mate.toml
+src/skills/         -> <primary>/.agents/skills/
+src/scripts/        -> <primary>/scripts/
+src/templates/      -> <primary>/templates/
+```
+
+Do not copy `src/README.md`. Target projects are separate: they keep their own
 `AGENTS.md` and `CONTEXT.md`, which workers read instead of inheriting the
 primary's.
 

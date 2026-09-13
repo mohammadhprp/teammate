@@ -1,12 +1,22 @@
 ---
 name: monitor-agents
-description: "Track worker agent lifecycle and collect evidence: wait for settle, interpret idle/done/working/blocked/unknown, detect stuck or orphaned agents, cancel safely. Use after delegating work and before reviewing it."
+description: "Track worker lifecycle and collect evidence until settle: interpret idle/done/working/blocked/unknown, detect stuck or orphaned agents, and cancel safely. Use after delegating work and before reviewing it."
 ---
 
 # Monitor agents
 
 Track each worker until it settles, and collect the state needed to review it.
 Use the `tm` CLI; it prints one line per check.
+
+## When to use
+
+- After delegating a task, to wait for the worker.
+- When the developer asks what a worker is doing, or a worker seems stalled.
+
+## When not to use
+
+- Once a worker has settled and you already have its report: move to
+  `review-work`.
 
 ## States
 
@@ -73,11 +83,11 @@ return too early.
    python3 scripts/tm.py stop "<name>"
    ```
 
-   This interrupts the worker and closes its tab. Use `--keep-tab` to keep the
-   tab open.
+   Interrupts the worker and closes its tab. Use `--keep-tab` to keep the tab.
 
 7. **Orphans.** A worker recorded for a task but absent from `tm status` is
-   orphaned. Mark the task failed and escalate.
+   orphaned; `tm status <name>` reports `agent target <name> not found`. Mark
+   the task `failed` and escalate.
 
 ## Output
 
