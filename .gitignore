@@ -3,3 +3,4 @@ bun.lock
 bun.lockb
 *.tsbuildinfo
 .DS_Store
+.opencode
