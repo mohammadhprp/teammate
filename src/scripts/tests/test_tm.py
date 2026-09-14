@@ -226,6 +226,71 @@ class TaskCommandsTest(unittest.TestCase):
                 )
             )
 
+    def add_blocking(self):
+        task_store.record_findings(
+            self.state, self.task["id"], [{"title": "broken", "severity": "major"}]
+        )
+
+    def test_pass_is_refused_while_blocking_findings_are_open(self):
+        self.add_blocking()
+
+        with self.assertRaises(tm.HerdrError):
+            tm.cmd_task_update(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    status="ready_for_approval",
+                    iteration=None,
+                    report_file=None,
+                    note=None,
+                )
+            )
+
+    def test_resolve_then_pass_is_allowed(self):
+        self.add_blocking()
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_resolve(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    all=True,
+                    finding=None,
+                    status=None,
+                )
+            )
+        self.assertIn("pass", buf.getvalue())
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_task_update(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    status="ready_for_approval",
+                    iteration=None,
+                    report_file=None,
+                    note=None,
+                )
+            )
+        self.assertEqual(
+            task_store.load(self.state, self.task["id"])["status"],
+            "ready_for_approval",
+        )
+
+    def test_finalize_is_refused_while_blocking_findings_are_open(self):
+        self.add_blocking()
+
+        with self.assertRaises(tm.HerdrError):
+            tm.cmd_task_decide(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    decision="finalize",
+                    note=None,
+                )
+            )
+
     def test_review_events_are_appended(self):
         path = os.path.join(self.state, "findings.json")
         with open(path, "w") as fh:

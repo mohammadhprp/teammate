@@ -57,7 +57,13 @@ instead of re-deriving it here.
    ```
 
    `task show` renders the verdict and the open findings, so a resumed primary
-   reads the same state the reviewer recorded.
+   reads the same state the reviewer recorded. On a pass, first close the
+   findings that now hold — `task update` and `task decide` refuse a pass while
+   an open `blocker`/`major` remains:
+
+   ```bash
+   python3 scripts/tm.py task resolve <id> --all      # findings fixed or accepted
+   ```
 
 4. **Drive rework.** On `fail`, follow `run-rework` to send the open findings
    back and repeat monitor → review until it converges or `max_iterations` is

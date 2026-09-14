@@ -200,6 +200,21 @@ def record_findings(state_dir, task_id, findings):
     return save(state_dir, task)
 
 
+def resolve_findings(state_dir, task_id, indexes=None, status="resolved"):
+    """Close findings after they are fixed or accepted.
+
+    ``indexes`` is 0-based; ``None`` closes every finding.
+    """
+    task = load(state_dir, task_id)
+    findings = task.get("findings") or []
+    chosen = range(len(findings)) if indexes is None else indexes
+    for index in chosen:
+        if 0 <= index < len(findings):
+            findings[index]["status"] = status
+    task["findings"] = findings
+    return save(state_dir, task)
+
+
 def count_findings(task, status=None, severities=None):
     count = 0
     for finding in task.get("findings") or []:

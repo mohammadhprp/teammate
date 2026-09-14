@@ -494,7 +494,18 @@ def cmd_task_find(args):
     print(f"{task['id']}\t{task['status']}\t{task['title']}")
 
 
+def _require_no_open_blocking(state_dir, task_id):
+    task = task_store.load(state_dir, task_id)
+    blocking = task_store.count_findings(task, "open", task_store.BLOCKING_SEVERITIES)
+    if blocking:
+        raise HerdrError(
+            f"{blocking} open blocker/major finding(s); resolve them before a pass"
+        )
+
+
 def cmd_task_update(args):
+    if args.status in ("ready_for_approval", "approved"):
+        _require_no_open_blocking(args.state_dir, args.id)
     fields = {}
     if args.status:
         fields["status"] = args.status
@@ -532,9 +543,25 @@ def cmd_task_findings(args):
     print(f"{task['id']}\t{len(task['findings'])}\t{task_store.verdict(task)}")
 
 
+def cmd_task_resolve(args):
+    if not args.all and not args.finding:
+        raise ValueError("pass --all or --finding N")
+    status = args.status or "resolved"
+    if status not in task_store.FINDING_STATUSES:
+        raise ValueError(f"invalid finding status: {status}")
+    indexes = None if args.all else [i - 1 for i in args.finding]
+    task = task_store.resolve_findings(args.state_dir, args.id, indexes, status)
+    task_store.append_event(
+        args.state_dir, task["id"], "review.findings", f"findings -> {status}"
+    )
+    print(f"{task['id']}\t{task_store.verdict(task)}")
+
+
 def cmd_task_decide(args):
     if args.decision not in DECISIONS:
         raise ValueError(f"unknown decision: {args.decision}")
+    if args.decision in ("approve", "finalize"):
+        _require_no_open_blocking(args.state_dir, args.id)
     status = DECISIONS[args.decision]
     fields = {"decision": args.decision, "status": status}
     if args.note:
@@ -658,6 +685,15 @@ def build_parser():
         help="JSON findings file (array or object), or - for stdin",
     )
     a.set_defaults(func=cmd_task_findings)
+
+    a = actions.add_parser("resolve", help="close fixed or accepted findings")
+    a.add_argument("id")
+    a.add_argument(
+        "--finding", type=int, action="append", help="1-based finding number"
+    )
+    a.add_argument("--all", action="store_true", help="close every finding")
+    a.add_argument("--status", choices=list(task_store.FINDING_STATUSES))
+    a.set_defaults(func=cmd_task_resolve)
 
     a = actions.add_parser("decide", help="record the developer's decision")
     a.add_argument("id")

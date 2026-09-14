@@ -139,6 +139,19 @@ class FindingsTest(unittest.TestCase):
 
         self.assertEqual(task_store.verdict(task), "pass")
 
+    def test_resolve_findings_closes_all_or_selected(self):
+        self.add(title="one", severity="major")
+        self.add(title="two", severity="major")
+
+        task = task_store.resolve_findings(self.state, self.task["id"], indexes=[0])
+
+        self.assertEqual(task["findings"][0]["status"], "resolved")
+        self.assertEqual(task["findings"][1]["status"], "open")
+        self.assertEqual(task_store.verdict(task), "fail")
+
+        task = task_store.resolve_findings(self.state, self.task["id"])
+        self.assertEqual(task_store.verdict(task), "pass")
+
 
 if __name__ == "__main__":
     unittest.main()
