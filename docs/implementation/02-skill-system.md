@@ -3,6 +3,9 @@
 Team Mate should be built primarily from reusable skills and scripts rather than
 from a large application runtime.
 
+The concrete library — categorized as common, teammate, and worker skills, with
+a per-skill specification — is planned in [Skills plan](10-skills-plan.md).
+
 ## Two skill layers
 
 ### Team Mate skills
