@@ -106,7 +106,8 @@ python3 -m unittest discover -s src/scripts/tests -t src/scripts
 
 ## Status
 
-Phases 0–3 validated: the overlay installs, a fresh session assumes the Team
-Mate role, the skills are discovered, and the `tm` CLI drives a worker through
-delegate → monitor → review → rework on a real Herdr session. Multi-project,
-reliability, and portability remain — see `docs/NEXT.md`.
+Validated on live Herdr sessions: skills distribute into target projects (0), a
+worker completes and reports from the skills alone (1), the `tm` fixes are
+tested (3), and parallel workers stay isolated across projects (4). Independent
+rework (2), reliability (5), and full portability (6) are partial — see
+`docs/NEXT.md`.
