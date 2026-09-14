@@ -106,8 +106,8 @@ python3 -m unittest discover -s src/scripts/tests -t src/scripts
 
 ## Status
 
-Validated on live Herdr sessions: skills distribute into target projects (0), a
-worker completes and reports from the skills alone (1), the `tm` fixes are
-tested (3), and parallel workers stay isolated across projects (4). Independent
-rework (2), reliability (5), and full portability (6) are partial — see
-`docs/NEXT.md`.
+Validated on live Herdr sessions: skills distribute into target projects, a
+worker completes and reports from the skills alone, fail → rework → pass
+converges, parallel projects stay isolated, a running worker can be cancelled,
+and the same skills run on a second kind (`omp`). Blocked-worker escalation and
+a true mid-run primary restart remain — see `docs/NEXT.md`.

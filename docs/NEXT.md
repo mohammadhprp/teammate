@@ -3,42 +3,37 @@
 Current state: The skill library is complete — 28 skills in `src/skills/` across
 common (7), teammate (13), and worker (8) — plus `scripts/tm.py`,
 `scripts/task_store.py`, the templates, and a 23-test suite. Skill distribution
-to target projects works, and the loop has run on live Herdr sessions with both
-opencode and `omp`. What follows is what is left.
+to target projects works. The loop has run live on opencode and `omp` (whose
+Herdr integration is now installed, so `send --wait` is reliable): delegate →
+build → verify → report, fail → rework → pass, parallel projects, cancellation,
+and orphan reconciliation all pass. What follows is what is left.
 
-Each phase has a verification gate. A phase is done only when its gate passes on
-a real run.
+Each item has a verification gate. It is done only when the gate passes on a
+real run.
 
-## Phase 2 — Independent review, rework, recovery (remaining)
+## Blocked-worker escalation (Phase 2/5)
 
-- Exercised live: a failed review → `run-rework` sends only the open finding →
-  the worker fixes it → re-review passes.
-- Remaining: a blocked worker's escalation, and a primary restart mid-run.
-- **Gate:** fail → rework → pass converges or escalates; recovery reconciles the
-  ledger without re-sending a delivered prompt.
+- A worker that hits a Herdr approval or question dialog must pause the primary
+  and reach the developer as one clear question.
+- Not yet induced: a worker asked in text reports `idle`, not `blocked`; the
+  state needs a real permission dialog. Reproduce one and confirm the primary
+  detects it.
+- **Gate:** the primary reads the dialog and escalates without answering it
+  itself.
 
-## Phase 5 — Reliability (remaining)
+## Mid-run primary restart (Phase 2/5)
 
-- Exercised live: an orphaned worker (`status` errors, its task still `working`)
-  is detected and reconciled to `failed`.
-- Remaining: a `blocked` worker, a mid-run primary restart, and cancelling a
-  still-running worker.
-- **Gate:** each failure path is tested, not only designed.
-
-## Phase 6 — Portability (remaining)
-
-- Exercised live: `omp` discovered and read the same distributed skills and
-  completed the same task.
-- Remaining: without `herdr integration install omp`, `send --wait` returns
-  `unconfirmed`; install the integration (or keep polling `status`, as
-  `monitor-agents` already says).
-- **Gate:** the same skills and config work across runtimes without
-  special-casing.
+- Ledger reconstruction is validated: a fresh process lists the active task and
+  `task find --worker` resolves it.
+- Not yet done: an actual mid-run kill of the primary process, then
+  `recover-run` resuming or re-delegating what was lost.
+- **Gate:** recovery reconciles the ledger and never re-sends a prompt that may
+  already have been delivered.
 
 ## Known gaps
 
-- Blocked escalation and a mid-run primary restart are not yet exercised
-  (Phase 2/5).
+- Blocked detection and a true mid-run kill are the only reliability paths not
+  yet exercised.
 - `tm diff` lists an untracked file but not its contents; the reviewer reads it.
 - The library is larger than the validated set; trim skills no run uses.
 - Reviewer workers are intentionally unledgered; `task-ledger` documents this
