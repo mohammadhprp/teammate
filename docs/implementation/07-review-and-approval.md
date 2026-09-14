@@ -18,8 +18,8 @@ findings drive rework, and how the developer approves the result.
 ## Review trigger
 
 Review starts when a worker settles into `idle` or `done`, as observed through
-Herdr (`herdr agent wait`, `herdr agent list`, `herdr agent get`). The primary
-agent then pulls fresh evidence before deciding anything.
+the `tm` CLI (`tm wait`, `tm status`). The primary agent then pulls fresh
+evidence before deciding anything.
 
 Before reviewing, the primary agent assembles:
 
@@ -31,7 +31,8 @@ Before reviewing, the primary agent assembles:
 ## Review checklist
 
 The primary agent checks each dimension and records findings. The categories
-map to the `FindingCategory` enum.
+are the `FINDING_CATEGORIES` set in `scripts/task_store.py`, mirrored in
+`src/skills/review-change/references/findings.md`.
 
 | Category | Checks |
 | --- | --- |
@@ -52,7 +53,11 @@ The review must also consider:
 
 ## Findings
 
-A finding is one observation. Keep findings specific and testable.
+A finding is one observation. Keep findings specific and testable. Findings are
+recorded on the task as data with
+`python3 scripts/tm.py task findings <id> --file <findings.json>` (an object or
+an array); `task show` renders the verdict and the open findings. The verdict is
+derived — `fail` when an open `blocker`/`major` exists, otherwise `pass`.
 
 ```json
 {
@@ -91,9 +96,11 @@ A `pass` verdict must not include open blocker or major findings.
 Gather evidence before the verdict. Do not review from memory.
 
 1. Read the worker transcript with
-   `herdr agent read <worker> --source recent-unwrapped --lines 120`.
-2. Inspect the project's working copy with its own VCS, for example
-   `git diff` for the full change and `git diff --stat` for the summary.
+   `python3 scripts/tm.py report <worker> --lines 300`.
+2. Inspect the project's working copy with `python3 scripts/tm.py diff --cwd
+   <root>` (it lists untracked files) and
+   `python3 scripts/tm.py diff --cwd <root> --stat` for the summary. Read each
+   new file in full; a diff does not show an untracked file's contents.
 3. Read the changed files in full, not only the hunks.
 4. Run the relevant tests or checks using the project's own commands.
 5. Compare the implementation against each acceptance criterion.
@@ -104,9 +111,11 @@ Evidence is recorded as a diff stat and, where useful, a note of what was run.
 ## Independent review
 
 For important work, the primary agent may create a separate reviewer agent so
-the worker is not the only judge of its own output. The reviewer receives the
-objective, the acceptance criteria, and the evidence, and returns findings.
-Independent review is optional and should be used when the task warrants it.
+the worker is not the only judge of its own output. Follow `independent-review`
+to decide and spawn it; the reviewer applies `review-task` (the worker wrapper
+over the `review-change` method), receives the objective, the acceptance
+criteria, and the evidence, and returns findings only. Independent review is
+optional and should be used when the task warrants it.
 
 ## Feedback loop
 
@@ -120,8 +129,8 @@ Open blocker or major findings?
   └── No  → Ready for approval
 ```
 
-On `fail`, the primary agent sends only the open findings back to the worker.
-Each feedback prompt:
+On `fail`, the primary agent follows `run-rework`: it reads the open findings
+from the ledger and sends only those back to the worker. Each feedback prompt:
 
 - Lists findings grouped by severity.
 - Names the file and line.
@@ -165,15 +174,22 @@ request to approval. See `src/templates/report.md`.
 | `reject` | Task is rejected. Work stops. |
 | `finalize` | Task is approved. The primary agent may commit or complete it. |
 
-Finalizing is a deliberate act by the primary agent with the developer's
-approval. Team Mate does not commit, merge, or push on its own.
+The decision is recorded with
+`python3 scripts/tm.py task decide <id> <decision>`, which maps it to a task
+status: `approve`/`finalize` → `approved`, `request-changes` → `rework`,
+`reject` → `rejected`. `finalize` is the only decision that enables a commit;
+`commit-changes` checks for it. Finalizing is a deliberate act by the primary
+agent with the developer's approval. Team Mate does not commit, merge, or push
+on its own.
 
 ## Transparency
 
 The developer can reconstruct the task from the request, the worker prompts,
 worker state changes, review findings, feedback, the approval request, and the
-recorded decision. Whether this history is persisted, and where, remains an
-R&D topic — see [Reporting and observability](06-reporting-and-observability.md).
+recorded decision. The ledger now persists findings and decisions and appends
+`review.started`, `review.findings`, `review.verdict`, and `task.decision`
+events to `timeline.jsonl`; broader history remains an R&D topic — see
+[Reporting and observability](06-reporting-and-observability.md).
 
 ## Review quality safeguards
 
