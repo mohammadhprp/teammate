@@ -9,18 +9,28 @@ review and approval now match
 developer's decision are persisted in the ledger, verdicts are derived from the
 findings, and review/decision events reach `timeline.jsonl`.
 
-What remains is hardening and open questions, not unbuilt capability.
+What remains is hardening, not unbuilt capability. The plan is the
+[process review](implementation/11-process-review.md), written after a real
+bootstrap-and-build run.
 
-## Known gaps
+## Next: act on the process review
 
-- `tm diff` lists an untracked file but not its contents; the reviewer reads it.
-- The library is larger than the validated set; trim skills no run uses.
-- Reviewer workers are intentionally unledgered; `task-ledger` documents this
-  for `recover-run`.
-- Recovery was validated by losing the primary's context, not by killing a live
-  primary process.
-- Blocked detection depends on the agent's Herdr detection manifest
-  (`permission_required` for opencode; `omp` needs its integration installed).
+Start with its P0 items, each with a gate that proves it:
+
+- **A1** define where briefs and reports live (`state_dir/briefs`,
+  `state_dir/reports` or `tm brief`/`tm report`) so a run never writes outside
+  the sandbox.
+- **A2** provision the primary's permissions in `install.sh` — allow
+  `~/.teammate/**` and each project's `.agents/**` — so a fresh primary runs
+  without a permission dialog.
+- **A3** forbid out-of-project paths in worker briefs (`worker-role`,
+  `accept-assignment`, `delegate-task`, `templates/worker-brief.md`) so a worker
+  never blocks on the sandbox.
+
+Then P1: ledger hygiene and session scoping (`task prune`/archive), enforced
+evidence honesty (no unrun command transcripts), bootstrap-provided validators,
+and documenting the two skill populations in `.agents/skills`. See the review
+for owners and gates.
 
 ## Open questions
 

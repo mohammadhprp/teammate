@@ -32,6 +32,8 @@ operating model with real agents before committing to a large framework.
    milestones.
 10. [Skills plan](10-skills-plan.md) — the common, teammate, and worker skills
     we need, with per-skill specifications and build order.
+11. [Process review](11-process-review.md) — a real run reviewed: what worked,
+    what broke, and the prioritized plan to improve the process.
 
 ## Core architecture
 
