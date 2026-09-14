@@ -135,7 +135,8 @@ copy_tree() {
   tree_dst=$2
   [ -d "$tree_src" ] || return 0
   find "$tree_src" -type f \
-    ! -path '*/__pycache__/*' ! -name '*.pyc' ! -name '.DS_Store' -print \
+    ! -path '*/__pycache__/*' ! -path '*/tests/*' \
+    ! -name '*.pyc' ! -name '.DS_Store' -print \
     | sort | while IFS= read -r f; do
     install_file "$f" "$tree_dst/${f#"$tree_src"/}"
   done
