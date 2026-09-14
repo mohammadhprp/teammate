@@ -1,67 +1,75 @@
 ---
 name: review-work
-description: "Independently verify worker output against acceptance criteria: gather fresh evidence, record findings with severity and category, decide pass/fail/inconclusive, and drive rework. Use when a worker has settled and its result must be checked."
+description: "Coordinate review of delegated work: decide who reviews a settled worker's result, obtain an independent review or apply the shared review-change method yourself, record the verdict, and route a fail to run-rework. Use when a worker settles and its result needs checking, or when a rework round came back for another pass."
 ---
 
 # Review work
 
-Completion is not correctness. Verify the work; the worker's report is a claim.
+Completion is not correctness, and you own the work you delegated. This skill
+coordinates review — who reviews, what verdict is recorded, and what happens
+when the work fails. The review method itself (evidence, findings, severity,
+verdict rules) is shared with every other reviewer, so apply `review-change`
+instead of re-deriving it here.
 
 ## When to use
 
-- A worker has settled and its result must be checked against acceptance
-  criteria.
-- Work is important enough to warrant independent verification.
+- A worker has settled (`idle`/`done`) and its result must be checked against
+  the acceptance criteria.
+- `review_policy` in `team-mate.toml` requires review, or the change is
+  important or risky enough that the implementer should not judge it alone.
+- Rework came back and needs another pass.
 
 ## When not to use
 
 - The task is still running: see `monitor-agents`.
+- You only need the review method (findings, severity, verdict): that is
+  `review-change`.
 
-## Evidence
+## Procedure
 
-Collect fresh evidence at every iteration. Do not review from memory.
+1. **Assemble the review inputs.** Read the persisted task with
+   `python3 scripts/tm.py task show <id>` for the goal, criteria, and iteration,
+   then collect the worker's current output so the reviewer has fresh material:
 
-1. Worker transcript: `tm report "<name>" --lines 300`.
-2. Project changes: `tm diff --cwd "<root>"` and `tm diff --cwd "<root>" --stat`.
-3. Read the changed files in full, not only the hunks.
-4. Run the project's tests/checks with the commands from its `AGENTS.md`.
-5. Check each acceptance criterion explicitly.
-6. Re-read the original request and constraints.
+   ```bash
+   python3 scripts/tm.py report "<name>" --lines 300
+   python3 scripts/tm.py diff --cwd "<root>" --stat
+   ```
 
-Ignore generated or binary noise (for example `__pycache__`); if it pollutes
-the diff, that is a project hygiene finding, not automatically a worker fault.
+2. **Choose the reviewer.** Read `review_policy`: under `always`, review every
+   settled task; under `on-risk`, review important or risky changes; under
+   `never`, review only what the developer asks. Apply `review-change` yourself,
+   and follow `independent-review` to add a separate reviewer worker that
+   applies `review-task` when it is warranted. The reviewer gets the objective,
+   acceptance criteria, and evidence — not the implementer's conclusion — and
+   returns findings only.
 
-## Findings and verdict
+3. **Record the verdict.** The findings schema, categories, severity levels,
+   and pass/fail/inconclusive rules live in `review-change`'s
+   [references/findings.md](../review-change/references/findings.md). Record only
+   the verdict in the ledger so it survives a restart; the iteration increment
+   belongs to `run-rework`:
 
-Record one observation per finding with a severity, category, evidence, and a
-suggestion. See [references/findings.md](references/findings.md) for the schema,
-categories, severity levels, and verdict rules.
+   ```bash
+   python3 scripts/tm.py task update <id> --status ready_for_approval --report-file <f>  # pass
+   python3 scripts/tm.py task update <id> --status rework --report-file <f>              # fail
+   ```
 
-- **pass** — every acceptance criterion holds and no open `blocker`/`major`.
-  Name the checks you ran; a pass with zero checks is a process failure.
-- **fail** — at least one open `blocker`/`major`.
-- **inconclusive** — correctness cannot be determined; escalate.
+4. **Drive rework.** On `fail`, follow `run-rework` to send the open findings
+   back and repeat monitor → review until it converges or `max_iterations` is
+   reached.
 
-Record the result:
+5. **Escalate.** On the iteration limit, an `inconclusive` verdict, a blocked or
+   failed worker, or a disputed finding that blocks progress, follow
+   `escalate-decision`: include the full report and one clear question — the
+   developer decides; you recommend.
 
-```bash
-python3 scripts/tm.py task update <id> --status ready_for_approval|rework|rejected --report-file <f>
-```
+## Output
 
-## Independent review
+A recorded verdict and either a converged pass or a bounded escalation.
 
-For important work, create a separate reviewer worker so the implementer is not
-the only judge. Give the reviewer the objective, the acceptance criteria, and
-the evidence, and ask for findings only.
+## Failure
 
-## Rework
-
-On `fail`, send only the open findings to the same worker: grouped by severity,
-with file/line, expected behavior, a ban on scope expansion, and the same report
-requirement. Then repeat monitor → review. Stop at `max_iterations`.
-
-## Escalate
-
-Escalate on the iteration limit, `inconclusive`, a blocked or failed worker, or
-a disputed finding that blocks progress. Include the full report and one clear
-question.
+An implementer cannot pass its own work, and a `pass` with zero checks run is a
+process failure. When evidence is missing, the verdict is `inconclusive`, not
+`pass`.

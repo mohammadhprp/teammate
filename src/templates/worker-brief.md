@@ -19,11 +19,12 @@
 
 - Work only inside this project.
 - Do not expand scope beyond the acceptance criteria.
-- Do not merge, push, publish, or deploy.
+- Do not commit, merge, push, publish, deploy, or delete.
 
 ## Expected output
 
 <what the worker must produce>
 
-End with a short report: what changed, which files, how it was verified, and
-anything unresolved.
+End with the `handoff-report` shape (see `report-result`): requested,
+implemented, changed, verified, issues, remaining concerns, assessment,
+decision.

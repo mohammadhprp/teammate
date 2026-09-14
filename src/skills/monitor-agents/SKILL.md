@@ -1,6 +1,6 @@
 ---
 name: monitor-agents
-description: "Track worker lifecycle and collect evidence until settle: interpret idle/done/working/blocked/unknown, detect stuck or orphaned agents, and cancel safely. Use after delegating work and before reviewing it."
+description: "Track worker lifecycle and collect evidence until it settles: interpret idle/done/working/blocked/unknown and cancel safely. Use after delegating work and before reviewing it, or whenever a worker seems stalled or the developer asks what an agent is doing; stuck and orphaned workers are `recover-run`'s."
 ---
 
 # Monitor agents
@@ -35,8 +35,9 @@ Herdr may report `idle` while the agent is actually working, so `wait` can
 return too early.
 
 - Install it when practical: `herdr integration install <kind>`.
-- Otherwise do not trust `idle` alone. Confirm completion from evidence:
-  `tm diff`, the project's tests, and `tm report`.
+- Otherwise do not trust `idle` alone. Confirm completion from evidence —
+  `python3 scripts/tm.py diff`, the project's tests, `python3 scripts/tm.py
+  report` — as `verify-evidence` requires.
 
 ## Procedure
 
@@ -46,7 +47,8 @@ return too early.
    python3 scripts/tm.py wait "<name>" --timeout <ms>
    ```
 
-   Output: `<name> <state>`. Or rely on `tm send --wait` from `delegate-task`.
+   Output: `<name> <state>`. Or rely on `python3 scripts/tm.py send --wait` from
+   `delegate-task`.
 
 2. **Poll (parallel).**
 
@@ -64,7 +66,7 @@ return too early.
    ```
 
    Use a generous `--lines`; too few truncates the final report. Record the
-   settle with `tm task update <id> --status awaiting_review`.
+   settle with `python3 scripts/tm.py task update <id> --status awaiting_review`.
 
 4. **Handle `blocked`.** Read the dialog, then escalate to the developer with
    the question. Do not answer it for the worker.
@@ -73,9 +75,9 @@ return too early.
    python3 scripts/tm.py report "<name>" --source visible --lines 80
    ```
 
-5. **Detect stuck or inactive.** If the worker stays `working` past the task
-   timeout with no new output, treat it as stuck and escalate. Do not resend a
-   prompt that may already be delivered.
+5. **Detect stuck or inactive.** If the worker stays `working` past the timeout
+   you set when waiting, with no new output, treat it as stuck and escalate. Do
+   not resend a prompt that may already be delivered.
 
 6. **Cancel.**
 
@@ -85,9 +87,11 @@ return too early.
 
    Interrupts the worker and closes its tab. Use `--keep-tab` to keep the tab.
 
-7. **Orphans.** A worker recorded for a task but absent from `tm status` is
-   orphaned; `tm status <name>` reports `agent target <name> not found`. Mark
-   the task `failed` and escalate.
+7. **Orphans.** A worker recorded for a task but absent from
+   `python3 scripts/tm.py status` is orphaned; `python3 scripts/tm.py status
+   <name>` fails with an `error:` line (for example `error: no agent named
+   <name>`). Reconcile it with `recover-run` rather than failing the task
+   blindly.
 
 ## Output
 

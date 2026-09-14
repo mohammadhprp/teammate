@@ -1,12 +1,12 @@
 ---
 name: delegate-task
-description: "Start a worker agent in its own project workspace tab and hand it a scoped, self-contained brief. Use when the primary agent decides to delegate one task to a new worker."
+description: "Spawn one worker agent in its own project workspace tab and hand it a scoped, self-contained brief built from the task's goal and acceptance criteria. Use when starting one worker for one assignment, or when the assignment needs a specialized worker."
 ---
 
 # Delegate a task
 
 Create one worker in its own tab, give it everything it needs, and return
-control to the loop. Use the `tm` CLI so output stays concise.
+control to the loop. Use `python3 scripts/tm.py` so output stays concise.
 
 ## When to use
 
@@ -16,16 +16,17 @@ control to the loop. Use the `tm` CLI so output stays concise.
 
 ## When not to use
 
-- The task is still ambiguous: clarify it first (see `team-mate`).
+- The task is still ambiguous: clarify it first (see `plan-work`).
 - A suitable worker is already idle and linked to the same task: prompt it
   instead of spawning a new one.
 
 ## Inputs
 
-- Project root (`--cwd`) and project name (`--project`).
+- Project root (`--cwd`) and project name (`--project`), resolved with
+  `multi-project-context`.
 - Ledger task id (`--task`).
 - Worker kind: `worker_kind` from `team-mate.toml`, or `--kind`. Any kind
-  accepted by `herdr agent start --kind` is supported; `tm` does not restrict
+  accepted by `herdr agent start --kind` is supported; the CLI does not restrict
   the list.
 - Worker name: unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`.
 
@@ -45,7 +46,9 @@ control to the loop. Use the `tm` CLI so output stays concise.
    the instruction to read the project's `AGENTS.md` and `CONTEXT.md`; the
    goal; every acceptance criterion; the constraints (stay in scope, no
    dependencies unless allowed, do not commit/push/publish/deploy); and the
-   expected output with a short structured report at the end.
+   expected output. Close with the `handoff-report` shape — what changed, which
+   files, the commands run and their results, and anything unresolved — so the
+   report is reviewable without a follow-up.
 
 3. **Submit the brief.**
 
@@ -56,7 +59,8 @@ control to the loop. Use the `tm` CLI so output stays concise.
    Output is one line: `<name> <state>`.
 
    - Serial work: use `--wait`.
-   - Parallel work: omit `--wait` and track the worker with `monitor-agents`.
+   - Parallel work: omit `--wait`, track the worker with `monitor-agents`, and
+     respect `max_concurrent` (`parallel-coordination`).
    - If it prints `<name> unconfirmed`, the prompt was delivered but the agent
      did not report a working state. Do not resend it. Poll with
      `monitor-agents` and confirm completion from evidence. For reliable
@@ -69,6 +73,6 @@ The worker name, project, workspace, and settled state.
 
 ## Failure
 
-`tm` prints one `error:` line and exits non-zero. If spawn fails, it rolls back
+`python3 scripts/tm.py` prints one `error:` line and exits non-zero. If spawn fails, it rolls back
 the tab it created; retry once, then escalate. If a worker is blocked during
 startup, inspect it with `monitor-agents` and escalate to the developer.

@@ -16,7 +16,7 @@
 
 <file list with additions and deletions>
 
-### Reviewed
+### Verified
 
 <what was checked and how>
 

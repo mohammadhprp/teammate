@@ -21,7 +21,10 @@ max_concurrent = 3
 # Review/rework iterations before escalating to the developer.
 max_iterations = 3
 
-# Independent review policy: "always" | "on-risk" | "never".
+# Review policy: "always" (default) | "on-risk" | "never". "always" means the
+# primary reviews every settled worker task; "on-risk" reviews important or
+# risky changes; "never" reviews only when the developer asks. Whether a
+# separate reviewer worker is used is decided per change, not by this value.
 review_policy = "always"
 
 # Desktop notification when work reaches an important state.

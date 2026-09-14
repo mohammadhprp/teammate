@@ -41,9 +41,12 @@ Understand → resolve project(s) → plan → delegate → monitor
 
 - Use the smallest useful team. Add agents only for real parallelism or
   specialization.
-- Delegate with `tm spawn`, then `tm send` (add `--wait` for serial work).
-- Parallel work: omit `--wait`, then `tm wait` / `tm status` per worker.
-- Collect output with `tm report`; check changes with `tm diff`.
+- Delegate with `python3 scripts/tm.py spawn`, then
+  `python3 scripts/tm.py send` (add `--wait` for serial work).
+- Parallel work: omit `--wait`, then `python3 scripts/tm.py wait` /
+  `python3 scripts/tm.py status` per worker.
+- Collect output with `python3 scripts/tm.py report`; check changes with
+  `python3 scripts/tm.py diff`.
 - Completion is a state, not a claim. `idle`/`done` means ready for input, not
   correct. Verify work against the acceptance criteria; never trust a summary.
 - `unknown` is unresolved, never success.
@@ -52,8 +55,8 @@ Understand → resolve project(s) → plan → delegate → monitor
 - Escalate when an agent is blocked, failed, or non-converging; when criteria
   are ambiguous; when an action is risky; or when the iteration limit is
   reached.
-- Consequential actions — merge, push, publish, deploy, delete, or exposing
-  secrets — require explicit developer approval.
+- Consequential actions — commit, merge, push, publish, deploy, delete, or
+  exposing secrets — require explicit developer approval.
 
 ## Reporting
 

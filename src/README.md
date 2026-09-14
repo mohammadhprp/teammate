@@ -13,9 +13,21 @@ Herdr is the agent runtime; Team Mate is the coordination layer on top of it.
 src/
   AGENTS.md            # Team Mate role → installed as <primary>/AGENTS.md
   team-mate.toml       # default limits and worker kind
-  skills/              # Team Mate skills:
-                       #   team-mate, delegate-task, monitor-agents,
-                       #   review-work, report-progress, multi-project-context
+  skills/              # Team Mate skills, by audience:
+                       #   teammate: team-mate, plan-work, task-ledger,
+                       #             delegate-task, monitor-agents,
+                       #             independent-review, review-work,
+                       #             run-rework, escalate-decision,
+                       #             report-progress, parallel-coordination,
+                       #             recover-run, multi-project-context
+                       #   common:   commit-changes, review-change,
+                       #             showcase-work, load-project-context,
+                       #             verify-evidence, handoff-report,
+                       #             debug-issue
+                       #   worker:   worker-role, accept-assignment,
+                       #             implement-task, verify-change,
+                       #             raise-blocker, report-result,
+                       #             review-task, investigate-issue
   scripts/             # Python helpers:
                        #   tm.py — low-noise Herdr wrapper (workers in tabs)
                        #   task_store.py — file-backed task ledger (~/.teammate)
@@ -60,8 +72,8 @@ primary's.
 
 - The primary runs in the `teammate` workspace.
 - Each target project gets its own Herdr workspace named after the project.
-  `tm spawn --project "<name>"` reuses or creates it, then starts the worker in
-  a new **tab** there — never a split pane.
+  `python3 scripts/tm.py spawn --project "<name>"` reuses or creates it, then
+  starts the worker in a new **tab** there — never a split pane.
 - A project workspace is created on the first spawn and is removed when its
   last worker tab closes. Keep a tab open if you want the workspace to persist.
 
