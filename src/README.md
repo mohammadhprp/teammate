@@ -14,7 +14,8 @@ src/
   AGENTS.md            # Team Mate role → installed as <primary>/AGENTS.md
   team-mate.toml       # default limits and worker kind
   skills/              # Team Mate skills, by audience:
-                       #   teammate: team-mate, bootstrap-project, plan-work,
+                       #   teammate: team-mate, onboard-developer,
+                       #             bootstrap-project, plan-work,
                        #             task-ledger, delegate-task, monitor-agents,
                        #             independent-review, review-work,
                        #             run-rework, escalate-decision,

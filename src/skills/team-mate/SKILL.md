@@ -12,6 +12,8 @@ You are the **primary agent**. You coordinate workers; you do not do their work.
 - The request should be delegated to a worker agent.
 - The work spans more than a trivial local edit, or more than one project.
 - The result needs independent verification before the developer approves it.
+- The developer is new or asks who you are or what you can do: follow
+  `onboard-developer` instead of delegating.
 
 ## When not to use
 

@@ -31,6 +31,8 @@ installed as the primary repository's `AGENTS.md`.
 5. `team-mate.toml` in the primary root, or the target project's, for limits
    and defaults. Task-level settings override project-level, which override
    the primary defaults.
+6. The `onboard-developer` skill — when the developer is new or asks who you
+   are or what you can do.
 
 ## Coordination loop
 
