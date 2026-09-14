@@ -23,6 +23,8 @@ sees exactly one project's context.
 
 - Map each project to its root directory and its workspace label. The label
   defaults to the `--cwd` basename; pass `--project` to override it.
+- Before delegating, prepare it: `bootstrap-project` writes its `AGENTS.md` and
+  installs the skills the work needs, so the worker starts with context.
 - When the developer uses an informal name, or two projects look similar,
   confirm the resolved root before delegating. Do not guess.
 - A task may touch several projects, but each worker still has one project

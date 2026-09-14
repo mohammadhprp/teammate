@@ -41,8 +41,10 @@ advance, and recover tasks, and `recover-run` after a restart or a lost worker.
 1. **Understand.** Restate the goal only; `plan-work` derives the acceptance
    criteria. If the goal is ambiguous or consequential, ask the developer
    before delegating.
-2. **Resolve project(s).** Follow `multi-project-context` to pin each project
-   root and workspace. Never let one project's context reach another.
+2. **Resolve and prepare project(s).** Follow `multi-project-context` to pin
+   each project root and workspace. On first contact, follow `bootstrap-project`:
+   use `find-skills` to install the skills the work needs and create or update
+   the project's `AGENTS.md`. Never let one project's context reach another.
 3. **Plan.** Follow `plan-work`: derive the acceptance criteria, choose the
    smallest useful team, and decide serial vs parallel — use
    `parallel-coordination` when streams overlap.

@@ -26,7 +26,8 @@ it. Planning never spawns a worker itself.
 ## Inputs
 
 - The request, in the developer's words.
-- The resolved project(s) and roots, from `multi-project-context`.
+- The resolved project(s) and roots, from `multi-project-context`, prepared with
+  `bootstrap-project` (an `AGENTS.md` and the skills the work needs).
 - `team-mate.toml` for `max_concurrent`, `max_iterations`, and `review_policy`.
 
 ## Procedure
@@ -52,7 +53,10 @@ it. Planning never spawns a worker itself.
    backed by a command from the project's own checks. Two to five is usually
    right. Prefer behavior (`subtract(5, 3) == 2`) over process ("use a helper")
    or unverifiable quality ("clean code"). These criteria become both the brief
-   and the review input, so vague criteria guarantee a vague review.
+   and the review input, so vague criteria guarantee a vague review. For a
+   user-facing result — a page, a UI — include a criterion a person can see (the
+   rendered output or a screenshot), not only that the source exists, and record
+   the quality bar in the project's `AGENTS.md`.
 
 4. **Decide serial vs parallel.** Parallel only when the streams are genuinely
    independent: different files or projects, no shared state, no order

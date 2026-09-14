@@ -14,8 +14,8 @@ src/
   AGENTS.md            # Team Mate role → installed as <primary>/AGENTS.md
   team-mate.toml       # default limits and worker kind
   skills/              # Team Mate skills, by audience:
-                       #   teammate: team-mate, plan-work, task-ledger,
-                       #             delegate-task, monitor-agents,
+                       #   teammate: team-mate, bootstrap-project, plan-work,
+                       #             task-ledger, delegate-task, monitor-agents,
                        #             independent-review, review-work,
                        #             run-rework, escalate-decision,
                        #             report-progress, parallel-coordination,
@@ -31,7 +31,7 @@ src/
   scripts/             # Python helpers:
                        #   tm.py — low-noise Herdr wrapper (workers in tabs)
                        #   task_store.py — file-backed task ledger (~/.teammate)
-  templates/           # worker brief and developer report templates
+  templates/           # worker brief, developer report, and project AGENTS templates
 ```
 
 ## Install

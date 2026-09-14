@@ -49,7 +49,10 @@ earlier iteration; the working tree may have moved.
    decides whether a change is correct.
 4. Run the project's own checks from its `AGENTS.md` / `CONTEXT.md`: tests,
    linters, type checks. Record the exact command and result.
-5. Walk each acceptance criterion and mark it demonstrated, violated, or
+5. Judge against the project's `AGENTS.md` conventions and acceptance bar, not
+   just the presence of code. For a user-facing result, inspect the rendered or
+   visible output — a screenshot or the built page — not only its source text.
+6. Walk each acceptance criterion and mark it demonstrated, violated, or
    unverified.
 
 ## Findings

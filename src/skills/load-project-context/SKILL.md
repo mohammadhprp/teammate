@@ -49,7 +49,8 @@ to brief a worker with.
 
 ## Failure and escalation
 
-- Missing `AGENTS.md` or `CONTEXT.md` is normal: name which are absent, fall
-  back to the project's visible conventions, and flag the gap.
+- Missing `AGENTS.md` or `CONTEXT.md` is normal on first contact: name which are
+  absent, and prepare the project with `bootstrap-project` before delegating,
+  rather than falling back to guesses.
 - A real conflict across layers: surface it and ask, rather than choosing
   silently.
