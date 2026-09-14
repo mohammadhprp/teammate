@@ -68,6 +68,25 @@ Do not copy `src/README.md`. Target projects are separate: they keep their own
 `AGENTS.md` and `CONTEXT.md`, which workers read instead of inheriting the
 primary's.
 
+## Skill distribution
+
+The overlay installs skills into the primary's `.agents/skills/`. A worker runs
+in a target project's tab with `--cwd <project>`, so it cannot see them.
+`tm spawn` copies the common and worker skills into `<project>/.agents/skills/`
+before starting the agent:
+
+```bash
+python3 scripts/tm.py skills sync --cwd "<project-root>"
+```
+
+- `worker_skills` in `team-mate.toml` lists what is copied; `distribute_skills =
+  false` turns the spawn-time sync off.
+- The copy is idempotent and tracked in
+  `<project>/.agents/skills/.teammate-managed.json`. A skill the project already
+  owns is never overwritten.
+- Managed entries are added to the project's `.git/info/exclude` (local only),
+  so they do not show as untracked.
+
 ## Workspaces
 
 - The primary runs in the `teammate` workspace.

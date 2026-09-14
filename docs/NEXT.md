@@ -14,12 +14,14 @@ passes.
 
 ## Phase 0 — Distribute skills to workers (blocking)
 
-- Decide how the common and worker skills reach a worker running in a target
-  project. The overlay installs into the primary's `.agents/skills/`, but a
-  worker's tab is created with `--cwd <project>` and cannot see them.
-- Options from the skills plan: a shared skills path referenced by config;
-  install the layer into each project on first spawn; or a `tm spawn` sync.
-- **Gate:** spawn a worker in a scratch project and confirm it loads
+- Chosen mechanism: `tm spawn` copies the common and worker skills from the
+  primary's `.agents/skills/` into `<project>/.agents/skills/`, tracked by
+  `.teammate-managed.json` and added to the project's local git exclude.
+  `tm skills sync --cwd <root>` runs the same sync on demand; `worker_skills` and
+  `distribute_skills` in `team-mate.toml` configure it.
+- Implemented and tested at the file level: idempotent, propagates updates, and
+  never overwrites a project-owned skill.
+- **Gate (remaining):** spawn a worker in a scratch project and confirm it loads
   `worker-role`, `accept-assignment`, and reports through `handoff-report`
   without additional prompting.
 

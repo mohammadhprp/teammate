@@ -176,9 +176,14 @@ Options:
 | **C. Install once, per project, on first spawn** | `tm spawn` syncs the shared skills into the project. | Keeps projects current; `tm` becomes a writer to target repos. |
 | **D. Encode worker skills in the brief** | The brief carries the worker procedure verbatim. | No distribution problem; bloats every brief and cannot evolve. |
 
-Recommendation: **prototype A; fall back to B for the first worker skills.**
-Validate against the actual worker kinds (`worker_kind`) before committing. Do
-not start with D — it makes the skill library invisible to workers.
+Chosen: **B/C — a sync into the project on spawn.** `tm spawn` copies the
+configured `worker_skills` into `<project>/.agents/skills/` before starting the
+agent, tracked by a manifest so it is idempotent and never overwrites a
+project-owned skill; `tm skills sync` runs the same sync on demand. This matches
+the `.agents/skills` discovery path a worker's agent already uses. Option A (a
+purely shared path) remains a possible optimization once the supporting kinds'
+global skill directories are known. Do not start with D — it makes the skill
+library invisible to workers.
 
 The primary already loads Team Mate skills from its own `.agents/skills/`;
 project-local skills keep composing on top, per
