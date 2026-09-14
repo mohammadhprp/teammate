@@ -44,16 +44,20 @@ instead of re-deriving it here.
    acceptance criteria, and evidence — not the implementer's conclusion — and
    returns findings only.
 
-3. **Record the verdict.** The findings schema, categories, severity levels,
-   and pass/fail/inconclusive rules live in `review-change`'s
-   [references/findings.md](../review-change/references/findings.md). Record only
-   the verdict in the ledger so it survives a restart; the iteration increment
-   belongs to `run-rework`:
+3. **Record the findings, then the verdict.** The findings schema, categories,
+   severity levels, and pass/fail rules live in `review-change`'s
+   [references/findings.md](../review-change/references/findings.md). Record the
+   findings as data so rework reads the ledger rather than prose, and record only
+   the verdict status; the iteration increment belongs to `run-rework`:
 
    ```bash
+   python3 scripts/tm.py task findings <id> --file <findings.json>   # an object or an array
    python3 scripts/tm.py task update <id> --status ready_for_approval --report-file <f>  # pass
    python3 scripts/tm.py task update <id> --status rework --report-file <f>              # fail
    ```
+
+   `task show` renders the verdict and the open findings, so a resumed primary
+   reads the same state the reviewer recorded.
 
 4. **Drive rework.** On `fail`, follow `run-rework` to send the open findings
    back and repeat monitor → review until it converges or `max_iterations` is

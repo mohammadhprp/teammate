@@ -101,6 +101,14 @@ def find_workspace(label):
     return None
 
 
+# Decision handling, from docs/implementation/07-review-and-approval.md.
+DECISIONS = {
+    "approve": "approved",
+    "finalize": "approved",
+    "reject": "rejected",
+    "request-changes": "rework",
+}
+
 SKILLS_SUBDIR = os.path.join(".agents", "skills")
 MANAGED_MARKER = ".teammate-managed.json"
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
@@ -426,7 +434,21 @@ def _render_task(task):
     if task.get("constraints"):
         lines.append("Constraints:")
         lines += [f"  - {c}" for c in task["constraints"]]
-    lines.append(f"Findings: {len(task.get('findings') or [])}")
+    findings = task.get("findings") or []
+    blocking = task_store.count_findings(task, "open", task_store.BLOCKING_SEVERITIES)
+    lines.append(f"Verdict: {task_store.verdict(task)}")
+    lines.append(f"Findings: {len(findings)} ({blocking} open blocking)")
+    for finding in findings:
+        where = finding.get("file") or ""
+        if finding.get("line"):
+            where = f"{where}:{finding['line']}" if where else str(finding["line"])
+        suffix = f" ({where})" if where else ""
+        lines.append(
+            f"  - [{finding.get('status', 'open')}] {finding.get('severity')} "
+            f"{finding.get('category')}: {finding.get('title')}{suffix}"
+        )
+    if task.get("decision"):
+        lines.append(f"Decision: {task['decision']}")
     if task.get("note"):
         lines.append(f"Note: {task['note']}")
     if task.get("report"):
@@ -484,10 +506,44 @@ def cmd_task_update(args):
     if args.note:
         fields["note"] = args.note
     task = task_store.update(args.state_dir, args.id, **fields)
-    task_store.append_event(
-        args.state_dir, task["id"], "task.updated", f"status={task['status']}"
-    )
+    kind, summary = "task.updated", f"status={task['status']}"
+    if task["status"] == "awaiting_review":
+        kind, summary = "review.started", "worker settled; review started"
+    elif task["status"] == "ready_for_approval":
+        kind, summary = "review.verdict", "pass"
+    elif task["status"] == "rework":
+        kind, summary = "review.verdict", "fail"
+    task_store.append_event(args.state_dir, task["id"], kind, summary)
     print(f"{task['id']}\t{task['status']}")
+
+
+def cmd_task_findings(args):
+    if args.file == "-":
+        payload = json.load(sys.stdin)
+    else:
+        with open(args.file) as fh:
+            payload = json.load(fh)
+    if isinstance(payload, dict):
+        payload = [payload]
+    task = task_store.record_findings(args.state_dir, args.id, payload)
+    task_store.append_event(
+        args.state_dir, task["id"], "review.findings", f"{len(payload)} finding(s)"
+    )
+    print(f"{task['id']}\t{len(task['findings'])}\t{task_store.verdict(task)}")
+
+
+def cmd_task_decide(args):
+    if args.decision not in DECISIONS:
+        raise ValueError(f"unknown decision: {args.decision}")
+    status = DECISIONS[args.decision]
+    fields = {"decision": args.decision, "status": status}
+    if args.note:
+        fields["note"] = args.note
+    task = task_store.update(args.state_dir, args.id, **fields)
+    task_store.append_event(
+        args.state_dir, task["id"], "task.decision", f"{args.decision} -> {status}"
+    )
+    print(f"{task['id']}\t{args.decision}\t{status}")
 
 
 def build_parser():
@@ -593,6 +649,21 @@ def build_parser():
     a = actions.add_parser("find", help="find the task for a worker")
     a.add_argument("--worker", required=True)
     a.set_defaults(func=cmd_task_find)
+
+    a = actions.add_parser("findings", help="record review findings on a task")
+    a.add_argument("id")
+    a.add_argument(
+        "--file",
+        required=True,
+        help="JSON findings file (array or object), or - for stdin",
+    )
+    a.set_defaults(func=cmd_task_findings)
+
+    a = actions.add_parser("decide", help="record the developer's decision")
+    a.add_argument("id")
+    a.add_argument("decision", choices=list(DECISIONS))
+    a.add_argument("--note")
+    a.set_defaults(func=cmd_task_decide)
 
     a = actions.add_parser("update", help="record task progress")
     a.add_argument("id")

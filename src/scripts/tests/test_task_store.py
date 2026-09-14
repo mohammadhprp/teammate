@@ -91,5 +91,54 @@ class TaskStoreTest(unittest.TestCase):
         self.assertEqual(event["summary"], "acme-1")
 
 
+class FindingsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+        self.task = task_store.create(self.state, "acme", "t", "g", ["criterion holds"])
+
+    def add(self, **finding):
+        return task_store.record_findings(self.state, self.task["id"], [finding])
+
+    def test_validate_applies_defaults(self):
+        finding = task_store.validate_finding({"title": "something"})
+
+        self.assertEqual(finding["severity"], "major")
+        self.assertEqual(finding["category"], "bug")
+        self.assertEqual(finding["status"], "open")
+
+    def test_rejects_bad_severity_category_and_status(self):
+        for bad in (
+            {"title": "t", "severity": "huge"},
+            {"title": "t", "category": "vibes"},
+            {"title": "t", "status": "maybe"},
+            {"severity": "major"},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                task_store.validate_finding(bad)
+
+    def test_record_findings_accumulates(self):
+        self.add(title="one")
+        task = self.add(title="two", severity="nit", category="quality")
+
+        self.assertEqual(len(task["findings"]), 2)
+
+    def test_verdict_fails_on_open_blocking_finding(self):
+        task = self.add(title="broken", severity="major", category="bug")
+
+        self.assertEqual(task_store.verdict(task), "fail")
+
+    def test_verdict_passes_when_only_minor_findings_remain(self):
+        task = self.add(title="style", severity="minor", category="quality")
+
+        self.assertEqual(task_store.verdict(task), "pass")
+
+    def test_resolved_finding_does_not_block(self):
+        task = self.add(title="broken", severity="blocker", status="resolved")
+
+        self.assertEqual(task_store.verdict(task), "pass")
+
+
 if __name__ == "__main__":
     unittest.main()

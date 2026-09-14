@@ -35,6 +35,21 @@ ACTIVE_STATUSES = {
     "ready_for_approval",
 }
 
+# Findings, from docs/implementation/07-review-and-approval.md.
+SEVERITIES = ("blocker", "major", "minor", "nit")
+FINDING_CATEGORIES = (
+    "bug",
+    "missing-requirement",
+    "incorrect-behavior",
+    "regression",
+    "edge-case",
+    "scope",
+    "test-gap",
+    "quality",
+)
+FINDING_STATUSES = ("open", "resolved", "accepted")
+BLOCKING_SEVERITIES = ("blocker", "major")
+
 
 def _tasks_dir(state_dir):
     return os.path.join(os.path.expanduser(state_dir), "tasks")
@@ -148,3 +163,54 @@ def update(state_dir, task_id, **fields):
         raise ValueError(f"invalid status: {status}")
     task.update(fields)
     return save(state_dir, task)
+
+
+def validate_finding(finding):
+    """Return a normalised finding, or raise on an invalid one."""
+    if not isinstance(finding, dict):
+        raise ValueError("a finding must be a JSON object")
+    if not finding.get("title"):
+        raise ValueError("a finding needs a title")
+    severity = finding.get("severity", "major")
+    if severity not in SEVERITIES:
+        raise ValueError(f"invalid severity: {severity}")
+    category = finding.get("category", "bug")
+    if category not in FINDING_CATEGORIES:
+        raise ValueError(f"invalid category: {category}")
+    status = finding.get("status", "open")
+    if status not in FINDING_STATUSES:
+        raise ValueError(f"invalid finding status: {status}")
+    return {
+        "severity": severity,
+        "category": category,
+        "title": finding["title"],
+        "detail": finding.get("detail", ""),
+        "file": finding.get("file"),
+        "line": finding.get("line"),
+        "suggestion": finding.get("suggestion", ""),
+        "status": status,
+    }
+
+
+def record_findings(state_dir, task_id, findings):
+    """Append validated findings to a task."""
+    task = load(state_dir, task_id)
+    task.setdefault("findings", [])
+    task["findings"].extend(validate_finding(finding) for finding in findings)
+    return save(state_dir, task)
+
+
+def count_findings(task, status=None, severities=None):
+    count = 0
+    for finding in task.get("findings") or []:
+        if status and finding.get("status") != status:
+            continue
+        if severities and finding.get("severity") not in severities:
+            continue
+        count += 1
+    return count
+
+
+def verdict(task):
+    """A pass has no open blocker or major finding; otherwise fail."""
+    return "fail" if count_findings(task, "open", BLOCKING_SEVERITIES) else "pass"

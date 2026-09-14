@@ -8,6 +8,7 @@ import tempfile
 import types
 import unittest
 
+import task_store
 import tm
 
 
@@ -164,6 +165,90 @@ class RenderTaskTest(unittest.TestCase):
         rendered = tm._render_task(task)
 
         self.assertIn("Note: approved by the developer", rendered)
+
+
+class TaskCommandsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+        self.task = task_store.create(self.state, "acme", "t", "g", ["criterion holds"])
+
+    def events(self):
+        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+            return [line for line in fh]
+
+    def test_findings_command_records_and_reports_verdict(self):
+        path = os.path.join(self.state, "findings.json")
+        with open(path, "w") as fh:
+            fh.write('[{"title": "broken", "severity": "major"}]')
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_findings(
+                types.SimpleNamespace(
+                    state_dir=self.state, id=self.task["id"], file=path
+                )
+            )
+
+        self.assertIn("fail", buf.getvalue())
+        saved = task_store.load(self.state, self.task["id"])
+        self.assertEqual(saved["findings"][0]["title"], "broken")
+
+    def test_decide_maps_each_decision(self):
+        for decision, status in (
+            ("approve", "approved"),
+            ("finalize", "approved"),
+            ("reject", "rejected"),
+            ("request-changes", "rework"),
+        ):
+            task = task_store.create(self.state, "acme", decision, "g", ["c"])
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_task_decide(
+                    types.SimpleNamespace(
+                        state_dir=self.state,
+                        id=task["id"],
+                        decision=decision,
+                        note=None,
+                    )
+                )
+            self.assertEqual(task_store.load(self.state, task["id"])["status"], status)
+
+    def test_decide_rejects_an_unknown_decision(self):
+        with self.assertRaises(ValueError):
+            tm.cmd_task_decide(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    decision="maybe",
+                    note=None,
+                )
+            )
+
+    def test_review_events_are_appended(self):
+        path = os.path.join(self.state, "findings.json")
+        with open(path, "w") as fh:
+            fh.write('[{"title": "broken", "severity": "major"}]')
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_task_findings(
+                types.SimpleNamespace(
+                    state_dir=self.state, id=self.task["id"], file=path
+                )
+            )
+            tm.cmd_task_decide(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    decision="request-changes",
+                    note=None,
+                )
+            )
+
+        text = "".join(self.events())
+
+        self.assertIn("review.findings", text)
+        self.assertIn("task.decision", text)
 
 
 if __name__ == "__main__":

@@ -37,8 +37,9 @@ shared `handoff-report` contract.
    ```
 
 3. **Ask for a decision** — approve, request changes, reject, or finalize —
-   with one clear question, framed with `escalate-decision`. Do not commit,
-   merge, or push without approval.
+   with one clear question, framed with `escalate-decision`, and record the
+   answer with `python3 scripts/tm.py task decide <id> <decision>`. Do not
+   commit, merge, or push without approval.
 
 ## Output
 

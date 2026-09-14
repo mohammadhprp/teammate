@@ -65,8 +65,8 @@ everything else you coordinate.
    read past it to find the question.
 
 5. **Act only as approved.** Record the decision on the ledger
-   (`python3 scripts/tm.py task update <id> --note "<decision>"`) and resume or
-   stop. Consequential work pauses until the answer arrives.
+   (`python3 scripts/tm.py task decide <id> approve|request-changes|reject|finalize`)
+   and resume or stop. Consequential work pauses until the answer arrives.
 
 ## Output
 

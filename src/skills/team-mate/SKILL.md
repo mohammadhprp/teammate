@@ -58,9 +58,10 @@ advance, and recover tasks, and `recover-run` after a restart or a lost worker.
 9. **Report.** Follow `report-progress` to deliver the developer report from the
    shared `handoff-report` contract, and `showcase-work` when the developer
    should judge the result directly. Ask the developer to decide.
-10. **Finish.** On approve, set the task `approved` and stop the workers. On
-    request changes, follow `run-rework`. On reject, set the task `rejected` and
-    stop the workers. Commit only with approval, via `commit-changes`.
+10. **Finish.** Record the decision with
+    `python3 scripts/tm.py task decide <id> <approve|request-changes|reject|finalize>`
+    and stop the workers. `request-changes` returns to `run-rework`; `finalize`
+    is what enables `commit-changes`. Commit only with approval.
 
 ## Output
 

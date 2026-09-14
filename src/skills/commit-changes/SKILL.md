@@ -11,8 +11,8 @@ understand and revert on its own.
 
 ## When to use
 
-- The developer has approved the work and the approved scope includes
-  committing.
+- The ledger decision for the task is `finalize`
+  (`python3 scripts/tm.py task decide <id> finalize`) and committing is in scope.
 - A task is being finalized and its change should be recorded.
 
 ## When not to use
@@ -32,12 +32,15 @@ understand and revert on its own.
 
 ## Before you commit
 
-1. Load the project's conventions with `load-project-context`: its commit
+1. Confirm the gate. The task's recorded decision is `finalize`
+   (`python3 scripts/tm.py task show <id>`); an `approve` alone does not
+   authorize a commit.
+2. Load the project's conventions with `load-project-context`: its commit
    format, scope vocabulary, and any commit hooks. The project's convention wins
    over the default below.
-2. Confirm the evidence. Every change in the commit should be backed by
+3. Confirm the evidence. Every change in the commit should be backed by
    `verify-evidence`; never commit a known failure.
-3. Inspect what will actually be committed:
+4. Inspect what will actually be committed:
 
    ```bash
    git status --short

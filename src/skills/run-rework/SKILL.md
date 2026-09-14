@@ -27,11 +27,11 @@ disagreement from quietly consuming the developer's time.
 
 ## Inputs
 
-- The open `blocker`/`major` findings from `review-change` (or a reviewer's
-  `review-task`), each with severity, category, file, line, and suggestion.
-- The same worker that wrote the change, and its task
-  (`python3 scripts/tm.py task show <id>`) for the current iteration and
-  `max_iterations`.
+- The open `blocker`/`major` findings recorded on the task
+  (`python3 scripts/tm.py task show <id>`), each with severity, category, file,
+  line, and suggestion.
+- The same worker that wrote the change, and its task for the current iteration
+  and `max_iterations`.
 
 ## Procedure
 
@@ -40,8 +40,9 @@ disagreement from quietly consuming the developer's time.
    round — escalate with the full report and one question via
    `escalate-decision`.
 
-2. **Write a feedback brief of findings only.** Group the open findings by
-   severity, `blocker` first, and for each give the file and line, what is
+2. **Write a feedback brief of findings only.** Pull the open findings from the
+   ledger (`task show <id>`); group them by severity, `blocker` first, and for
+   each give the file and line, what is
    wrong, and the behavior you expect. Keep out anything already fixed, any
    praise, and any new requirement. Close with the boundaries: fix only these
    findings, do not expand scope or touch unrelated files, re-run the project's
