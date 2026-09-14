@@ -29,3 +29,22 @@ review_policy = "always"
 
 # Desktop notification when work reaches an important state.
 notify = true
+
+# Distribute the common and worker skills into a target project on spawn, so a
+# worker started there can load them: the overlay installs skills only into the
+# primary, but a worker runs in the project's own tab. Set false to manage a
+# project's skills yourself.
+distribute_skills = true
+
+# Skills copied into the project. The common layer is shared by the primary and
+# workers; the worker layer runs inside the worker's tab.
+worker_skills = [
+  "commit-changes", "review-change", "showcase-work", "load-project-context",
+  "verify-evidence", "handoff-report", "debug-issue",
+  "worker-role", "accept-assignment", "implement-task", "verify-change",
+  "raise-blocker", "report-result", "review-task", "investigate-issue",
+]
+
+# Also list the managed skills in the project's .git/info/exclude so they do not
+# show as untracked. Local to the project; never committed.
+distribute_git_exclude = true

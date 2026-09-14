@@ -33,7 +33,8 @@ control to the loop. Use `python3 scripts/tm.py` so output stays concise.
 ## Procedure
 
 1. **Spawn the worker.** This reuses (or creates) the Herdr workspace named
-   after the project and starts the agent in a new tab there, without changing
+   after the project, distributes the common and worker skills into the project
+   (`tm skills sync`), and starts the agent in a new tab there, without changing
    the developer's focus.
 
    ```bash

@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -100,6 +101,112 @@ def find_workspace(label):
     return None
 
 
+SKILLS_SUBDIR = os.path.join(".agents", "skills")
+MANAGED_MARKER = ".teammate-managed.json"
+EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
+EXCLUDE_END = "# end Team Mate distributed skills"
+
+
+def skills_source(config):
+    """Directory the shared skills are copied from.
+
+    Defaults to the primary's ``.agents/skills`` (the installer's target).
+    """
+    override = config.get("skills_source")
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
+    primary = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(primary, SKILLS_SUBDIR)
+
+
+def _read_manifest(target):
+    try:
+        with open(os.path.join(target, MANAGED_MARKER)) as fh:
+            return set(json.load(fh).get("skills", []))
+    except (OSError, ValueError):
+        return set()
+
+
+def _write_manifest(target, names):
+    with open(os.path.join(target, MANAGED_MARKER), "w") as fh:
+        json.dump({"skills": sorted(names)}, fh, indent=2)
+        fh.write("\n")
+
+
+def _exclude_from_git(root, names):
+    """Keep managed skills out of ``git status`` via the project's local exclude.
+
+    Only ``.git/info/exclude`` is touched, which is never committed, so a
+    project's own files are untouched.
+    """
+    proc = subprocess.run(
+        ["git", "-C", root, "rev-parse", "--git-dir"],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return
+    gitdir = proc.stdout.strip()
+    if not os.path.isabs(gitdir):
+        gitdir = os.path.join(root, gitdir)
+    path = os.path.join(gitdir, "info", "exclude")
+    kept, inside = [], False
+    if os.path.exists(path):
+        with open(path) as fh:
+            for line in fh.read().splitlines():
+                if line == EXCLUDE_BEGIN:
+                    inside = True
+                elif line == EXCLUDE_END:
+                    inside = False
+                elif not inside:
+                    kept.append(line)
+    if names:
+        kept += [EXCLUDE_BEGIN]
+        kept += [f"/.agents/skills/{name}/" for name in sorted(names)]
+        kept += [f"/.agents/skills/{MANAGED_MARKER}"]
+        kept += [EXCLUDE_END]
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        fh.write("\n".join(kept) + "\n")
+
+
+def sync_skills(config, root, names=None):
+    """Copy the shared skills into a project so its workers can load them.
+
+    Idempotent, and it never overwrites a skill the project owns: a name is
+    copied only when it is absent or was installed by a previous sync.
+    """
+    if names is None:
+        names = config.get("worker_skills") or []
+    source = skills_source(config)
+    target = os.path.join(os.path.abspath(root), SKILLS_SUBDIR)
+    managed = _read_manifest(target)
+    installed, skipped = [], []
+    for name in names:
+        src = os.path.join(source, name)
+        if not os.path.isdir(src):
+            skipped.append(name)
+            continue
+        dst = os.path.join(target, name)
+        if os.path.exists(dst) and name not in managed:
+            skipped.append(name)
+            continue
+        os.makedirs(target, exist_ok=True)
+        shutil.copytree(
+            src,
+            dst,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"),
+        )
+        installed.append(name)
+    current = managed | set(installed)
+    if installed:
+        _write_manifest(target, current)
+    if config.get("distribute_git_exclude", True) and current:
+        _exclude_from_git(os.path.abspath(root), current)
+    return installed, skipped, target
+
+
 def cmd_spawn(args):
     config = load_config(args.config)
     kind = args.kind or config.get("worker_kind", "opencode")
@@ -108,6 +215,20 @@ def cmd_spawn(args):
         raise HerdrError(f"invalid worker name: {name}")
     cwd = os.path.abspath(args.cwd)
     project = args.project or os.path.basename(cwd)
+
+    if args.skills and config.get("distribute_skills", True):
+        names = config.get("worker_skills") or []
+        if names:
+            installed, skipped, _ = sync_skills(config, cwd, names)
+            print(f"skills\t{len(installed)}\t{cwd}")
+            for name in skipped:
+                print(f"warning: skill {name} not distributed", file=sys.stderr)
+        else:
+            print(
+                "warning: no worker_skills configured; the worker starts "
+                "without Team Mate skills",
+                file=sys.stderr,
+            )
 
     workspace = find_workspace(project)
     if workspace:
@@ -262,6 +383,14 @@ def cmd_diff(args):
     sys.stdout.write(proc.stdout)
 
 
+def cmd_skills_sync(args):
+    config = load_config(args.config)
+    installed, skipped, target = sync_skills(config, args.cwd)
+    print(f"skills\t{len(installed)}\t{target}")
+    if skipped:
+        print(f"skipped\t{len(skipped)}\t{' '.join(sorted(skipped))}")
+
+
 def cmd_notify(args):
     call = ["notification", "show", args.title]
     if args.body:
@@ -373,6 +502,12 @@ def build_parser():
     p.add_argument("--name", help="worker name")
     p.add_argument("--label", help="tab label (default: worker name)")
     p.add_argument("--task", help="link the worker to a task id")
+    p.add_argument(
+        "--no-skills",
+        dest="skills",
+        action="store_false",
+        help="do not distribute Team Mate skills into the project",
+    )
     p.set_defaults(func=cmd_spawn)
 
     p = sub.add_parser("send", help="prompt a worker with a brief")
@@ -416,6 +551,12 @@ def build_parser():
     p.add_argument("--body")
     p.add_argument("--sound", choices=["none", "done", "request"])
     p.set_defaults(func=cmd_notify)
+
+    p = sub.add_parser("skills", help="distribute shared skills into a project")
+    actions = p.add_subparsers(dest="action", required=True)
+    a = actions.add_parser("sync", help="copy common and worker skills into a project")
+    a.add_argument("--cwd", required=True, help="project root")
+    a.set_defaults(func=cmd_skills_sync)
 
     p = sub.add_parser("task", help="manage the persistent task ledger")
     actions = p.add_subparsers(dest="action", required=True)
