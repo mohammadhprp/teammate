@@ -43,7 +43,8 @@ earlier iteration; the working tree may have moved.
    and say what you assumed.
 2. Read the diff — `git diff` and `git diff --staged`; for another agent's
    working copy use `git -C <root> diff`. As the primary,
-   `python3 scripts/tm.py diff --cwd <root>` is also available.
+   `python3 scripts/tm.py diff --cwd <root>` is also available; it lists
+   untracked files, so read a new file's contents directly.
 3. Read each changed file in full, not only the hunks; surrounding context
    decides whether a change is correct.
 4. Run the project's own checks from its `AGENTS.md` / `CONTEXT.md`: tests,

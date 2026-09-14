@@ -1,8 +1,11 @@
-"""Tests for the tm CLI: argument parsing and the git exclude it maintains."""
+"""Tests for the tm CLI: argument parsing, diff output, and git exclude."""
 
+import contextlib
+import io
 import os
 import subprocess
 import tempfile
+import types
 import unittest
 
 import tm
@@ -87,6 +90,80 @@ class GitExcludeTest(unittest.TestCase):
         tm.sync_skills(self.config, self.project)
 
         self.assertNotIn("/.agents/skills/custom/", self.exclude_text())
+
+
+class DiffTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.repo = self.tmp.name
+        subprocess.run(["git", "-C", self.repo, "init", "-q"], check=True)
+
+    def diff(self, stat):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_diff(types.SimpleNamespace(cwd=self.repo, stat=stat))
+        return buf.getvalue()
+
+    def test_untracked_files_are_visible(self):
+        with open(os.path.join(self.repo, "new-file.txt"), "w") as fh:
+            fh.write("hello\n")
+
+        output = self.diff(stat=True)
+
+        self.assertIn("new-file.txt", output)
+
+    def test_tracked_changes_are_visible(self):
+        path = os.path.join(self.repo, "tracked.txt")
+        with open(path, "w") as fh:
+            fh.write("one\n")
+        subprocess.run(["git", "-C", self.repo, "add", "tracked.txt"], check=True)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                self.repo,
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-qm",
+                "init",
+            ],
+            check=True,
+        )
+        with open(path, "w") as fh:
+            fh.write("two\n")
+
+        output = self.diff(stat=False)
+
+        self.assertIn("tracked.txt", output)
+
+
+class RenderTaskTest(unittest.TestCase):
+    def test_note_is_rendered(self):
+        task = {
+            "id": "tsk_1",
+            "title": "t",
+            "status": "ready_for_approval",
+            "project": "acme",
+            "root": "/tmp/acme",
+            "worker": "acme-1",
+            "workspace": "w1",
+            "iteration": 1,
+            "max_iterations": 3,
+            "goal": "do it",
+            "acceptance": ["it is done"],
+            "constraints": [],
+            "findings": [],
+            "report": None,
+            "note": "approved by the developer",
+        }
+
+        rendered = tm._render_task(task)
+
+        self.assertIn("Note: approved by the developer", rendered)
 
 
 if __name__ == "__main__":

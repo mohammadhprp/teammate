@@ -376,11 +376,20 @@ def cmd_stop(args):
 
 
 def cmd_diff(args):
-    call = ["git", "-C", os.path.abspath(args.cwd), "diff"]
-    if args.stat:
-        call.append("--stat")
-    proc = subprocess.run(call, capture_output=True, text=True)
-    sys.stdout.write(proc.stdout)
+    root = os.path.abspath(args.cwd)
+
+    def git(*git_args):
+        proc = subprocess.run(
+            ["git", "-C", root, *git_args], capture_output=True, text=True
+        )
+        return proc.stdout
+
+    # Untracked files are invisible to `git diff`; show them first so a reviewer
+    # does not miss a brand-new file.
+    status = git("status", "--short")
+    if status.strip():
+        sys.stdout.write(status)
+    sys.stdout.write(git("diff", "--stat") if args.stat else git("diff"))
 
 
 def cmd_skills_sync(args):
@@ -418,6 +427,8 @@ def _render_task(task):
         lines.append("Constraints:")
         lines += [f"  - {c}" for c in task["constraints"]]
     lines.append(f"Findings: {len(task.get('findings') or [])}")
+    if task.get("note"):
+        lines.append(f"Note: {task['note']}")
     if task.get("report"):
         lines += ["Report:", task["report"]]
     return "\n".join(lines)
@@ -491,7 +502,7 @@ def build_parser():
     parser.add_argument(
         "--state-dir",
         default=None,
-        help="task ledger directory (default: state_dir from config, else .teammate)",
+        help="task ledger directory (default: state_dir from config, else ~/.teammate)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
