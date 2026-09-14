@@ -106,8 +106,8 @@ python3 -m unittest discover -s src/scripts/tests -t src/scripts
 
 ## Status
 
-Validated on live Herdr sessions: skills distribute into target projects, a
-worker completes and reports from the skills alone, fail → rework → pass
-converges, parallel projects stay isolated, a running worker can be cancelled,
-and the same skills run on a second kind (`omp`). Blocked-worker escalation and
-a true mid-run primary restart remain — see `docs/NEXT.md`.
+Validated end to end on live Herdr sessions with opencode and `omp`: skill
+distribution, the full loop, fail → rework → pass, parallel projects,
+cancellation, orphan reconciliation, blocked-worker escalation, and recovery of
+a running task after the primary loses its context. What remains is hardening
+and the open questions — see `docs/NEXT.md`.
