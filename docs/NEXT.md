@@ -6,8 +6,8 @@ three layers — **common** (7, shared by the primary and workers), **teammate**
 overlay also ships the role (`AGENTS.md`), config (`team-mate.toml`), two Python
 helpers (`scripts/tm.py`, `scripts/task_store.py`), and the report and brief
 templates. The original six-skill loop was validated on a real Herdr session;
-the expanded library has not been exercised, and workers cannot load their
-skills yet.
+the expanded library has not been exercised, and worker skill distribution is
+implemented but not yet observed on a live worker.
 
 Each phase has a verification gate. Do not start the next phase until the gate
 passes.
@@ -80,7 +80,8 @@ passes.
 
 ## Known gaps
 
-- Worker skill distribution is unresolved (Phase 0 blocks a whole layer).
+- Worker skill distribution is implemented (Phase 0); only the live worker gate
+  remains to be observed.
 - The library is larger than the validated set; trim skills no real run uses.
 - No skill has run against live Herdr since the expansion — the current
   verification is static review only.

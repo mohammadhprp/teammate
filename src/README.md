@@ -96,6 +96,14 @@ python3 scripts/tm.py skills sync --cwd "<project-root>"
 - A project workspace is created on the first spawn and is removed when its
   last worker tab closes. Keep a tab open if you want the workspace to persist.
 
+## Tests
+
+Run the script tests from the repository root:
+
+```bash
+python3 -m unittest discover -s src/scripts/tests -t src/scripts
+```
+
 ## Status
 
 Phases 0–3 validated: the overlay installs, a fresh session assumes the Team
