@@ -36,7 +36,7 @@ shared Team Mate capabilities.
 - `docs/VISION.md` — product vision and operating model.
 - `docs/implementation/` — long-term R&D, architecture, experiments, and
   decisions.
-- `docs/NEXT.md` — current research priorities.
+- `docs/NEXT.md` — what to build next.
 - `src/` — the portable Team Mate overlay. `src/AGENTS.md` defines the role;
   `src/skills/` holds the skills, `src/scripts/` deterministic helpers,
   and `src/templates/` the brief and report templates. Skills are installed

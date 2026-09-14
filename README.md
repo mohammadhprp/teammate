@@ -16,10 +16,23 @@ Each project keeps its own context, `AGENTS.md`, skills, scripts, and other
 project-specific resources. Team Mate supplies shared capabilities on top of
 that project context.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh \
+  | sh -s -- --kind opencode
+```
+
+- Options:
+  -  `--dir DIR` (default `./teammate`)
+  -  `--kind KIND` Any Herdr worker kind (for example `pi`, `codex`,
+`claude`, or `omp`).
+  - `--force` (overwrite, keeping a `.bak`)
+  - `--no-launch` (set up only).
+
 ## Overview
 
 - [Vision](docs/VISION.md) — product vision and operating model.
 - [Context](docs/CONTEXT.md) — repository guidance.
-- [Research and architecture](docs/implementation/README.md) — R&D,
-  architecture questions, and decisions.
-- [Overlay](src/README.md) — current research priorities.
+- [Research and architecture](docs/implementation/README.md) — research and implementation
+- [Overlay](src/README.md) — the portable overlay.
