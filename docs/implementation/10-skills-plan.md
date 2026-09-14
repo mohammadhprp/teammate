@@ -86,7 +86,7 @@ Out of scope:
 
 ## Current state
 
-All 29 skills in this plan are now built under `src/skills/`: 14 teammate,
+All 30 skills in this plan are now built under `src/skills/`: 15 teammate,
 7 common, and 8 worker. It started from six primary (teammate) skills:
 
 | Skill | Category | Notes |
@@ -229,6 +229,7 @@ New skills must slot into this shape rather than introduce a parallel one.
 | Priority | Skill | Purpose | Status |
 | --- | --- | --- | --- |
 | — | `team-mate` | Own the coordination loop. | existing |
+| — | `onboard-developer` | Introduce the developer to Team Mate: who it is and what it can do. | existing |
 | — | `delegate-task` | Spawn a worker and hand it a scoped brief. | existing |
 | — | `monitor-agents` | Track worker lifecycle and collect evidence. | existing |
 | — | `review-work` | Decide when to review, verify output, drive rework. | existing |
@@ -418,6 +419,22 @@ with two planned refinements: extract planning and the ledger out of
   worker skills; conflicting project context or an overwrite → propose, do not
   clobber.
 - **Depends on:** `multi-project-context`, `load-project-context`, `find-skills`.
+
+#### `onboard-developer` — P1
+
+- **Purpose:** Give a developer new to Team Mate a correct mental model and a
+  next action.
+- **Use when:** A first session, or they ask who you are, what you can do, or
+  how to use you.
+- **Not when:** They already gave you a task.
+- **Inputs:** `team-mate.toml`, and any known projects or ledger tasks.
+- **Procedure:** One line on what Team Mate is; what it does (plan, delegate,
+  monitor, review, report); what it takes on; how to hand it work; what the
+  developer still controls; one concrete next step.
+- **Output:** A short orientation and a next action.
+- **Failure/escalation:** Drop the tour if they want a task; do not overclaim
+  beyond what is configured.
+- **Depends on:** `team-mate`.
 
 #### `independent-review` — P1
 

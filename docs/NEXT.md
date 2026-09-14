@@ -1,7 +1,7 @@
 # Next steps
 
-Current state: The skill library is complete — 29 skills in `src/skills/` across
-common (7), teammate (14), and worker (8) — with `scripts/tm.py`,
+Current state: The skill library is complete — 30 skills in `src/skills/` across
+common (7), teammate (15), and worker (8) — with `scripts/tm.py`,
 `scripts/task_store.py`, the templates, and a 33-test suite. The operating model
 is validated end to end on live Herdr sessions with opencode and `omp`, and
 review and approval now match
