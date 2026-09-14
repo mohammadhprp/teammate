@@ -57,7 +57,10 @@ A finding is one observation. Keep findings specific and testable. Findings are
 recorded on the task as data with
 `python3 scripts/tm.py task findings <id> --file <findings.json>` (an object or
 an array); `task show` renders the verdict and the open findings. The verdict is
-derived — `fail` when an open `blocker`/`major` exists, otherwise `pass`.
+derived — `fail` when an open `blocker`/`major` exists, otherwise `pass`. Close
+findings once they are fixed or accepted with
+`python3 scripts/tm.py task resolve <id> --all` (or `--finding N`); a pass or a
+decision that approves is refused while a `blocker`/`major` is still open.
 
 ```json
 {
