@@ -86,7 +86,7 @@ Out of scope:
 
 ## Current state
 
-All 28 skills in this plan are now built under `src/skills/`: 13 teammate,
+All 29 skills in this plan are now built under `src/skills/`: 14 teammate,
 7 common, and 8 worker. It started from six primary (teammate) skills:
 
 | Skill | Category | Notes |
@@ -234,6 +234,7 @@ New skills must slot into this shape rather than introduce a parallel one.
 | — | `review-work` | Decide when to review, verify output, drive rework. | existing |
 | — | `report-progress` | Assemble the developer report and ask for a decision. | existing |
 | — | `multi-project-context` | Resolve projects and keep context isolated. | existing |
+| P0 | `bootstrap-project` | Install the skills the work needs and write the project's `AGENTS.md`. | existing |
 | P0 | `plan-work` | Turn a goal into acceptance criteria and the smallest team. | existing |
 | P0 | `task-ledger` | Persist, list, and recover tasks across restarts. | existing |
 | P1 | `independent-review` | Create and brief a separate reviewer worker. | existing |
@@ -399,6 +400,24 @@ with two planned refinements: extract planning and the ledger out of
 - **Failure/escalation:** A worker recorded but absent from `tm status` is
   orphaned; mark `failed` and escalate (see `recover-run`).
 - **Depends on:** `tm` CLI / `task_store.py`.
+
+#### `bootstrap-project` — P0
+
+- **Purpose:** Give a project its context and skills before work is delegated.
+- **Use when:** First contact with a project, or the project has no `AGENTS.md`,
+  or the work needs a capability the project lacks.
+- **Not when:** The project already has solid context and the needed skills.
+- **Inputs:** The resolved project root, the work, and any existing
+  `AGENTS.md` / `CONTEXT.md`.
+- **Procedure:** Read what exists; detect the stack; use `find-skills` to find
+  and install the skills the work needs, project-scoped; write or update
+  `AGENTS.md` from `templates/project-AGENTS.md`; create `CONTEXT.md` if missing;
+  report.
+- **Output:** A prepared project — context in place, needed skills installed.
+- **Failure/escalation:** No suitable skill → continue with the common and
+  worker skills; conflicting project context or an overwrite → propose, do not
+  clobber.
+- **Depends on:** `multi-project-context`, `load-project-context`, `find-skills`.
 
 #### `independent-review` — P1
 
