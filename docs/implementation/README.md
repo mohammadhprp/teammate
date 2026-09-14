@@ -30,6 +30,8 @@ operating model with real agents before committing to a large framework.
    trust boundaries, and safe autonomous operation.
 9. [R&D roadmap](09-rd-roadmap.md) — experiments, open questions, and proposed
    milestones.
+10. [Skills plan](10-skills-plan.md) — the common, teammate, and worker skills
+    we need, with per-skill specifications and build order.
 
 ## Core architecture
 

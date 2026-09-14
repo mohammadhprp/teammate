@@ -86,30 +86,31 @@ Out of scope:
 
 ## Current state
 
-Six skills exist, all authored for the primary agent:
+All 28 skills in this plan are now built under `src/skills/`: 13 teammate,
+7 common, and 8 worker. It started from six primary (teammate) skills:
 
-| Skill | Category today | Notes |
+| Skill | Category | Notes |
 | --- | --- | --- |
-| `team-mate` | Teammate | Owns the whole loop; also carries planning and the ledger. |
+| `team-mate` | Teammate | Owns the coordination loop. |
 | `delegate-task` | Teammate | Spawn a worker + brief. |
 | `monitor-agents` | Teammate | Wait, poll, detect blockers, cancel. |
-| `review-work` | Teammate | Verify worker output, verdict, rework. |
+| `review-work` | Teammate | Coordinate review, verdict, rework. |
 | `report-progress` | Teammate | Developer report + notification. |
 | `multi-project-context` | Teammate | Project resolution and isolation. |
 
-Gaps this plan closes:
+The gaps this plan set out to close are addressed:
 
-1. **Common is empty.** No shared commitment to how work is proved, reported, or
-   committed — so the primary and workers can drift apart.
-2. **Worker is empty.** A worker receives a brief but no skill for accepting it,
-   building, self-verifying, or reporting back. Its behavior is only as good as
-   the brief.
-3. **`team-mate` is overloaded.** Planning and the task ledger are large enough
-   to be their own skills.
-4. **Review is split awkwardly.** `review-work` mixes the *method* of reviewing
-   with the *coordination* of review. The method belongs to common.
-5. **Distribution to workers is unresolved.** The overlay installs skills into
-   `<primary>/.agents/skills/`, but workers run in target projects. How the
+1. **Common is built.** Seven common skills carry the shared commitment to how
+   work is proved, reported, reviewed, and committed.
+2. **Worker is built.** Eight worker skills cover accepting an assignment,
+   building, self-verifying, raising a blocker, reporting back, and reviewing.
+3. **`team-mate` delegates.** Planning and the ledger are extracted into
+   `plan-work` and `task-ledger`; `team-mate` points at them.
+4. **Review is layered.** `review-change` owns the method, `review-work`
+   coordinates, and `independent-review` / `review-task` / `run-rework` own
+   independent review and rework.
+5. **Distribution to workers is still unresolved.** The overlay installs skills
+   into `<primary>/.agents/skills/`, but workers run in target projects. How the
    common and worker skills reach them is an open decision (see
    [Distribution](#distribution-how-a-skill-reaches-its-audience)).
 
@@ -210,13 +211,13 @@ New skills must slot into this shape rather than introduce a parallel one.
 
 | Priority | Skill | Audience | Purpose | Status |
 | --- | --- | --- | --- | --- |
-| P0 | `commit-changes` | both | Make atomic, conventional commits that match the project. | planned |
-| P0 | `load-project-context` | both | Read `AGENTS.md` / `CONTEXT.md` / local skills before acting. | planned |
-| P0 | `verify-evidence` | both | Prove a claim with a command and captured output; no evidence, no claim. | planned |
-| P0 | `handoff-report` | both | The shared structured report contract between roles. | planned |
-| P1 | `review-change` | both | Review a diff against criteria; findings, severity, verdict. | planned |
-| P1 | `showcase-work` | both | Present finished work to the developer or the primary clearly. | planned |
-| P2 | `debug-issue` | both | Reproduce → hypothesise → minimal fix → verify. | planned |
+| P0 | `commit-changes` | both | Make atomic, conventional commits that match the project. | existing |
+| P0 | `load-project-context` | both | Read `AGENTS.md` / `CONTEXT.md` / local skills before acting. | existing |
+| P0 | `verify-evidence` | both | Prove a claim with a command and captured output; no evidence, no claim. | existing |
+| P0 | `handoff-report` | both | The shared structured report contract between roles. | existing |
+| P1 | `review-change` | both | Review a diff against criteria; findings, severity, verdict. | existing |
+| P1 | `showcase-work` | both | Present finished work to the developer or the primary clearly. | existing |
+| P2 | `debug-issue` | both | Reproduce → hypothesise → minimal fix → verify. | existing |
 
 ### Teammate skills
 
@@ -228,26 +229,26 @@ New skills must slot into this shape rather than introduce a parallel one.
 | — | `review-work` | Decide when to review, verify output, drive rework. | existing |
 | — | `report-progress` | Assemble the developer report and ask for a decision. | existing |
 | — | `multi-project-context` | Resolve projects and keep context isolated. | existing |
-| P0 | `plan-work` | Turn a goal into acceptance criteria and the smallest team. | planned |
-| P0 | `task-ledger` | Persist, list, and recover tasks across restarts. | planned |
-| P1 | `independent-review` | Create and brief a separate reviewer worker. | planned |
-| P1 | `run-rework` | Feed findings back, bound iterations, detect non-convergence. | planned |
-| P1 | `escalate-decision` | When and how to interrupt the developer; approval gates. | planned |
-| P2 | `parallel-coordination` | Run independent workers, merge results, avoid write conflicts. | planned |
-| P2 | `recover-run` | Restart, orphaned/blocked/`unknown` agents, cancellation. | planned |
+| P0 | `plan-work` | Turn a goal into acceptance criteria and the smallest team. | existing |
+| P0 | `task-ledger` | Persist, list, and recover tasks across restarts. | existing |
+| P1 | `independent-review` | Create and brief a separate reviewer worker. | existing |
+| P1 | `run-rework` | Feed findings back, bound iterations, detect non-convergence. | existing |
+| P1 | `escalate-decision` | When and how to interrupt the developer; approval gates. | existing |
+| P2 | `parallel-coordination` | Run independent workers, merge results, avoid write conflicts. | existing |
+| P2 | `recover-run` | Restart, orphaned/blocked/`unknown` agents, cancellation. | existing |
 
 ### Worker skills
 
 | Priority | Skill | Purpose | Status |
 | --- | --- | --- | --- |
-| P0 | `worker-role` | How to act as a worker: scope, autonomy, when to ask. | planned |
-| P0 | `accept-assignment` | Parse the brief, restate goal and criteria, confirm or ask. | planned |
-| P0 | `implement-task` | Build the change inside the project's conventions. | planned |
-| P0 | `report-result` | Close the task with a structured report to the primary. | planned |
-| P1 | `verify-change` | Self-verify with tests and evidence before claiming done. | planned |
-| P1 | `raise-blocker` | Ask a precise question instead of guessing. | planned |
-| P1 | `review-task` | Act as an independent reviewer; return findings only. | planned |
-| P2 | `investigate-issue` | Read-only investigation: evidence and conclusion, no scope creep. | planned |
+| P0 | `worker-role` | How to act as a worker: scope, autonomy, when to ask. | existing |
+| P0 | `accept-assignment` | Parse the brief, restate goal and criteria, confirm or ask. | existing |
+| P0 | `implement-task` | Build the change inside the project's conventions. | existing |
+| P0 | `report-result` | Close the task with a structured report to the primary. | existing |
+| P1 | `verify-change` | Self-verify with tests and evidence before claiming done. | existing |
+| P1 | `raise-blocker` | Ask a precise question instead of guessing. | existing |
+| P1 | `review-task` | Act as an independent reviewer; return findings only. | existing |
+| P2 | `investigate-issue` | Read-only investigation: evidence and conclusion, no scope creep. | existing |
 
 ## Skill specifications
 
@@ -397,7 +398,9 @@ with two planned refinements: extract planning and the ledger out of
 #### `independent-review` — P1
 
 - **Purpose:** Prevent a worker from being the only judge of its own work.
-- **Use when:** `review_policy` requires it, or the change is important/risky.
+- **Use when:** the change is important or risky, or a criterion is hard to
+  self-check — the primary-review gate itself is `review-work`'s, not this
+  skill's.
 - **Not when:** Trivial or already reviewed work.
 - **Inputs:** Objective, acceptance criteria, evidence, the common review method.
 - **Procedure:** Spawn a reviewer worker with `review-task`; give it the
@@ -583,7 +586,7 @@ Skills stay instructions; deterministic work goes to scripts and templates.
 | `templates/worker-brief.md` | `delegate-task`, `accept-assignment`, `plan-work`. | existing |
 | `templates/report.md` | `report-progress`, `handoff-report`, `report-result`. | existing |
 | `templates/worker-report.md` | `report-result` (worker → primary). | planned |
-| `references/findings.md` | `review-change`, `review-work`, `review-task`. | existing |
+| `review-change/references/findings.md` | `review-change`, `review-work`, `review-task`. | existing |
 
 Prefer extending the existing templates over adding new ones. Add a script only
 when a skill would otherwise restate an error-prone command sequence.
