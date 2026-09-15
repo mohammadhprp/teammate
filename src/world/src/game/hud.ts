@@ -39,6 +39,21 @@ const CSS = `
   opacity: .62; line-height: 1.9; }
 #hint b { color: #5fd8f0; }
 
+#focus { position: absolute; left: 50%; bottom: 8.5vh; transform: translateX(-50%);
+  min-width: 360px; max-width: 60vw; padding: 12px 20px 10px; border-radius: 14px;
+  background: rgba(12,18,24,.78); border: 1px solid rgba(95,216,240,.4);
+  box-shadow: 0 8px 30px rgba(0,0,0,.5); backdrop-filter: blur(8px);
+  letter-spacing: .1em; font-size: 12px; opacity: 0; visibility: hidden;
+  transition: opacity .18s ease; }
+#focus.on { opacity: 1; visibility: visible; }
+#focus .name { font-size: 14px; font-weight: 800; letter-spacing: .18em; color: #eaf4f8; }
+#focus .name i { font-style: normal; color: #5fd8f0; margin-left: 10px; font-size: 11px; letter-spacing: .14em; }
+#focus .row { display: flex; justify-content: space-between; gap: 24px; line-height: 1.75; }
+#focus .row span { opacity: .62; letter-spacing: .16em; font-size: 10.5px; }
+#focus .row b { font-weight: 600; letter-spacing: .05em; text-align: right; }
+#focus .hintline { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(95,216,240,.16);
+  opacity: .5; font-size: 10.5px; letter-spacing: .16em; }
+
 #terminal { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) scale(.96);
   width: min(720px, 88vw); pointer-events: auto; opacity: 0; visibility: hidden;
   background: linear-gradient(180deg, rgba(14,20,26,.96), rgba(10,14,18,.98));
@@ -74,16 +89,27 @@ export interface MissionChoice {
   text: string
 }
 
+/** Everything the robot-inspection strip shows. */
+export interface FocusInfo {
+  name: string
+  role: string
+  task: string
+  project: string
+  progress: number
+}
+
 export class Hud {
   private prompt: HTMLElement
   private ticker: HTMLElement
   private status: HTMLElement
   private hint: HTMLElement
   private terminal: HTMLElement
+  private focus: HTMLElement
   private input: HTMLInputElement
   terminalOpen = false
   private onSubmit: ((text: string) => void) | null = null
   private hintTimer = 0
+  private focusSig = ''
 
   constructor() {
     if (!document.getElementById('hud-style')) {
@@ -99,9 +125,10 @@ export class Hud {
       <div id="hint">
         <div><b>W A S D</b> move &nbsp;·&nbsp; <b>MOUSE</b> look &nbsp;·&nbsp; <b>SHIFT</b> boost</div>
         <div><b>E</b> talk to Team Mate &nbsp;·&nbsp; <b>C</b> camera &nbsp;·&nbsp; <b>1 2 3</b> time</div>
-        <div><b>B</b> bloom &nbsp;·&nbsp; <b>ESC</b> release cursor</div>
+        <div><b>F</b> inspect robot &nbsp;·&nbsp; <b>B</b> bloom &nbsp;·&nbsp; <b>ESC</b> release cursor</div>
       </div>
       <div id="prompt"><kbd>E</kbd><span id="prompt-text">Talk to Team Mate</span></div>
+      <div id="focus"></div>
       <div id="ticker"></div>
       <div id="terminal">
         <header><span><span class="dot"></span>TEAM MATE · MISSION CONSOLE</span><span>DECK 06</span></header>
@@ -120,6 +147,7 @@ export class Hud {
     this.status = root.querySelector('#status') as HTMLElement
     this.hint = root.querySelector('#hint') as HTMLElement
     this.terminal = root.querySelector('#terminal') as HTMLElement
+    this.focus = root.querySelector('#focus') as HTMLElement
     this.input = root.querySelector('#terminal-input') as HTMLInputElement
 
     const quick = root.querySelector('#terminal-quick') as HTMLElement
@@ -154,6 +182,26 @@ export class Hud {
 
   setStatus(html: string) {
     this.status.innerHTML = html
+  }
+
+  /** The robot-inspection strip. Pass null to release it. */
+  setFocus(info: FocusInfo | null) {
+    if (!info) {
+      if (!this.focusSig) return
+      this.focusSig = ''
+      this.focus.classList.remove('on')
+      return
+    }
+    const sig = JSON.stringify(info)
+    if (sig === this.focusSig) return
+    this.focusSig = sig
+    this.focus.classList.add('on')
+    this.focus.innerHTML = `
+      <div class="name">${escapeHtml(info.name)}<i>${escapeHtml(info.role)}</i></div>
+      <div class="row"><span>PROJECT</span><b>${escapeHtml(info.project)}</b></div>
+      <div class="row"><span>TASK</span><b>${escapeHtml(info.task)}</b></div>
+      <div class="row"><span>PROGRESS</span><b>${Math.round(info.progress * 100)}%</b></div>
+      <div class="hintline">F / ESC RELEASE · DRAG TO ORBIT · SCROLL TO ZOOM</div>`
   }
 
   report(text: string, kind: 'info' | 'success' | 'warn') {
@@ -196,5 +244,8 @@ export class Hud {
     this.onSubmit?.(clean)
   }
 }
+
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 
 export { planFromText, MISSIONS }

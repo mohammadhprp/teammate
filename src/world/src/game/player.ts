@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { buildDeveloper } from '../entities/developer'
+import type { Agent } from '../entities/agent'
 import type { Input } from '../core/input'
 import type { Ship } from '../world/ship'
 import { canStand } from '../world/nav'
@@ -35,11 +36,14 @@ export class Player {
   moving = 0
   speed = 12
   radius = 1.5
+  /** When set, the camera orbits this robot instead of the pod. */
+  focusTarget: Agent | null = null
 
   private vx = 0
   private vz = 0
   private bob = 0
   private camDist = 7.4
+  private focusDist = 6.5
   private shake = 0
   /** Player-relative camera target, damped for a soft follow. */
   private focus = new THREE.Vector3(-14.5, 2, 204)
@@ -69,6 +73,22 @@ export class Player {
     return this.mode
   }
 
+  /** Lock the camera onto a robot so the developer can watch it work. */
+  focusAgent(agent: Agent) {
+    this.focusTarget = agent
+    this.focusDist = 6.5
+    this.camPitch = -0.22
+    this.focus.set(agent.x, 1.35, agent.z)
+  }
+
+  releaseFocus() {
+    this.focusTarget = null
+  }
+
+  get focused() {
+    return this.focusTarget !== null
+  }
+
   update(dt: number, input: Input, ship: Ship) {
     const speedMul = input.isDown('ShiftLeft') || input.isDown('ShiftRight') ? 1.75 : 1
     // --- look ---------------------------------------------------------------
@@ -78,7 +98,14 @@ export class Player {
       this.camPitch = clamp(this.camPitch - input.mouseDY * sens, -1.35, 0.42)
     }
     if (input.wheel) {
-      this.camDist = clamp(this.camDist + input.wheel * 0.01, 3.4, 30)
+      if (this.focusTarget) this.focusDist = clamp(this.focusDist + input.wheel * 0.01, 3, 16)
+      else this.camDist = clamp(this.camDist + input.wheel * 0.01, 3.4, 30)
+    }
+
+    // While inspecting a robot the pod holds still and the camera orbits it.
+    if (this.focusTarget) {
+      this.updateFocus(dt, ship)
+      return
     }
 
     // --- move (camera relative) --------------------------------------------
@@ -149,9 +176,53 @@ export class Player {
     const offZ = Math.cos(this.camYaw) * cp * dist
     const offY = -Math.sin(pitchBlend) * dist + (this.mode === 'follow' ? 0 : preset.height * 0.3)
 
-    // pull the camera in until it is inside walkable space (never in a wall),
-    // and out of chunky furniture — but low platforms and daises are fine
-    let d = dist
+    this.settleCamera(this.focus.x, this.focus.y, this.focus.z, offX, offY, offZ, dist, dt, ship)
+  }
+
+  /** Orbit the focused robot, reusing the same collision pull-in as the pod. */
+  private updateFocus(dt: number, ship: Ship) {
+    const a = this.focusTarget!
+    this.focus.x = damp(this.focus.x, a.x, 12, dt)
+    this.focus.z = damp(this.focus.z, a.z, 12, dt)
+    this.focus.y = damp(this.focus.y, 1.35, 10, dt)
+
+    this.bob += dt
+    this.root.position.y = 0.9 + Math.sin(this.bob * 1.6) * 0.07
+    this.avatar.head.rotation.y = Math.sin(this.bob * 0.5) * 0.06
+
+    const cp = Math.cos(this.camPitch)
+    const offX = Math.sin(this.camYaw) * cp * this.focusDist
+    const offZ = Math.cos(this.camYaw) * cp * this.focusDist
+    const offY = -Math.sin(this.camPitch) * this.focusDist
+    this.settleCamera(
+      this.focus.x,
+      this.focus.y,
+      this.focus.z,
+      offX,
+      offY,
+      offZ,
+      this.focusDist,
+      dt,
+      ship,
+    )
+  }
+
+  /**
+   * Place the camera behind the focus point, pulling it in until it sits in
+   * walkable space and out of chunky furniture, and lifting it when squeezed so
+   * it never ends up inside a wall or floor.
+   */
+  private settleCamera(
+    fx: number,
+    fy: number,
+    fz: number,
+    offX: number,
+    offY: number,
+    offZ: number,
+    dist: number,
+    dt: number,
+    ship: Ship,
+  ) {
     const blockedBy = (px: number, pz: number) =>
       ship.obstacles.some((o) => {
         if (o.kind === 'circle') {
@@ -165,9 +236,10 @@ export class Player {
         )
       })
 
+    let d = dist
     for (let i = 0; i < 20; i++) {
-      const px = this.focus.x + (offX / dist) * d
-      const pz = this.focus.z + (offZ / dist) * d
+      const px = fx + (offX / dist) * d
+      const pz = fz + (offZ / dist) * d
       const inside = ship.walkable.rects.some(
         (r) => px > r.minX && px < r.maxX && pz > r.minZ && pz < r.maxZ,
       )
@@ -180,17 +252,15 @@ export class Player {
       }
     }
     const k = d / dist
-    // when the camera is squeezed against a wall, lift it and look down instead
-    // of letting it end up inside geometry
     const tight = clamp(1 - k * 1.35, 0, 1)
-    const px = this.focus.x + offX * k
-    const pz = this.focus.z + offZ * k
-    const py = Math.max(1.4, this.focus.y + offY * k + tight * 4.2)
+    const px = fx + offX * k
+    const pz = fz + offZ * k
+    const py = Math.max(1.4, fy + offY * k + tight * 4.2)
 
     this.camera.position.x = damp(this.camera.position.x, px, 10, dt)
     this.camera.position.y = damp(this.camera.position.y, py, 10, dt)
     this.camera.position.z = damp(this.camera.position.z, pz, 10, dt)
-    this.camera.lookAt(this.focus.x, this.focus.y + 0.4, this.focus.z)
+    this.camera.lookAt(fx, fy + 0.4, fz)
     this.shake = damp(this.shake, 0, 6, dt)
     if (this.shake > 0.001) {
       this.camera.position.y += Math.sin(this.bob * 40) * this.shake

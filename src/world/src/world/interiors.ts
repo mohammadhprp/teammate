@@ -587,6 +587,7 @@ export function furnishExpansionBay(
   ctx.batch.at(rbox(9, 0.4, 5, 0.2), M.hullDeep, cx, 0.2, cz)
   ctx.batch.at(tube(3.4, 0.06, 32), M.glow(C.cyanDeep, 0.5), cx, 0.42, cz, 0, Math.PI / 2)
   solidBox(ctx, cx, cz, 9, 5)
+  MissionDisplay(ctx, `screen:${roomId}:tasks`, cx - facing * 12, cz - 12.3, 0, 'cyan', 5.5, 3.2)
   StatusPylon(ctx, `pylon:${roomId}`, cx, cz + 11.6, 'cyan')
 }
 

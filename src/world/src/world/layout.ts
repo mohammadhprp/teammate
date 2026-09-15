@@ -111,7 +111,13 @@ export const ARCHIVE_RADIUS = 13
 const shellChord = (radius: number, centerZ: number, north: boolean) =>
   centerZ + (north ? -1 : 1) * Math.sqrt(radius * radius - SPINE_HALF * SPINE_HALF)
 
+/** The second project-deck band, north of Mission Control (W-01, option b). */
+export const DECK_B_BANDS = [-160, -190, -220]
+export const DECK_B_NORTH = -240
+
 export const SPINE_SEGMENTS = [
+  // the second project deck, north of Mission Control
+  { z0: DECK_B_NORTH, z1: shellChord(MISSION_RADIUS, MISSION_CENTER, true) },
   // from Mission Control's south doorway up to the HQ rotunda
   { z0: shellChord(MISSION_RADIUS, MISSION_CENTER, false), z1: shellChord(HQ_RADIUS, HQ_CENTER, true) },
   { z0: shellChord(HQ_RADIUS, HQ_CENTER, false), z1: DOCK_CENTER - DOCK_DEPTH / 2 },
@@ -236,6 +242,8 @@ export const ROOMS: RoomDef[] = [
     doors: [{ side: 'E', at: 0, width: 8, auto: true }],
     dormant: true,
   },
+  // --- the second project-deck band (W-01, option b) ----------------------
+  ...deckBModules(),
   // --- the three seed projects -------------------------------------------
   {
     id: 'project-1',
@@ -320,6 +328,35 @@ export const ROOMS: RoomDef[] = [
   },
 ]
 
+/**
+ * The second project-deck band. Six module rooms run north of Mission Control
+ * so the deck can hold more than five live projects. They are ordinary project
+ * modules: dormant until a project claims them.
+ */
+function deckBModules(): RoomDef[] {
+  const out: RoomDef[] = []
+  DECK_B_BANDS.forEach((z, i) => {
+    for (const side of [-1, 1] as const) {
+      const west = side < 0
+      const id = `project-b${i * 2 + (west ? 1 : 2)}`
+      out.push({
+        id,
+        name: `PROJECT ${String(id).slice(-2).toUpperCase()}`,
+        kind: 'project',
+        shape: 'rect',
+        center: [west ? WEST_X : EAST_X, z],
+        size: [ROOM_W, BAND_DEPTH],
+        height: ROOM_H,
+        accent: 'cyan',
+        sign: ['PROJECT DECK B', 'UNASSIGNED'],
+        doors: [{ side: west ? 'E' : 'W', at: 0, width: 9, auto: true }],
+        dormant: true,
+      })
+    }
+  })
+  return out
+}
+
 export const CORRIDORS: CorridorDef[] = [
   // Walkable logic for the spine (its walls are built as one continuous run).
   { id: 'spine-a', center: [0, -90], size: [SPINE_WIDTH, 34], height: 6.5, logicOnly: true },
@@ -329,6 +366,8 @@ export const CORRIDORS: CorridorDef[] = [
   { id: 'spine-e', center: [0, 168], size: [SPINE_WIDTH, 40], height: 6.5, logicOnly: true },
   // archive access hall (east of the archive into mission control)
   { id: 'archive-hall', center: [-26, -124], size: [16, 8], height: 6, pad: 0.3 },
+  // the second project-deck spine, north of Mission Control
+  { id: 'spine-n', center: [0, -191], size: [SPINE_WIDTH, 98], height: 6.5, logicOnly: true },
   ...deckTunnels(),
 ]
 
@@ -341,6 +380,9 @@ function deckTunnels(): CorridorDef[] {
     { z: bandZ(2), west: 'frontend', east: 'review' },
     { z: bandZ(3), west: 'test', east: 'workshop' },
     { z: bandZ(4), west: 'expansion-a', east: 'expansion-b' },
+    { z: -160, west: 'project-b1', east: 'project-b2' },
+    { z: -190, west: 'project-b3', east: 'project-b4' },
+    { z: -220, west: 'project-b5', east: 'project-b6' },
   ]
   for (const b of bands) {
     out.push({ id: `tunnel-w-${b.west}`, center: [-5.5, b.z], size: [7, 8], height: 6.5, pad: 0.2 })
@@ -390,8 +432,23 @@ export function doorFrame(r: RoomDef, d: DoorDef) {
   }
 }
 
-/** The three project module slots that shipped installed, plus two empty bays. */
-export const MODULE_SLOTS = ['project-1', 'project-2', 'project-3', 'expansion-a', 'expansion-b']
+/**
+ * Every place a project can live. The first five shipped installed; the second
+ * deck band grows the pool past ten so the deck never refuses a project.
+ */
+export const MODULE_SLOTS = [
+  'project-1',
+  'project-2',
+  'project-3',
+  'expansion-a',
+  'expansion-b',
+  'project-b1',
+  'project-b2',
+  'project-b3',
+  'project-b4',
+  'project-b5',
+  'project-b6',
+]
 
 export const ROLE_ROOM: Record<AgentRole, string> = {
   backend: 'backend',

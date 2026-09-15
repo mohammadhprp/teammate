@@ -4,9 +4,22 @@ import type { Ship } from '../world/ship'
 import { ACCENT, M } from '../core/palette'
 import { bus } from '../core/events'
 import { plaqueTexture } from '../core/textures'
-import { plane } from '../world/props'
+import { plane, type ScreenData } from '../world/props'
 import { MODULE_SLOTS, ROLE_ROOM, type AgentRole } from '../world/layout'
-import { makeAgentName, nextId, projectProgress, type AgentRecord, type Project, type Task } from './state'
+import {
+  makeAgentName,
+  ModuleRegistry,
+  nextId,
+  projectProgress,
+  reserveAgentName,
+  reserveId,
+  ROLE_COLOR,
+  ROLE_LABEL,
+  type AgentRecord,
+  type Project,
+  type Task,
+} from './state'
+import { SAVE_VERSION, type SaveData } from './persistence'
 import type { MissionTemplate } from './missions'
 
 /**
@@ -32,6 +45,17 @@ interface Tween {
   done?: () => void
 }
 
+/** Plain-language activity line for a lab screen, from the agent's record. */
+const STATUS_TEXT: Record<AgentRecord['status'], string> = {
+  created: 'ASSEMBLING ON THE LAUNCH PAD',
+  traveling: 'IN TRANSIT',
+  working: 'WORKING AT THE STATION',
+  reviewing: 'IN REVIEW',
+  returning: 'STANDING BY',
+  idle: 'IDLE — AWAITING ORDERS',
+  done: 'MISSION COMPLETE',
+}
+
 export interface SimulationHooks {
   onReport(text: string, kind: 'info' | 'success' | 'warn'): void
 }
@@ -55,10 +79,11 @@ export class Simulation {
   private spawns: { rec: AgentRecord; timer: number }[] = []
   private alerts = new Map<string, THREE.Mesh>()
   private plaques: THREE.Group[] = []
-  private moduleOf = new Map<string, string>()
+  private modules = new ModuleRegistry()
   private plaqueCount = 0
   private hqBoards: THREE.Object3D[] = []
   private moduleCounter = 0
+  private boardTimer = 0
 
   constructor(ship: Ship, scene: THREE.Scene, hooks: SimulationHooks) {
     this.ship = ship
@@ -95,7 +120,7 @@ export class Simulation {
 
   /** The developer has given Team Mate a mission. */
   createProject(mission: MissionTemplate): Project | null {
-    const moduleId = MODULE_SLOTS.find((m) => !this.moduleOf.has(m))
+    const moduleId = this.modules.next()
     if (!moduleId) {
       this.hooks.onReport('All project modules are occupied.', 'warn')
       return null
@@ -109,6 +134,8 @@ export class Simulation {
       accent,
       status: 'active',
       moduleId,
+      moduleState: 'claimed',
+      moduleNumber: this.moduleCounter,
       tasks: mission.tasks.map((t) => ({
         id: nextId('task'),
         title: t.title,
@@ -120,7 +147,7 @@ export class Simulation {
       createdAt: performance.now(),
     }
     this.projects.set(project.id, project)
-    this.moduleOf.set(moduleId, project.id)
+    this.modules.claim(moduleId, project.id)
 
     // --- world: the module wakes up ---------------------------------------
     this.ship.setRoomPower(moduleId, true)
@@ -374,7 +401,8 @@ export class Simulation {
 
   private completeProject(project: Project) {
     project.status = 'completed'
-    this.moduleOf.delete(project.moduleId)
+    project.moduleState = 'completed'
+    this.modules.complete(project.moduleId, project.id)
     this.completed.push(project)
     bus.emit({ type: 'project:completed', projectId: project.id })
     this.setAlert(project.moduleId, false)
@@ -402,6 +430,7 @@ export class Simulation {
       this.claim(rec, home?.id)
       agent.goToAnchor(home?.id ?? 'dock:pad', () => {
         agent.alignToAnchor(home?.id ?? 'dock:pad')
+        agent.markComplete()
         bus.emit({ type: 'agent:completed', agentId: rec.id })
       })
     }
@@ -413,7 +442,7 @@ export class Simulation {
     this.sendTeamMateToDeck()
   }
 
-  private spawnPlaque(project: Project) {
+  private spawnPlaque(project: Project, instant = false) {
     const slot = this.ship.nav.freeAnchor('plaque', 'archive', project.id)
     if (!slot) return
     slot.busy = project.id
@@ -429,10 +458,12 @@ export class Simulation {
     const stand = new THREE.Mesh(plane(0.06, 1.0), M.holo(project.accent, 0.45))
     stand.position.set(0, -1.16, 0)
     group.add(frame, stand, panel)
-    group.scale.setScalar(0.01)
+    group.scale.setScalar(instant ? 1 : 0.01)
     group.userData.phase = this.plaqueCount * 0.8
     this.scene.add(group)
-    this.tweens.push({ t: 0, d: 1.1, update: (k) => group.scale.setScalar(0.01 + k * 0.99) })
+    if (!instant) {
+      this.tweens.push({ t: 0, d: 1.1, update: (k) => group.scale.setScalar(0.01 + k * 0.99) })
+    }
     this.plaqueCount++
     this.plaques.push(group)
   }
@@ -483,6 +514,101 @@ export class Simulation {
       cmd?.userData.setTitle?.('NO ACTIVE MISSION', '')
       cmd?.userData.setProgress?.(0)
     }
+    this.updateScreens()
+  }
+
+  /** Push live state onto the wall screens — Mission Control, labs, boards. */
+  private updateScreens() {
+    const active = [...this.projects.values()].filter((p) => p.status === 'active')
+    const cyan = 0x5fd8f0
+
+    const mission: ScreenData = {
+      title: 'MISSION CONTROL',
+      subtitle: `${active.length} ACTIVE · ${this.completed.length} ARCHIVED`,
+      accent: cyan,
+      rows: active.slice(0, 5).map((p) => {
+        const prog = projectProgress(p)
+        return {
+          label: p.name,
+          value: `${Math.round(prog * 100)}%`,
+          progress: prog,
+          accent: p.accent,
+        }
+      }),
+    }
+    this.setScreen('screen:mission:main', 'mission', mission)
+
+    const roster = this.roster()
+    const fleet: ScreenData = {
+      title: 'FLEET',
+      subtitle: `${this.agents.size} AGENTS DEPLOYED`,
+      accent: cyan,
+      rows: (['backend', 'frontend', 'review', 'test'] as AgentRole[]).map((r) => ({
+        label: ROLE_LABEL[r],
+        value: `${roster[r] ?? 0}`,
+        progress: undefined,
+      })),
+    }
+    this.setScreen('screen:mission:w', 'fleet', fleet)
+    this.setScreen('screen:mission:e', 'fleet', fleet)
+
+    // Each lab screen names its resident robot and what it is doing.
+    for (const role of ['backend', 'frontend', 'review', 'test'] as AgentRole[]) {
+      const room = ROLE_ROOM[role]
+      const all = [...this.records.values()]
+      const rec = all.find((r) => r.role === role && r.status !== 'done') ?? all.find((r) => r.role === role)
+      const agent = rec ? this.agents.get(rec.id) : undefined
+      const project = rec ? this.projects.get(rec.projectId) : undefined
+      const task = project?.tasks.find((t) => t.id === rec?.taskId)
+      const activity = task ? task.title : rec ? STATUS_TEXT[rec.status] : 'STANDBY'
+      this.setScreen(`screen:${room}:main`, 'lab', {
+        title: `${room.toUpperCase()} LAB`,
+        subtitle: rec ? rec.name.toUpperCase() : 'NO RESIDENT',
+        accent: ROLE_COLOR[role],
+        rows: [
+          { label: 'ROBOT', value: rec ? rec.name : '—' },
+          { label: 'ROLE', value: ROLE_LABEL[role] },
+          { label: 'ACTIVITY', value: activity, progress: agent?.workProgress() },
+          { label: 'PROJECT', value: project ? project.name : '—', progress: project ? projectProgress(project) : undefined },
+        ],
+      })
+    }
+
+    this.setScreen('screen:shop', 'workshop', {
+      title: 'WORKSHOP',
+      subtitle: 'MAINTENANCE & BUILD',
+      accent: cyan,
+      rows: [
+        { label: 'AGENTS BUILT', value: `${this.records.size}`, progress: undefined },
+        { label: 'RETIRED', value: `${[...this.records.values()].filter((r) => r.status === 'done').length}`, progress: undefined },
+        { label: 'ARCHIVED', value: `${this.completed.length}`, progress: undefined },
+      ],
+    })
+
+    // The module task boards: one row per task, filled as work lands.
+    for (const moduleId of MODULE_SLOTS) {
+      const projectId = this.modules.live(moduleId)
+      const project = projectId ? this.projects.get(projectId) : undefined
+      const rows: ScreenData['rows'] = project
+        ? project.tasks.slice(0, 5).map((t) => ({
+            label: t.title,
+            value: t.status === 'done' ? 'DONE' : t.status === 'active' ? 'ACTIVE' : 'QUEUED',
+            progress: t.status === 'done' ? 1 : t.status === 'active' ? 0.5 : 0,
+            accent: t.status === 'done' ? project.accent : undefined,
+          }))
+        : [{ label: 'AWAITING MISSION', value: 'STANDBY', progress: 0 }]
+      const roomName = this.ship.rooms.get(moduleId)?.def.name ?? moduleId.toUpperCase()
+      this.setScreen(`screen:${moduleId}:tasks`, 'tasks', {
+        title: project ? project.name : roomName,
+        subtitle: project ? `${Math.round(projectProgress(project) * 100)}% COMPLETE` : 'UNASSIGNED',
+        accent: project?.accent ?? cyan,
+        rows,
+      })
+    }
+  }
+
+  private setScreen(name: string, kind: string, data: ScreenData) {
+    this.ship.ctx.get(name)?.userData.setScreen?.(kind, data)
   }
 
   private sendTeamMateToHQ() {
@@ -505,6 +631,116 @@ export class Simulation {
         this.hooks.onReport('Team Mate: all missions accounted for, commander.', 'success')
       })
     })
+  }
+
+  // -------------------------------------------------------------------------
+  // Persistence
+  // -------------------------------------------------------------------------
+
+  /** A JSON-safe picture of everything that has to survive a reload. */
+  snapshot(): SaveData {
+    const clone = (p: Project): Project => ({
+      ...p,
+      tasks: p.tasks.map((t) => ({ ...t })),
+      agents: [...p.agents],
+    })
+    const modules = this.modules.snapshot()
+    return {
+      v: SAVE_VERSION,
+      savedAt: Date.now(),
+      projects: [...this.projects.values()].map(clone),
+      completed: this.completed.map(clone),
+      records: [...this.records.values()].map((r) => ({ ...r })),
+      moduleCounter: this.moduleCounter,
+      moduleOwner: modules.owner,
+      moduleReleased: modules.released,
+    }
+  }
+
+  /**
+   * Replay a save into the world: power the modules, re-spawn robots at their
+   * home berths and re-create plaques, without animating the history.
+   */
+  restore(data: SaveData) {
+    this.projects.clear()
+    this.records.clear()
+    this.completed.length = 0
+    this.moduleCounter = data.moduleCounter ?? this.moduleCounter
+    this.modules.restore(data.moduleOwner, data.moduleReleased)
+
+    for (const p of data.projects) {
+      reserveId(p.id)
+      for (const t of p.tasks) reserveId(t.id)
+      for (const a of p.agents) reserveId(a)
+      p.moduleState = this.modules.live(p.moduleId) === p.id
+        ? p.status === 'active' ? 'claimed' : 'completed'
+        : 'released'
+      // an interrupted task goes back in the queue
+      for (const t of p.tasks) {
+        if (t.status === 'active') {
+          t.status = 'pending'
+          t.agentId = undefined
+        }
+      }
+      this.projects.set(p.id, p)
+    }
+    for (const r of data.records) {
+      reserveId(r.id)
+      reserveAgentName(r.name)
+      r.taskId = undefined
+      this.records.set(r.id, r)
+    }
+
+    // world: modules come back powered exactly as the registry says
+    for (const moduleId of MODULE_SLOTS) {
+      const projectId = this.modules.live(moduleId)
+      const project = projectId ? this.projects.get(projectId) : undefined
+      const active = project?.status === 'active'
+      this.ship.setRoomPower(moduleId, !!active)
+      if (!project) continue
+      this.ship.setSign(
+        moduleId,
+        `PROJECT ${String(project.moduleNumber ?? 0).padStart(2, '0')}`,
+        project.name,
+        project.accent,
+      )
+      const board = this.ship.ctx.get(`holo:${moduleId}`)
+      board?.userData.setTitle?.(project.name, active ? project.subtitle : 'COMPLETE')
+      board?.userData.setProgress?.(active ? projectProgress(project) : 1, project.accent)
+    }
+    for (const p of data.completed) {
+      reserveId(p.id)
+      this.completed.push(p)
+      this.spawnPlaque(p, true)
+    }
+
+    // robots re-spawn parked at their home berths
+    for (const rec of this.records.values()) {
+      const agent = new Agent({
+        id: rec.id,
+        name: rec.name,
+        nav: this.ship.nav,
+        role: rec.role,
+        speed: 4.2 + Math.random() * 0.8,
+      })
+      this.scene.add(agent.root)
+      this.agents.set(rec.id, agent)
+      const home =
+        this.ship.nav.freeAnchor('home', ROLE_ROOM[rec.role], rec.id) ??
+        this.ship.nav.freeAnchor('home', undefined, rec.id)
+      this.claim(rec, home?.id)
+      agent.place(home?.x ?? 0, home?.z ?? 150, Math.atan2(home?.fx ?? 0, home?.fz ?? 1))
+      if (rec.status === 'done') agent.markComplete()
+      else rec.status = 'idle'
+    }
+
+    // active work picks up where it left off
+    for (const rec of this.records.values()) {
+      if (rec.status === 'done') continue
+      const project = this.projects.get(rec.projectId)
+      if (project?.status === 'active') this.assignNextTask(rec)
+    }
+    this.updateBoards()
   }
 
   // -------------------------------------------------------------------------
@@ -556,6 +792,14 @@ export class Simulation {
       ;(m.material as THREE.MeshStandardMaterial).emissiveIntensity =
         0.6 + Math.abs(Math.sin(t * 3.4)) * 2.2
     }
+
+    // live wall screens track activity that has no explicit event (an agent
+    // starting a task, progress bars) — cheap, because repaints are cached
+    this.boardTimer += dt
+    if (this.boardTimer >= 0.5) {
+      this.boardTimer = 0
+      this.updateScreens()
+    }
   }
 
   /** Head count per role: used for a compact status line. */
@@ -567,5 +811,10 @@ export class Simulation {
 
   teamMatePosition() {
     return { x: this.tm.x, z: this.tm.z }
+  }
+
+  /** The orchestrator itself, so the camera can inspect it too. */
+  get teamMate() {
+    return this.tm
   }
 }

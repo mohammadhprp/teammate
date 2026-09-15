@@ -157,14 +157,18 @@ export class NavGraph {
 
 const ROTUNDA_MIN = -74.5
 const ROTUNDA_MAX = -41.5
+/** The mission rotunda: the spine passes through its north door, not across it. */
+const MISSION_MIN = -143
+const MISSION_MAX = -105
 
 export function buildNav(): NavGraph {
   const nav = new NavGraph()
 
   // --- spine chain --------------------------------------------------------
   const chainZ = new Set<number>()
-  for (let z = -105; z <= 203; z += 4.5) {
+  for (let z = -240; z <= 203; z += 4.5) {
     if (z > ROTUNDA_MIN && z < ROTUNDA_MAX) continue
+    if (z > MISSION_MIN && z < MISSION_MAX) continue
     chainZ.add(round2(z))
   }
   for (const n of [0, 1, 2, 3, 4]) chainZ.add(bandZ(n))
@@ -223,8 +227,12 @@ export function buildNav(): NavGraph {
     if (room.id === 'mission') {
       nav.addNode('mission:center', 0, -124, 'mission')
       nav.addNode('mission:south', 0, -106, 'mission')
+      // the north door opens onto the second project deck
+      nav.addNode('mission:north', 0, -141, 'mission')
       nav.link('mission:center', 'mission:south')
       nav.link('mission:south', spineId(nearChain(chain, -105)))
+      nav.link('mission:center', 'mission:north')
+      nav.link('mission:north', spineId(nearChain(chain, -141)))
       continue
     }
 

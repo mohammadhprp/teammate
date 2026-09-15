@@ -1,11 +1,13 @@
 import { C } from '../core/palette'
-import type { AgentRole } from '../world/layout'
+import { MODULE_SLOTS, type AgentRole } from '../world/layout'
 
 /** The project system. Nothing here knows about 3D — the simulation turns
  *  every field into something physical inside the ship. */
 
 export type ProjectStatus = 'active' | 'completed'
 export type TaskStatus = 'pending' | 'active' | 'done'
+/** Lifecycle of the physical module a project sits in. */
+export type ModuleState = 'claimed' | 'completed' | 'released'
 
 export interface Task {
   id: string
@@ -24,9 +26,57 @@ export interface Project {
   status: ProjectStatus
   /** Which physical module on the project deck this project occupies. */
   moduleId: string
+  /** claimed -> completed -> released, as the module is reused or regrown. */
+  moduleState: ModuleState
+  /** The ordinal shown on the module's doorway sign ("PROJECT 04"). */
+  moduleNumber: number
   tasks: Task[]
   agents: string[]
   createdAt: number
+}
+
+/**
+ * Owns the map from physical module slots to live projects. A finished module
+ * is released and reused before the deck grows into the second band, so a slot
+ * never carries two live projects at once.
+ */
+export class ModuleRegistry {
+  private owner = new Map<string, string>()
+  private released: string[] = []
+
+  /** The live project sitting in a module, if any. */
+  live(moduleId: string) {
+    return this.owner.get(moduleId)
+  }
+
+  /** A released slot first, then the next unclaimed slot on either deck. */
+  next(): string | null {
+    while (this.released.length) {
+      const m = this.released.shift()!
+      if (!this.owner.has(m)) return m
+    }
+    return MODULE_SLOTS.find((m) => !this.owner.has(m)) ?? null
+  }
+
+  claim(moduleId: string, projectId: string) {
+    this.owner.set(moduleId, projectId)
+    this.released = this.released.filter((m) => m !== moduleId)
+  }
+
+  complete(moduleId: string, projectId: string) {
+    if (this.owner.get(moduleId) !== projectId) return
+    this.owner.delete(moduleId)
+    if (!this.released.includes(moduleId)) this.released.push(moduleId)
+  }
+
+  snapshot(): { owner: [string, string][]; released: string[] } {
+    return { owner: [...this.owner.entries()], released: [...this.released] }
+  }
+
+  restore(owner: [string, string][], released: string[]) {
+    this.owner = new Map(owner)
+    this.released = [...released]
+  }
 }
 
 export interface AgentRecord {
@@ -61,8 +111,21 @@ export const ROLE_LABEL: Record<AgentRole, string> = {
 let seq = 0
 export const nextId = (prefix: string) => `${prefix}-${(++seq).toString(36)}`
 
+/** Keep generated ids ahead of a restored save so ids never collide. */
+export function reserveId(id: string) {
+  const m = /-([0-9a-z]+)$/.exec(id)
+  if (!m) return
+  const v = parseInt(m[1], 36)
+  if (Number.isFinite(v) && v > seq) seq = v
+}
+
 const SUFFIX = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta']
 const usedNames = new Set<string>()
+
+/** Claim a name already used by a restored robot so it is never handed out again. */
+export function reserveAgentName(name: string) {
+  usedNames.add(name)
+}
 
 /** Team Mate names every worker by job plus a sequence suffix. */
 export function makeAgentName(role: AgentRole) {

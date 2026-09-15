@@ -3,7 +3,15 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { M, C, ACCENT, type AccentName } from '../core/palette'
 import { MeshBatch } from '../core/batch'
 import { obstacleFromBox, type Anchor, type Obstacle } from './nav'
-import { plateTexture, signTexture, screenTexture, roleIconTexture } from '../core/textures'
+import {
+  plateTexture,
+  signTexture,
+  screenTexture,
+  roleIconTexture,
+  makeCanvas,
+  toTexture,
+  hex,
+} from '../core/textures'
 import { makeRng } from '../core/math'
 
 // ---------------------------------------------------------------------------
@@ -428,6 +436,7 @@ export function ComputerTerminal(
     )
     scr.position.set(sx, 2.1, sz + 0.02)
     scr.rotation.y = ry
+    attachScreen(scr, color)
     ctx.register(`screen:${x.toFixed(1)}:${z.toFixed(1)}`, scr)
     solidBox(ctx, x, z, 3.4, 1.2)
     return
@@ -448,6 +457,7 @@ export function ComputerTerminal(
   )
   scr.position.set(sx, 2.35, sz)
   scr.rotation.y = ry
+  attachScreen(scr, color)
   ctx.register(`screen:${x.toFixed(1)}:${z.toFixed(1)}`, scr)
   solidBox(ctx, x, z, variant === 'wall' ? 3.4 : 2.8, 2.2)
 }
@@ -506,6 +516,100 @@ export function HolographicProjector(
   solidCircle(ctx, x, z, 1.8 * scale)
 }
 
+/**
+ * Live ship displays.
+ *
+ * Every big screen in the ship can be repainted from simulation data rather
+ * than being fixed at build time. `setScreen(kind, data)` is attached to the
+ * registered screen object, and updateBoards() drives it.
+ */
+export interface ScreenRow {
+  label: string
+  value: string
+  /** 0..1 fill for the row's progress bar; omit for a plain readout. */
+  progress?: number
+  accent?: number
+}
+
+export interface ScreenData {
+  title?: string
+  subtitle?: string
+  rows?: ScreenRow[]
+  accent?: number
+}
+
+const screenFont = (size: number, weight = 'bold') =>
+  `${weight} ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`
+
+/** Repaint a live display from data. */
+export function liveScreenTexture(kind: string, data: ScreenData, accent: number) {
+  const W = 768
+  const H = 384
+  const { canvas, ctx } = makeCanvas(W, H)
+  const ac = data.accent ?? accent
+  const glow = hex(ac)
+  ctx.fillStyle = '#0b161c'
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = glow
+  ctx.globalAlpha = 0.13
+  ctx.fillRect(0, 0, W, 66)
+  ctx.globalAlpha = 1
+  ctx.fillRect(0, 64, W, 3)
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#eaf4f8'
+  ctx.font = screenFont(38, 'bold')
+  ctx.fillText((data.title ?? kind).toUpperCase().slice(0, 26), 34, 34)
+  ctx.fillStyle = glow
+  ctx.font = screenFont(20, '600')
+  ctx.textAlign = 'right'
+  ctx.fillText((data.subtitle ?? kind.toUpperCase()).slice(0, 40), W - 34, 36)
+  ctx.textAlign = 'left'
+
+  const rows = (data.rows ?? []).slice(0, 5)
+  if (!rows.length) {
+    ctx.fillStyle = 'rgba(210,236,246,0.5)'
+    ctx.font = screenFont(26, '600')
+    ctx.fillText('STANDBY', 36, H / 2)
+  }
+  const top = 96
+  const rowH = Math.min(56, (H - top - 24) / Math.max(1, rows.length))
+  rows.forEach((row, i) => {
+    const y = top + i * rowH
+    const rowGlow = hex(row.accent ?? ac)
+    ctx.fillStyle = 'rgba(210,236,246,0.92)'
+    ctx.font = screenFont(24, '600')
+    ctx.fillText(row.label.toUpperCase().slice(0, 30), 36, y + 12)
+    ctx.fillStyle = rowGlow
+    ctx.textAlign = 'right'
+    ctx.font = screenFont(22, 'bold')
+    ctx.fillText(row.value.slice(0, 30), W - 36, y + 12)
+    ctx.textAlign = 'left'
+    const bw = W - 72
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'
+    ctx.fillRect(36, y + 32, bw, 8)
+    if (row.progress !== undefined) {
+      ctx.fillStyle = rowGlow
+      ctx.fillRect(36, y + 32, bw * clamp01(row.progress), 8)
+    }
+  })
+  return toTexture(canvas)
+}
+
+/** Give a screen mesh a data-driven repaint hook. */
+export function attachScreen(obj: THREE.Mesh, accent: number) {
+  const mat = obj.material as THREE.MeshBasicMaterial
+  obj.userData.setScreen = (kind: string, data: ScreenData) => {
+    const sig = `${kind}|${JSON.stringify(data)}`
+    if (obj.userData.screenSig === sig) return
+    obj.userData.screenSig = sig
+    const tex = liveScreenTexture(kind, data, accent)
+    mat.map?.dispose()
+    mat.map = tex
+    mat.needsUpdate = true
+  }
+}
+
 /** Big wall-mounted mission display. */
 export function MissionDisplay(
   ctx: PropCtx,
@@ -527,6 +631,7 @@ export function MissionDisplay(
   )
   scr.position.set(sx, h / 2 + 1.6, sz)
   scr.rotation.y = ry
+  attachScreen(scr, color)
   ctx.register(name, scr)
   ctx.batch.at(box(w * 0.5, 0.12, 0.2), M.glow(color, 1.1), x, 1.5, sz, ry)
 }
@@ -706,14 +811,17 @@ export function ChargingStation(
   const [cx2, cz2] = local(px, pz, ry, 0, 0.7)
   ctx.batch.at(cyl(0.06, 0.06, 1.2, 8), M.rubber, cx2, 4.6, cz2, 0, 0.4)
   ctx.batch.at(tube(0.24, 0.06), M.glow(color, 1.3), x, 0.42, z)
-  // animated halo ring
-  const ring = new THREE.Mesh(tube(1.05, 0.05, 24), M.glow(color, 1.4))
+  // animated halo ring — its own material, so an occupied pad can brighten it
+  const haloMat = M.glow(color, 1.4).clone()
+  const ring = new THREE.Mesh(tube(1.05, 0.05, 24), haloMat)
   ring.rotation.x = -Math.PI / 2
-  ring.position.set(x, 0.4, z)
-  ring.userData.spin = 0.9
   const holder = new THREE.Group()
   holder.position.set(x, 0.4, z)
   holder.add(ring)
+  holder.userData.spin = 0.9
+  holder.userData.pad = { x, z }
+  holder.userData.halo = haloMat
+  holder.userData.charge = 0
   ctx.register(`charge:${id}`, holder)
   solidCircle(ctx, x, z, 1.9)
 }

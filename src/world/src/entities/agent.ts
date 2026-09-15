@@ -23,6 +23,39 @@ export type AgentState =
   | 'complete'
   | 'blocked'
 
+/**
+ * Silent state language: posture and light, no text.
+ *
+ *  docked (idle)  head lifted, scanning, upright
+ *  working        head lowered, leaning into the station, lens bright
+ *  reporting      head straight up, fast lens blink
+ *  complete       parked, lens dimmed right down
+ */
+const POSTURE: Record<
+  AgentState,
+  {
+    pitch: number
+    scan: number
+    neck: number
+    lean: number
+    roll: number
+    lens: number
+    pulse: number
+    ring: number
+    blink: number
+    bob: number
+    bobSpeed: number
+  }
+> = {
+  docked: { pitch: -0.09, scan: 0.5, neck: 1.26, lean: 0, roll: 0, lens: 0.32, pulse: 1.6, ring: 0.4, blink: 0, bob: 0.012, bobSpeed: 2.2 },
+  moving: { pitch: 0, scan: 0.16, neck: 1.24, lean: 0.05, roll: 0, lens: 0.5, pulse: 2.2, ring: 0.7, blink: 0, bob: 0.02, bobSpeed: 2.6 },
+  working: { pitch: 0.26, scan: 0.05, neck: 1.15, lean: 0.22, roll: 0, lens: 1.0, pulse: 4.0, ring: 1.0, blink: 0, bob: 0.045, bobSpeed: 6 },
+  reporting: { pitch: -0.24, scan: 0, neck: 1.3, lean: -0.05, roll: 0, lens: 1.5, pulse: 3.0, ring: 1.2, blink: 9, bob: 0.02, bobSpeed: 3 },
+  returning: { pitch: 0, scan: 0.16, neck: 1.24, lean: 0.03, roll: 0, lens: 0.45, pulse: 2.2, ring: 0.6, blink: 0, bob: 0.02, bobSpeed: 2.6 },
+  complete: { pitch: 0.07, scan: 0.06, neck: 1.19, lean: 0, roll: 0, lens: 0.1, pulse: 1.0, ring: 0.22, blink: 0, bob: 0.01, bobSpeed: 1.4 },
+  blocked: { pitch: 0.32, scan: 0.3, neck: 1.13, lean: 0, roll: 0, lens: 1.0, pulse: 5.0, ring: 1.0, blink: 0, bob: 0.03, bobSpeed: 4 },
+}
+
 const ACCENT_BY_ROLE: Record<AgentRole, number> = {
   backend: C.green,
   frontend: C.blue,
@@ -232,34 +265,43 @@ export class Agent {
     this.wheelSpin += move * 2.6
   }
 
+  /** A project finished: the robot parks with its lens dimmed. */
+  markComplete() {
+    this.state = 'complete'
+  }
+
   private animate(dt: number) {
     this.root.position.set(this.x, 0.42, this.z)
     this.root.rotation.y = this.facing
 
     const m = this.model
+    const P = POSTURE[this.state]
     // tracks
     for (const w of m.leftWheels) w.rotation.x = this.wheelSpin
     for (const w of m.rightWheels) w.rotation.x = this.wheelSpin
 
-    // idle hover bob, quicker while working
-    const bobAmount = this.state === 'working' ? 0.045 : this.state === 'moving' ? 0.02 : 0.012
-    m.root.position.y = Math.sin(this.bob * (this.state === 'working' ? 6 : 2.2)) * bobAmount
+    // hover bob and the whole postural read, damped so a state change settles
+    m.root.position.y = Math.sin(this.bob * P.bobSpeed) * P.bob
 
-    // head looks around when idle, locks on when working
-    const scan = this.state === 'docked' ? 0.5 : 0.12
-    m.head.rotation.y = Math.sin(this.bob * 0.8 + this.ringPhase) * scan
-    m.head.rotation.x =
-      damp(m.head.rotation.x, this.state === 'working' ? -0.22 + Math.sin(this.bob * 5) * 0.08 : 0, 6, dt)
-    m.neck.position.y = 1.24 - this.working * 0.06
+    const blink = P.blink > 0 ? (Math.sin(this.bob * P.blink) > 0 ? 1 : 0.35) : 1
+    m.head.rotation.y = Math.sin(this.bob * 0.8 + this.ringPhase) * P.scan
+    const pitch = P.pitch + (this.state === 'working' ? Math.sin(this.bob * 5) * 0.05 : 0)
+    m.head.rotation.x = damp(m.head.rotation.x, pitch, 7, dt)
+    m.neck.position.y = damp(m.neck.position.y, P.neck, 6, dt)
+    m.root.rotation.x = damp(m.root.rotation.x, P.lean, 6, dt)
+    // idle track stance: a slow weight shift on the base
+    const roll = P.roll + (this.state === 'docked' ? Math.sin(this.bob * 0.7) * 0.03 : 0)
+    m.root.rotation.z = damp(m.root.rotation.z, roll, 5, dt)
 
     // status ring: pulses, brighter the busier the robot is
-    const activity =
-      this.state === 'working' ? 1 : this.state === 'moving' ? 0.7 : this.state === 'reporting' ? 1.2 : 0.4
-    const pulse = 0.45 + 0.35 * Math.sin(this.ringPhase * (this.state === 'working' ? 4 : 1.6))
-    m.ringMat.opacity = 0.18 + pulse * activity * 0.5
+    const pulse = 0.45 + 0.35 * Math.sin(this.ringPhase * P.pulse)
+    m.ringMat.opacity = 0.14 + pulse * P.ring * 0.5
     m.ringMat.color.setHex(this.accent)
-    m.lensMat.emissiveIntensity = 0.28 + activity * 0.5
-    m.headLight.intensity = 0.5 + activity * 0.9
+
+    // lens is the second channel: bright while working, blinking in report,
+    // almost out once the job is done
+    m.lensMat.emissiveIntensity = P.lens * blink
+    m.headLight.intensity = 0.4 + P.lens * 0.9 * blink
   }
 
   setAccent(color: number) {

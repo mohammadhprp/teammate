@@ -8,6 +8,7 @@ import {
   COMMAND_CENTER,
   COMMAND_RADIUS,
   DOCK_CENTER,
+  DECK_B_BANDS,
   DOCK_DEPTH,
   HQ_CENTER,
   HQ_RADIUS,
@@ -81,7 +82,12 @@ export interface Ship {
   space: THREE.Group
   setRoomPower(id: string, on: boolean): void
   setSign(roomId: string, title: string, subtitle: string, accent: number): void
-  update(dt: number, visitors: { x: number; z: number; r: number }[]): void
+  /** Anchors currently occupied by a robot, so props can react to one on them. */
+  update(
+    dt: number,
+    visitors: { x: number; z: number; r: number }[],
+    occupied: { x: number; z: number }[],
+  ): void
 }
 
 const DOOR_TOP = 5.4
@@ -342,7 +348,7 @@ export function buildShip(): Ship {
   root.add(buildSpace())
 
   // --- spine ---------------------------------------------------------------
-  const bands = [0, 1, 2, 3, 4].map(bandZ)
+  const bands = [0, 1, 2, 3, 4].map(bandZ).concat(DECK_B_BANDS)
   for (const seg of SPINE_SEGMENTS) {
     const len = seg.z1 - seg.z0
     if (len < 1) continue
@@ -532,7 +538,7 @@ export function buildShip(): Ship {
       )
       rt.accent = accent
     },
-    update(dt, visitors) {
+    update(dt, visitors, occupied) {
       updateDoors(doors, dt, visitors)
       for (const rt of rooms.values()) {
         rt.power = damp(rt.power, rt.target, 2.6, dt)
@@ -548,7 +554,7 @@ export function buildShip(): Ship {
           h.visible = p > 0.05
         }
       }
-      animateProps(ctx, dt)
+      animateProps(ctx, dt, occupied)
     },
   }
   return ship
@@ -765,7 +771,11 @@ function buildRotunda(ctx: PropCtx, kind: 'hq' | 'mission' | 'archive', cx: numb
   if (kind === 'hq') {
     gaps.push({ a: Math.PI, half: spineHalf }, { a: 0, half: spineHalf })
   } else if (kind === 'mission') {
-    gaps.push({ a: 0, half: spineHalf }, { a: -Math.PI / 2, half: Math.asin(3.5 / r) + 0.03 })
+    gaps.push(
+      { a: 0, half: spineHalf },
+      { a: -Math.PI / 2, half: Math.asin(3.5 / r) + 0.03 },
+      { a: Math.PI, half: spineHalf },
+    )
   } else {
     gaps.push({ a: Math.PI / 2, half: Math.asin(3.5 / r) + 0.03 })
   }
@@ -922,13 +932,23 @@ function updateDoors(doors: DoorRuntime[], dt: number, visitors: { x: number; z:
 // Continuous life: spinning rings, drifting holograms
 // ---------------------------------------------------------------------------
 
-function animateProps(ctx: PropCtx, dt: number) {
+function animateProps(ctx: PropCtx, dt: number, occupied: { x: number; z: number }[]) {
   const t = performance.now() / 1000
   for (const obj of ctx.registry.values()) {
     const spin = obj.userData.spin as number | undefined
     if (spin) obj.rotation.y += spin * dt
     if (obj.userData.kind === 'hq-board') {
       obj.position.y += Math.sin(t * 1.3 + (obj.userData.index ?? 0)) * dt * 0.07
+    }
+    // a charging pad under a parked robot comes alive: faster spin, brighter halo
+    const pad = obj.userData.pad as { x: number; z: number } | undefined
+    if (pad) {
+      const halo = obj.userData.halo as THREE.MeshStandardMaterial
+      const live = occupied.some((o) => Math.hypot(o.x - pad.x, o.z - pad.z) < 5.6)
+      const charge = damp((obj.userData.charge as number) ?? 0, live ? 1 : 0, 4, dt)
+      obj.userData.charge = charge
+      halo.emissiveIntensity = 0.65 + charge * 2.3 + Math.sin(t * 7) * 0.12 * charge
+      obj.userData.spin = 0.9 + charge * 2.0
     }
   }
   const globe = ctx.get('holo:mission:globe')

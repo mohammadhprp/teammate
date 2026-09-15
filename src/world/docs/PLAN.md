@@ -49,6 +49,17 @@ refused with "All project modules are occupied". Nothing spawns a new module.
 - **Files:** `world/layout.ts`, `game/system.ts`, `world/ship.ts`.
 - **Accept:** creating ten projects in a row never fails, and the deck never
   shows two live projects in one module.
+- **Decision (W-01): option (b) — a second project-deck band, built from
+  `layout.ts` and grown on demand.** Chosen over (a) reusing archived slots
+  because "ten projects in a row" means ten *live* projects at once: recycling
+  released modules cannot satisfy it, so the deck has to be able to hold more
+  than five. The band runs north of Mission Control (`DECK_B_BANDS`), where
+  there was free hull space between the rotunda and the spine's north end, so
+  it reuses the existing spine/room/tunnel builders instead of inventing new
+  geometry. `ModuleRegistry` still prefers a released module before opening a
+  new band slot, so finished projects recycle cheaply; the band only comes into
+  play when nothing is free. A module's content is built lazily in the sense
+  that the room stays dormant and unpowered until a project claims it.
 
 ### W-02 [Missing] Persistence
 Every reload loses all state.

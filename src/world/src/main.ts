@@ -7,6 +7,9 @@ import { Player } from './game/player'
 import { Simulation } from './game/system'
 import { Hud } from './game/hud'
 import { planFromText, MISSIONS } from './game/missions'
+import { load, save } from './game/persistence'
+import { ROLE_LABEL } from './game/state'
+import type { Agent } from './entities/agent'
 
 /**
  * TEAM MATE — the developer's spaceship.
@@ -56,6 +59,10 @@ function build() {
   // The three installed modules sit dormant until a project claims them.
   for (const id of ['project-1', 'project-2', 'project-3']) ship.setRoomPower(id, false)
 
+  // Bring back a previous run, if there is one. A bad payload is ignored.
+  const saved = load()
+  if (saved) sim.restore(saved)
+
   stage('ready', 1)
   bootGo.disabled = false
   bootGo.textContent = 'BOARD THE SHIP'
@@ -71,11 +78,50 @@ requestAnimationFrame(() => requestAnimationFrame(build))
 
 let nearTeamMate = false
 
+/** Plainer activity words for the inspection strip. */
+const FOCUS_STATUS: Record<string, string> = {
+  created: 'ASSEMBLING ON THE LAUNCH PAD',
+  traveling: 'IN TRANSIT',
+  working: 'WORKING AT THE STATION',
+  reviewing: 'IN REVIEW',
+  returning: 'STANDING BY',
+  idle: 'IDLE — AWAITING ORDERS',
+  done: 'MISSION COMPLETE',
+}
+
+function nearestAgent(): Agent | null {
+  let best: Agent | null = null
+  let bestD = Infinity
+  const consider = (a: Agent) => {
+    const d = Math.hypot(a.x - player.x, a.z - player.z)
+    if (d < bestD) {
+      bestD = d
+      best = a
+    }
+  }
+  for (const a of sim.agents.values()) consider(a)
+  consider(sim.teamMate)
+  return best
+}
+
+function toggleFocus() {
+  if (player.focused) {
+    player.releaseFocus()
+    return
+  }
+  const agent = nearestAgent()
+  if (agent) player.focusAgent(agent)
+}
+
 function updateInteraction() {
   const tm = sim.teamMatePosition()
   const d = Math.hypot(tm.x - player.x, tm.z - player.z)
   nearTeamMate = d < 9.5
   if (hud.terminalOpen) return
+  if (player.focused) {
+    hud.setPrompt(null)
+    return
+  }
   if (nearTeamMate) {
     hud.setPrompt(
       sim.projects.size > 0 && sim.roster().backend !== undefined
@@ -102,13 +148,18 @@ function openConsole() {
 // ---------------------------------------------------------------------------
 
 let hudTick = 0
+let saveTick = 0
 
 engine.onUpdate((dt) => {
   if (!ship) return
   // --- input ---------------------------------------------------------------
   if (!hud.terminalOpen) {
+    // release keyboard capture as soon as the console is no longer open
+    input.uiCaptured = false
     if (input.pressed('KeyE') && nearTeamMate) openConsole()
-    if (input.pressed('KeyC')) hud.report(`camera: ${player.cycleCamera()}`, 'info')
+    if (input.pressed('KeyF')) toggleFocus()
+    if (input.pressed('Escape') && player.focused) player.releaseFocus()
+    if (input.pressed('KeyC') && !player.focused) hud.report(`camera: ${player.cycleCamera()}`, 'info')
     if (input.pressed('KeyB')) engine.setBloom(!engine.bloomEnabled)
     if (input.pressed('Digit1')) sim.timeScale = 1
     if (input.pressed('Digit2')) sim.timeScale = 3
@@ -124,10 +175,37 @@ engine.onUpdate((dt) => {
   for (const a of sim.agents.values()) visitors.push({ x: a.x, z: a.z, r: 1.1 })
   const tm = sim.teamMatePosition()
   visitors.push({ x: tm.x, z: tm.z, r: 1.1 })
-  ship.update(dt, visitors)
+  const occupied: { x: number; z: number }[] = []
+  for (const a of ship.nav.anchors.values()) if (a.busy) occupied.push({ x: a.x, z: a.z })
+  ship.update(dt, visitors, occupied)
 
   engine.followShadow(player.x, player.z)
   updateInteraction()
+
+  // --- robot inspection ----------------------------------------------------
+  if (player.focused && player.focusTarget) {
+    const a = player.focusTarget
+    const rec = sim.records.get(a.id)
+    const project = rec ? sim.projects.get(rec.projectId) : undefined
+    const task = project?.tasks.find((t) => t.id === rec?.taskId)
+    const busy = a.state === 'working' || a.state === 'reporting'
+    hud.setFocus({
+      name: a.name,
+      role: rec ? ROLE_LABEL[rec.role] : 'ORCHESTRATOR',
+      task: task?.title ?? (rec ? FOCUS_STATUS[rec.status] ?? rec.status.toUpperCase() : 'ORCHESTRATING'),
+      project: project?.name ?? '—',
+      progress: busy ? a.workProgress() : 0,
+    })
+  } else {
+    hud.setFocus(null)
+  }
+
+  // --- persistence ---------------------------------------------------------
+  saveTick += dt
+  if (saveTick > 2) {
+    saveTick = 0
+    save(sim.snapshot())
+  }
 
   // --- hud -----------------------------------------------------------------
   hudTick += dt
@@ -170,6 +248,10 @@ canvas.addEventListener('click', () => {
 })
 
 bus.on('project:completed', () => player?.nudge(0.05))
+
+window.addEventListener('beforeunload', () => {
+  if (sim) save(sim.snapshot())
+})
 
 engine.start()
 
