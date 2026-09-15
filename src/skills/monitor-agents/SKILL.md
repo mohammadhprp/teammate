@@ -1,6 +1,6 @@
 ---
 name: monitor-agents
-description: "Track worker lifecycle and collect evidence until it settles: interpret idle/done/working/blocked/unknown and cancel safely. Use after delegating work and before reviewing it, or whenever a worker seems stalled or the developer asks what an agent is doing; stuck and orphaned workers are `recover-run`'s."
+description: "Track worker lifecycle and collect evidence until it settles: interpret idle/done/working/blocked/unknown and cancel safely, without blocking the primary — poll `status` or background a wait, never a long foreground `--wait`. Use after delegating work and before reviewing it, or whenever a worker seems stalled or the developer asks what an agent is doing; stuck and orphaned workers are `recover-run`'s."
 ---
 
 # Monitor agents
@@ -38,6 +38,26 @@ return too early.
 - Otherwise do not trust `idle` alone. Confirm completion from evidence —
   `python3 scripts/tm.py diff`, the project's tests, `python3 scripts/tm.py
   report` — as `verify-evidence` requires.
+
+## Wait without going silent
+
+A long wait blocks the primary and leaves the developer without a point of
+contact, which defeats the reason Team Mate stays free. A worker run is minutes
+to tens of minutes, so never sit inside it.
+
+- **Deliver, then poll.** `tm send` without `--wait` returns as soon as the
+  brief is delivered; check `tm status` (non-blocking) between other work.
+- **Background a real wait.** When you need the completion, run it in a
+  background shell and keep working; the session is notified when it finishes.
+  In OpenCode, the shell tool's `background` flag does this; from the TUI,
+  ctrl+b backgrounds a running foreground command.
+- **Do not foreground a long `--wait`.** `tm send --wait` and `tm wait` hold the
+  whole turn. Keep a foreground wait short (a small `--timeout`) and re-check
+  rather than blocking for the full run.
+
+If a foreground command does hang the primary, the developer can press ctrl+b in
+the primary's tab to move it to the background — an escape hatch, not the
+design.
 
 ## Procedure
 

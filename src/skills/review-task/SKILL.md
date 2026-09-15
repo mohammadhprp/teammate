@@ -40,7 +40,9 @@ being a reviewer worker.
    `git diff --staged`, or `git -C <root> diff`) and the full changed files,
    then run the project's checks now. `review-change`
    requires evidence from the current state; the implementer's snapshot and
-   "tests pass" are a hypothesis about the change, not evidence for it.
+   "tests pass" are a hypothesis about the change, not evidence for it. Re-run
+   the decisive check: a pasted transcript with no run behind it is a `blocker`
+   finding for fabricated evidence.
 2. **Apply `review-change` in full** — check every acceptance criterion
    explicitly (demonstrated, violated, or unverified), record one finding per
    observation with severity and category, and reach a `pass` / `fail` /

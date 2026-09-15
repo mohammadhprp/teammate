@@ -16,6 +16,12 @@
 - Lint / typecheck:
 - Run / dev:
 
+## Checks
+
+- Offline validators (name the exact command):
+- For a UI: HTML / markup validator and an accessibility check:
+- How a reviewer runs them without network access:
+
 ## Conventions
 
 - <naming, structure, formatting, or workflow rules that matter here>

@@ -12,7 +12,9 @@ worker_kind = "opencode"
 primary_workspace = "teammate"
 
 # Directory for the persistent task ledger. Shared across projects and
-# survives the primary session ending.
+# survives the primary session ending. Briefs live in <state_dir>/briefs,
+# captured reports in <state_dir>/reports, and the open session marker in
+# <state_dir>/session.json.
 state_dir = "~/.teammate"
 
 # Maximum worker agents running at once.

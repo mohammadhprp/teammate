@@ -14,7 +14,9 @@ works if the record is written first and updated as the work moves.
 The ledger lives under `state_dir` (default `~/.teammate/`, from
 `team-mate.toml`): one JSON file per task at `<state_dir>/tasks/<id>.json` plus
 an append-only `<state_dir>/timeline.jsonl`. That is what makes `task list`,
-`task find`, and `task show` answer after a restart.
+`task find`, and `task show` answer after a restart. Briefs live in
+`<state_dir>/briefs/` and captured reports in `<state_dir>/reports/`; both are
+inside the sandbox, unlike a temp dir.
 
 ## When to use
 
@@ -47,6 +49,24 @@ Keep to these; they are the whole vocabulary the CLI accepts.
 `iteration` counts review/rework cycles against `max_iterations` (default 3). A
 review that ran zero checks is not a pass: record it as `rework` or leave it
 `awaiting_review`, never `ready_for_approval` (see `review-change`).
+
+## Session and hygiene
+
+The ledger is shared across runs, so tag each run and keep it clean.
+
+- **Open a session when a run starts.** `python3 scripts/tm.py session start`
+  prints the id and writes `<state_dir>/session.json`; every task created while
+  it is open records that `session`. `tm session end` closes it.
+- **`task list` shows the open session by default**, so a new run does not
+  inherit stale work. Pass `--all` for every session, or `--session <id>`.
+  `recover-run` reconciles only the open session.
+- **Archive closed tasks.** `python3 scripts/tm.py task prune` moves closed
+  tasks to `<state_dir>/archive/`; it archives, never deletes. Scope with
+  `--session <id>` or `--all`.
+- **Briefs and reports are ledger state too.** `tm brief` writes to
+  `<state_dir>/briefs/` and `tm report --save` to `<state_dir>/reports/`; use
+  those commands rather than inventing a path, because this tree is what the
+  sandbox allows.
 
 ## Procedure
 

@@ -56,6 +56,9 @@ A pass verdict must not include open blocker or major findings.
 
 - **No self-approval.** A worker cannot pass its own work.
 - **No rubber stamping.** A pass with zero checks is a process failure.
+- **No fabricated evidence.** A pasted command transcript is a claim, not
+  proof; re-run the decisive check, and record a transcript with no run behind
+  it as a `blocker`.
 - **Bounded loops.** The iteration limit prevents endless rework.
 - **Visible dissent.** `inconclusive` and disputed findings reach the developer.
 - **Fresh evidence.** Collect evidence at each iteration; never reuse a prior

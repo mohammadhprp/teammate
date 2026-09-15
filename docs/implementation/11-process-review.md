@@ -9,6 +9,9 @@ Evidence: the site project `~/Developer/teammate-site` (three commits), the
 primary's ledger at `~/.teammate/` (`tasks/`, `timeline.jsonl`, `briefs/`,
 `reports/`), and the primary's own session output.
 
+> **Status:** the improvement plan below is implemented; see
+> [NEXT.md](../NEXT.md) for the item-to-change mapping.
+
 ## Outcome
 
 - Team Mate created the project, wrote `AGENTS.md` and `CONTEXT.md` with a real

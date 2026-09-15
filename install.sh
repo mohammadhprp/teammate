@@ -37,6 +37,7 @@ Creates ./teammate, installs the Team Mate overlay into it, then launches Herdr.
   src/skills/         -> teammate/.agents/skills/
   src/scripts/        -> teammate/scripts/
   src/templates/      -> teammate/templates/
+  (opencode.json is created with the permissions the primary needs)
 
 Usage:
   install.sh [options]
@@ -147,6 +148,23 @@ install_file "$src/team-mate.toml" "$DEST/team-mate.toml"
 copy_tree "$src/skills" "$DEST/.agents/skills"
 copy_tree "$src/scripts" "$DEST/scripts"
 copy_tree "$src/templates" "$DEST/templates"
+
+# Provision OpenCode permissions so a fresh primary can read and write its own
+# state dir without an external-directory dialog. Target projects are added
+# later with `tm permissions allow --cwd <root>` (bootstrap-project).
+case "${KIND:-opencode}" in
+  opencode)
+    if ! command -v python3 >/dev/null 2>&1; then
+      warn "python3 not found; skipping opencode.json permissions"
+    elif python3 "$DEST/scripts/tm.py" --config "$DEST/team-mate.toml" \
+      permissions init >/dev/null 2>&1; then
+      info "opencode.json allows the state dir"
+    else
+      warn "could not provision opencode.json permissions"
+    fi
+    ;;
+esac
+
 
 if [ -n "$KIND" ] && [ -f "$DEST/team-mate.toml" ]; then
   sed -i.bak "s/^worker_kind = .*/worker_kind = \"$KIND\"/" "$DEST/team-mate.toml"

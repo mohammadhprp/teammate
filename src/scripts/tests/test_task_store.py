@@ -91,6 +91,92 @@ class TaskStoreTest(unittest.TestCase):
         self.assertEqual(event["summary"], "acme-1")
 
 
+class SessionTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_new_session_is_open_until_ended(self):
+        session = task_store.new_session(self.state)
+
+        self.assertTrue(session.startswith("sess_"))
+        self.assertEqual(task_store.current_session(self.state), session)
+        self.assertEqual(task_store.end_session(self.state), session)
+        self.assertIsNone(task_store.current_session(self.state))
+
+    def test_created_tasks_are_tagged_with_the_open_session(self):
+        session = task_store.new_session(self.state)
+
+        task = task_store.create(self.state, "acme", "t", "g", ["c"])
+
+        self.assertEqual(task["session"], session)
+
+    def test_list_filters_by_session(self):
+        first = task_store.new_session(self.state)
+        a = task_store.create(self.state, "acme", "a", "g", ["c"])
+        task_store.end_session(self.state)
+        second = task_store.new_session(self.state)
+        b = task_store.create(self.state, "acme", "b", "g", ["c"])
+
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state, session=first)],
+            [a["id"]],
+        )
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state, session=second)],
+            [b["id"]],
+        )
+
+    def test_briefs_and_reports_dirs_are_under_state_dir(self):
+        self.assertEqual(
+            task_store.briefs_dir(self.state), os.path.join(self.state, "briefs")
+        )
+        self.assertEqual(
+            task_store.reports_dir(self.state), os.path.join(self.state, "reports")
+        )
+
+
+class PruneTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_prune_archives_closed_tasks_only(self):
+        open_task = task_store.create(self.state, "acme", "open", "g", ["c"])
+        done = task_store.create(self.state, "acme", "done", "g", ["c"])
+        task_store.update(self.state, done["id"], status="approved")
+
+        moved = task_store.prune(self.state)
+
+        self.assertEqual(moved, [done["id"]])
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state)], [open_task["id"]]
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(task_store.archive_dir(self.state), f"{done['id']}.json")
+            )
+        )
+
+    def test_prune_can_scope_to_a_session(self):
+        first = task_store.new_session(self.state)
+        a = task_store.create(self.state, "acme", "a", "g", ["c"])
+        task_store.update(self.state, a["id"], status="approved")
+        task_store.end_session(self.state)
+        task_store.new_session(self.state)
+        b = task_store.create(self.state, "acme", "b", "g", ["c"])
+        task_store.update(self.state, b["id"], status="approved")
+
+        moved = task_store.prune(self.state, session=first)
+
+        self.assertEqual(moved, [a["id"]])
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state)], [b["id"]]
+        )
+
+
 class FindingsTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

@@ -49,8 +49,10 @@ skipped now returns later as a `review-change` finding and a rework cycle.
    change, not only the ones you added; a change to shared code is verified by
    its consumers' checks too.
 4. **Capture the raw output.** Record the exact command and its actual result,
-   not a paraphrase of intent. Evidence from before your last edit does not
-   count; re-run after every change.
+   not a paraphrase of intent. Paste what the command really printed; do not
+   reconstruct a transcript from memory or expectation — an unrun transcript is
+   fabricated evidence, and review will catch it. Evidence from before your last
+   edit does not count; re-run after every change.
 5. **Separate proven from assumed.** Name what you did not check.
    `verify-evidence`'s rule applies to your own run: a suite that never touched
    the change is a pass with zero checks, not proof.

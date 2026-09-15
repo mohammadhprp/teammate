@@ -36,7 +36,8 @@ shape, and make the report your final output so the primary can collect it.
    - `Requested` — the goal and criteria as given.
    - `Implemented` — what was actually built, in scope terms.
    - `Changed` — the files, with additions and deletions.
-   - `Verified` — claim + command + result, and what was not checked.
+   - `Verified` — claim + command + result, and what was not checked. Paste the
+     raw output of a command you actually ran; never a constructed transcript.
    - `Issues found and fixed` — one line per finding.
    - `Remaining concerns` — anything unresolved, with severity; keep it out of
      prose.
@@ -56,4 +57,7 @@ review.
 
 - A claim you cannot verify → mark it `inconclusive` in `Verified`; never imply
   success.
+- A command you did not run → do not write it as a transcript. A pasted
+  transcript with no run behind it is fabricated evidence and a `blocker`
+  finding; say what you actually ran instead.
 - Blocked → `raise-blocker` with one question, then report the blocked state.

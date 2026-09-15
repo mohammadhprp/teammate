@@ -114,6 +114,65 @@ MANAGED_MARKER = ".teammate-managed.json"
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
 EXCLUDE_END = "# end Team Mate distributed skills"
 
+PRIMARY_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OPENCODE_CONFIG = "opencode.json"
+OPENCODE_SCHEMA = "https://opencode.ai/config.json"
+
+
+def opencode_rules(root):
+    """V2 permission rules that let the primary touch a directory boundary.
+
+    A target project and the primary's own ``state_dir`` both sit outside the
+    primary's working directory, so OpenCode asks before the primary reads or
+    writes them. These rules allow that boundary; V1 uses ``permission`` with
+    action names ``bash``/``task`` instead.
+    """
+    boundary = os.path.abspath(os.path.expanduser(root))
+    return [
+        {
+            "action": "external_directory",
+            "resource": f"{boundary}/*",
+            "effect": "allow",
+        },
+        {"action": "read", "resource": f"{boundary}/*", "effect": "allow"},
+        {"action": "edit", "resource": f"{boundary}/*", "effect": "allow"},
+    ]
+
+
+def merge_opencode_permissions(path, rules):
+    """Add permission rules to ``opencode.json`` without removing existing ones."""
+    if os.path.exists(path):
+        with open(path) as fh:
+            data = json.load(fh)
+    else:
+        data = {"$schema": OPENCODE_SCHEMA}
+    existing = data.get("permissions")
+    if existing is None:
+        existing = []
+        data["permissions"] = existing
+    if not isinstance(existing, list):
+        raise ValueError(f"{path}: 'permissions' must be a list")
+    added = 0
+    for rule in rules:
+        if rule not in existing:
+            existing.append(rule)
+            added += 1
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    return added, os.path.abspath(path)
+
+
+def cmd_permissions_init(args):
+    added, path = merge_opencode_permissions(args.file, opencode_rules(args.state_dir))
+    print(f"permissions\t{added}\t{path}")
+
+
+def cmd_permissions_allow(args):
+    added, path = merge_opencode_permissions(args.file, opencode_rules(args.cwd))
+    print(f"permissions\t{added}\t{path}")
+
 
 def skills_source(config):
     """Directory the shared skills are copied from.
@@ -372,7 +431,41 @@ def cmd_report(args):
         "--lines",
         str(args.lines),
     )
-    sys.stdout.write(text)
+    if not args.save:
+        sys.stdout.write(text)
+        return
+    directory = task_store.reports_dir(args.state_dir)
+    os.makedirs(directory, exist_ok=True)
+    stem = f"{args.task}-{args.name}" if args.task else args.name
+    path = os.path.join(directory, f"{stem}-{int(time.time())}.md")
+    with open(path, "w") as fh:
+        fh.write(text)
+    print(path)
+
+
+def cmd_brief(args):
+    text = sys.stdin.read()
+    if not text.strip():
+        raise ValueError("empty brief")
+    directory = task_store.briefs_dir(args.state_dir)
+    os.makedirs(directory, exist_ok=True)
+    stem = f"{args.task}-{args.name}" if args.task else args.name
+    path = os.path.join(directory, f"{stem}.md")
+    with open(path, "w") as fh:
+        fh.write(text if text.endswith("\n") else text + "\n")
+    print(path)
+
+
+def cmd_session_start(args):
+    print(task_store.new_session(args.state_dir))
+
+
+def cmd_session_status(args):
+    print(task_store.current_session(args.state_dir) or "none")
+
+
+def cmd_session_end(args):
+    print(task_store.end_session(args.state_dir) or "none")
 
 
 def cmd_stop(args):
@@ -470,8 +563,20 @@ def cmd_task_new(args):
     print(task["id"])
 
 
+def _resolve_session(state_dir, session):
+    if session == "current":
+        return task_store.current_session(state_dir)
+    return session
+
+
 def cmd_task_list(args):
-    tasks = task_store.list_tasks(args.state_dir, args.status)
+    if args.all:
+        session = None
+    else:
+        session = _resolve_session(args.state_dir, args.session)
+        if session is None:
+            session = task_store.current_session(args.state_dir)
+    tasks = task_store.list_tasks(args.state_dir, args.status, session)
     if not tasks:
         print("no tasks")
         return
@@ -481,6 +586,19 @@ def cmd_task_list(args):
             f"i{task['iteration']}/{task['max_iterations']}\t"
             f"{task.get('worker') or '-'}\t{task['title']}"
         )
+
+
+def cmd_task_prune(args):
+    if args.all:
+        session = None
+    elif args.session:
+        session = _resolve_session(args.state_dir, args.session)
+    else:
+        session = task_store.current_session(args.state_dir)
+        if session is None:
+            raise ValueError("no open session; pass --session <id> or --all")
+    moved = task_store.prune(args.state_dir, session=session)
+    print(f"archived\t{len(moved)}\t{task_store.archive_dir(args.state_dir)}")
 
 
 def cmd_task_show(args):
@@ -620,7 +738,7 @@ def build_parser():
     p.add_argument("--timeout", type=int, help="milliseconds")
     p.set_defaults(func=cmd_wait)
 
-    p = sub.add_parser("report", help="print a worker's latest output")
+    p = sub.add_parser("report", help="print or capture a worker's latest output")
     p.add_argument("name")
     p.add_argument("--lines", type=int, default=300)
     p.add_argument(
@@ -628,7 +746,20 @@ def build_parser():
         choices=["visible", "recent", "recent-unwrapped", "detection"],
         default="recent-unwrapped",
     )
+    p.add_argument(
+        "--save",
+        action="store_true",
+        help="write the output under state_dir/reports and print the path",
+    )
+    p.add_argument("--task", help="task id, used to name a saved report")
     p.set_defaults(func=cmd_report)
+
+    p = sub.add_parser(
+        "brief", help="write a brief under state_dir/briefs and print the path"
+    )
+    p.add_argument("name")
+    p.add_argument("--task", help="task id, used to name the brief")
+    p.set_defaults(func=cmd_brief)
 
     p = sub.add_parser("stop", help="interrupt a worker and close its tab")
     p.add_argument("name")
@@ -645,6 +776,28 @@ def build_parser():
     p.add_argument("--body")
     p.add_argument("--sound", choices=["none", "done", "request"])
     p.set_defaults(func=cmd_notify)
+
+    p = sub.add_parser("session", help="mark the primary's session in the ledger")
+    actions = p.add_subparsers(dest="action", required=True)
+    a = actions.add_parser("start", help="open a session and print its id")
+    a.set_defaults(func=cmd_session_start)
+    a = actions.add_parser("status", help="print the open session id")
+    a.set_defaults(func=cmd_session_status)
+    a = actions.add_parser("end", help="close the open session")
+    a.set_defaults(func=cmd_session_end)
+
+    p = sub.add_parser(
+        "permissions", help="provision the primary's OpenCode permissions"
+    )
+    actions = p.add_subparsers(dest="action", required=True)
+    default_opencode = os.path.join(PRIMARY_ROOT, OPENCODE_CONFIG)
+    a = actions.add_parser("init", help="allow the primary's state_dir")
+    a.add_argument("--file", default=default_opencode, help="opencode.json path")
+    a.set_defaults(func=cmd_permissions_init)
+    a = actions.add_parser("allow", help="allow a target project root")
+    a.add_argument("--cwd", required=True, help="project root to allow")
+    a.add_argument("--file", default=default_opencode, help="opencode.json path")
+    a.set_defaults(func=cmd_permissions_allow)
 
     p = sub.add_parser("skills", help="distribute shared skills into a project")
     actions = p.add_subparsers(dest="action", required=True)
@@ -667,6 +820,15 @@ def build_parser():
 
     a = actions.add_parser("list", help="list tasks")
     a.add_argument("--status", choices=list(task_store.STATUSES))
+    a.add_argument(
+        "--session",
+        help="filter by session id, or 'current' for the open session",
+    )
+    a.add_argument(
+        "--all",
+        action="store_true",
+        help="show every session, not just the open one",
+    )
     a.set_defaults(func=cmd_task_list)
 
     a = actions.add_parser("show", help="show one task")
@@ -700,6 +862,13 @@ def build_parser():
     a.add_argument("decision", choices=list(DECISIONS))
     a.add_argument("--note")
     a.set_defaults(func=cmd_task_decide)
+
+    a = actions.add_parser("prune", help="archive closed tasks out of the live ledger")
+    a.add_argument("--session", help="session id, or 'current'")
+    a.add_argument(
+        "--all", action="store_true", help="archive closed tasks from every session"
+    )
+    a.set_defaults(func=cmd_task_prune)
 
     a = actions.add_parser("update", help="record task progress")
     a.add_argument("id")

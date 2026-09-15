@@ -25,6 +25,10 @@ the assignment, and guessing when a question was available.
 
 - **One project, one scope.** Work only in the project root the brief names.
   Read nothing and change nothing in another project.
+- **Nothing outside the root.** The project root is the whole filesystem you may
+  read or write. If the brief points at a path outside it — a primary script, a
+  system temp dir, `~/.teammate` — do not chase it; `raise-blocker`, because
+  the fact belonged inline in the brief.
 - **The brief is the contract.** Its goal and acceptance criteria define "done";
   its constraints define what you may not do.
 - **Read the project first.** Load its `AGENTS.md` / `CONTEXT.md` before acting

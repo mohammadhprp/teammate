@@ -67,7 +67,9 @@ verdict and the loop.
    acceptance criterion, and the evidence paths. Tell it to apply `review-task`,
    judge the work rather than the summary, name the checks it runs, and return
    findings with a `pass`/`fail`/`inconclusive` verdict and no changes of its
-   own. Send the brief with `delegate-task`.
+   own. Write the brief with `tm brief` and send it with `tm send`
+   (`delegate-task` owns the mechanics). Inline every fact — the reviewer is
+   sandboxed to the project and cannot read a path outside it.
 
 5. **Collect** with `monitor-agents`, then read the reviewer's output
    (`python3 scripts/tm.py report "<reviewer>" --lines 300`). A verdict that

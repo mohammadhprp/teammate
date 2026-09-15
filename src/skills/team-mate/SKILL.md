@@ -37,6 +37,8 @@ See `examples.md` for a complete walkthrough.
 Persist every task under `state_dir` (default `~/.teammate/`) so it survives the
 primary session ending or compacting. Follow `task-ledger` to create, link,
 advance, and recover tasks, and `recover-run` after a restart or a lost worker.
+Open a session when a run starts (`python3 scripts/tm.py session start`) so the
+run's tasks are tagged and `task list` does not inherit stale work.
 
 ## Procedure
 

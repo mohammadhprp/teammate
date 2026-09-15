@@ -35,7 +35,13 @@ Fix that *before* delegating: give the project its context and its skills.
 
 1. **Resolve and read.** Pin the project root, then read what already exists:
    `AGENTS.md`, `CONTEXT.md`, local skills, and the commands. Never overwrite
-   the developer's context; merge into it.
+   the developer's context; merge into it. Record a durable allow rule for the
+   project boundary (OpenCode applies it from the next session, so do this
+   before the primary needs to read or write the project):
+
+   ```bash
+   python3 scripts/tm.py permissions allow --cwd "<project-root>"
+   ```
 
 2. **Detect the work's domain and stack.** From the goal and the repository
    (manifests, file types, existing config), name the stack and the capabilities
@@ -63,13 +69,22 @@ Fix that *before* delegating: give the project its context and its skills.
    ```
 
    Installing new skills is additive; if a candidate would replace an existing
-   project skill, stop and ask instead. If nothing suitable exists, say so and
-   proceed with the common and worker skills — do not install noise.
+   project skill, stop and ask instead. Remember the project's `.agents/skills/`
+   holds two populations — Team Mate-managed skills (tracked in
+   `.teammate-managed.json`) and Skills-CLI-installed ones (tracked in
+   `skills-lock.json`). A Team Mate sync never overwrites a skill it does not
+   own, and a name collision between the two is `skills-lock.json`'s owner to
+   resolve, not something to silently replace. If nothing suitable exists, say
+   so and proceed with the common and worker skills — do not install noise.
 
 5. **Write or update `AGENTS.md`.** Fill `templates/project-AGENTS.md` with what
    you learned: purpose, stack, the real commands (install, build, test, lint,
    run), the conventions, and the acceptance bar — including how a user-facing
-   result is judged. Keep any developer-authored sections; add what is missing.
+   result is judged. Under **Checks**, name at least one validator that runs
+   offline for this work. For a UI that means an HTML check and an accessibility
+   check (`npx html-validate`, `npx @axe-core/cli`, or the stack's equivalent),
+   not only a screenshot; a validator the review cannot run is not a check.
+   Keep any developer-authored sections; add what is missing.
 
 6. **Create `CONTEXT.md` if missing.** A short file naming the project's
    architecture, key files, and how to work in it. Leave an existing one alone.

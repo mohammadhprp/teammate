@@ -2,35 +2,65 @@
 
 Current state: The skill library is complete — 30 skills in `src/skills/` across
 common (7), teammate (15), and worker (8) — with `scripts/tm.py`,
-`scripts/task_store.py`, the templates, and a 33-test suite. The operating model
+`scripts/task_store.py`, the templates, and a 52-test suite. The operating model
 is validated end to end on live Herdr sessions with opencode and `omp`, and
-review and approval now match
+review and approval match
 [their design](implementation/07-review-and-approval.md): findings and the
 developer's decision are persisted in the ledger, verdicts are derived from the
 findings, and review/decision events reach `timeline.jsonl`.
 
-What remains is hardening, not unbuilt capability. The plan is the
-[process review](implementation/11-process-review.md), written after a real
-bootstrap-and-build run.
+The hardening plan from the
+[process review](implementation/11-process-review.md) is implemented:
 
-## Next: act on the process review
+- **A1** Briefs and reports have canonical locations — `state_dir/briefs` and
+  `state_dir/reports`, written with `tm brief` and `tm report --save` — used by
+  `delegate-task`, `run-rework`, and `independent-review`.
+- **A2** `install.sh` provisions the primary's OpenCode permissions for the
+  state dir; `tm permissions allow --cwd <root>` allows a project, and
+  `bootstrap-project` runs it before writing into a project.
+- **A3** `worker-role`, `accept-assignment`, `delegate-task`, and
+  `templates/worker-brief.md` forbid out-of-project paths and require every fact
+  to be inline.
+- **B1** The ledger is session-scoped (`tm session start`, `tm session end`) and
+  prunable (`tm task prune` moves closed tasks to `state_dir/archive/`);
+  `recover-run` reconciles only the open session.
+- **B2** Evidence honesty is enforced: `verify-evidence`, `verify-change`,
+  `report-result`, `review-change`, and `review-task` treat an unrun command
+  transcript as a fabricated-evidence `blocker` and require re-running the
+  decisive check.
+- **B3** `bootstrap-project` and `templates/project-AGENTS.md` require an
+  offline validator — HTML and accessibility for a UI — so a UI review runs at
+  least one by default.
+- **B4** `src/README.md` documents the two skill populations and the collision
+  rule; `bootstrap-project` references it.
+- **C1** `monitor-agents` documents waiting without blocking the primary.
+- **C2** Tasks carry their session; `task list` shows the open session and
+  `--all` shows history.
+- **D1** (found on a live run) Non-blocking delivery is now the default: `send`
+  omits `--wait`, and a real wait runs in a background shell — OpenCode's shell
+  `background` flag, with ctrl+b in the TUI as the human fallback. Updated
+  `src/AGENTS.md`, `delegate-task`, `monitor-agents`, and
+  `parallel-coordination`.
 
-Start with its P0 items, each with a gate that proves it:
+Remaining work is the open questions below, not unbuilt capability.
 
-- **A1** define where briefs and reports live (`state_dir/briefs`,
-  `state_dir/reports` or `tm brief`/`tm report`) so a run never writes outside
-  the sandbox.
-- **A2** provision the primary's permissions in `install.sh` — allow
-  `~/.teammate/**` and each project's `.agents/**` — so a fresh primary runs
-  without a permission dialog.
-- **A3** forbid out-of-project paths in worker briefs (`worker-role`,
-  `accept-assignment`, `delegate-task`, `templates/worker-brief.md`) so a worker
-  never blocks on the sandbox.
+## Next: act on the parallel run review
 
-Then P1: ledger hygiene and session scoping (`task prune`/archive), enforced
-evidence honesty (no unrun command transcripts), bootstrap-provided validators,
-and documenting the two skill populations in `.agents/skills`. See the review
-for owners and gates.
+A second live run — two landing pages, different styles, built and reviewed
+concurrently — is written up in the
+[parallel run review](implementation/12-parallel-run-review.md). Start with its
+P0 items, each with a gate that proves it:
+
+- **E1** `tm report --save` stores a clean final message, not a rendered pane
+  with TUI chrome and duplicated lines.
+- **E2** Parallel UI streams get their own port and browser session, so two
+  workers cannot hijack each other's tab.
+- **E3** A worker that starts a server stops it before reporting; no stray
+  listener survives a run.
+
+Then P1: keep review tasks out of the approval queue, make `task show` quiet,
+and require an interim status on long builds. See the review for owners and
+gates.
 
 ## Open questions
 

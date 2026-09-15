@@ -50,12 +50,20 @@ disagreement from quietly consuming the developer's time.
    feedback is what keeps the next review about the fix rather than about
    discovering what else changed.
 
-3. **Send it to the same worker.** It still holds the project context and the
-   diff, so a new worker would only re-derive what this one already knows.
+3. **Write and send it to the same worker.** It still holds the project
+   context and the diff, so a new worker would only re-derive what this one
+   already knows. Write the brief with `tm brief` so it lands in
+   `state_dir/briefs/`, then send that path.
 
    ```bash
-   python3 scripts/tm.py send "<name>" --brief "<feedback.md>" --wait --timeout <ms>
+   python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
+   <feedback brief>
+   EOF
+   python3 scripts/tm.py send "<name>" --brief "<printed-path>" --wait --timeout <ms>
    ```
+
+   Keep the feedback inside the worker's sandbox: inline every fact, and never
+   reference a path outside the project.
 
 4. **Record the round.** This skill owns the iteration increment — `review-work`
    records only the verdict, so the two do not both increment.

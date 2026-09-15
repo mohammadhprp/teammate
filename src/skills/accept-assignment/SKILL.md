@@ -44,6 +44,9 @@ will pass review without being anything that was asked for.
    - two criteria or constraints that conflict;
    - an expected output with no clear shape;
    - a project or root that is missing or ambiguous;
+   - a reference to a path outside the project root — a primary script, a temp
+     dir, `~/.teammate` — which you cannot read; that fact should have been
+     inline;
    - a dependency the assignment needs but the constraints forbid.
 6. **Decide.** If it is clear, state the restatement and begin with
    `implement-task`. If not, ask with `raise-blocker` — exactly one precise

@@ -2,8 +2,10 @@
 
 import contextlib
 import io
+import json
 import os
 import subprocess
+import sys
 import tempfile
 import types
 import unittest
@@ -314,6 +316,208 @@ class TaskCommandsTest(unittest.TestCase):
 
         self.assertIn("review.findings", text)
         self.assertIn("task.decision", text)
+
+
+class BriefAndReportTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_brief_writes_under_state_dir_and_prints_the_path(self):
+        args = types.SimpleNamespace(
+            state_dir=self.state, name="developer-alpha", task="tsk_1"
+        )
+        original = sys.stdin
+        sys.stdin = io.StringIO("Goal: add subtract\n")
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_brief(args)
+        finally:
+            sys.stdin = original
+
+        path = buf.getvalue().strip()
+        self.assertEqual(
+            path, os.path.join(self.state, "briefs", "tsk_1-developer-alpha.md")
+        )
+        with open(path) as fh:
+            self.assertIn("add subtract", fh.read())
+
+    def test_report_save_writes_under_state_dir_and_prints_the_path(self):
+        calls = {}
+
+        def fake_read(*cmd):
+            calls["cmd"] = cmd
+            return "worker output\n"
+
+        original = tm.herdr_text
+        tm.herdr_text = fake_read
+        try:
+            args = types.SimpleNamespace(
+                state_dir=self.state,
+                name="developer-alpha",
+                source="recent-unwrapped",
+                lines=300,
+                save=True,
+                task="tsk_1",
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_report(args)
+        finally:
+            tm.herdr_text = original
+
+        path = buf.getvalue().strip()
+        self.assertTrue(
+            path.startswith(
+                os.path.join(self.state, "reports", "tsk_1-developer-alpha-")
+            )
+        )
+        with open(path) as fh:
+            self.assertEqual(fh.read(), "worker output\n")
+        self.assertEqual(calls["cmd"][0], "agent")
+
+    def test_report_without_save_prints_the_output(self):
+        original = tm.herdr_text
+        tm.herdr_text = lambda *cmd: "shown\n"
+        try:
+            args = types.SimpleNamespace(
+                state_dir=self.state,
+                name="developer-alpha",
+                source="recent-unwrapped",
+                lines=300,
+                save=False,
+                task=None,
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_report(args)
+        finally:
+            tm.herdr_text = original
+
+        self.assertEqual(buf.getvalue(), "shown\n")
+
+
+class SessionCommandTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_start_status_end_round_trip(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tm.cmd_session_start(types.SimpleNamespace(state_dir=self.state))
+        session = out.getvalue().strip()
+        self.assertTrue(session.startswith("sess_"))
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tm.cmd_session_status(types.SimpleNamespace(state_dir=self.state))
+        self.assertEqual(out.getvalue().strip(), session)
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tm.cmd_session_end(types.SimpleNamespace(state_dir=self.state))
+        self.assertEqual(out.getvalue().strip(), session)
+        self.assertIsNone(task_store.current_session(self.state))
+
+
+class TaskListAndPruneTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def list_ids(self, **overrides):
+        args = types.SimpleNamespace(
+            state_dir=self.state, status=None, session=None, all=False
+        )
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_list(args)
+        return buf.getvalue()
+
+    def test_list_defaults_to_the_open_session(self):
+        old = task_store.new_session(self.state)
+        old_task = task_store.create(self.state, "acme", "old", "g", ["c"])
+        task_store.end_session(self.state)
+        task_store.new_session(self.state)
+        new_task = task_store.create(self.state, "acme", "new", "g", ["c"])
+
+        default = self.list_ids()
+        every = self.list_ids(all=True)
+
+        self.assertIn(new_task["id"], default)
+        self.assertNotIn(old_task["id"], default)
+        self.assertIn(old_task["id"], every)
+
+    def test_prune_archives_closed_tasks_in_the_open_session(self):
+        task_store.new_session(self.state)
+        done = task_store.create(self.state, "acme", "done", "g", ["c"])
+        task_store.update(self.state, done["id"], status="approved")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_prune(
+                types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+            )
+
+        self.assertIn("archived\t1", buf.getvalue())
+        self.assertEqual(task_store.list_tasks(self.state), [])
+
+    def test_prune_without_a_session_requires_a_scope(self):
+        with self.assertRaises(ValueError):
+            tm.cmd_task_prune(
+                types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+            )
+
+
+class PermissionsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = os.path.join(self.tmp.name, "opencode.json")
+
+    def test_init_adds_state_dir_rules_once(self):
+        state = os.path.join(self.tmp.name, "state")
+        args = types.SimpleNamespace(state_dir=state, file=self.path)
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_permissions_init(args)
+            tm.cmd_permissions_init(args)
+
+        with open(self.path) as fh:
+            data = json.load(fh)
+        rules = [r for r in data["permissions"] if r["action"] == "external_directory"]
+        self.assertEqual(len(rules), 1)
+        self.assertEqual(rules[0]["resource"], f"{state}/*")
+
+    def test_allow_preserves_existing_permissions(self):
+        with open(self.path, "w") as fh:
+            json.dump(
+                {
+                    "permissions": [
+                        {"action": "shell", "resource": "*", "effect": "ask"}
+                    ]
+                },
+                fh,
+            )
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_permissions_allow(
+                types.SimpleNamespace(
+                    cwd=os.path.join(self.tmp.name, "acme"), file=self.path
+                )
+            )
+
+        with open(self.path) as fh:
+            data = json.load(fh)
+        actions = {r["action"] for r in data["permissions"]}
+        self.assertIn("shell", actions)
+        self.assertIn("external_directory", actions)
 
 
 if __name__ == "__main__":

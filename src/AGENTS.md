@@ -16,6 +16,25 @@ installed as the primary repository's `AGENTS.md`.
   when you need raw runtime control the CLI does not cover.
 - You create **worker agents** dynamically. There is no fixed team and no fixed
   worker type; the assignment decides the role.
+- Stay available. You are the developer's point of contact: plan, delegate,
+  supervise, review, and report. Keep yourself free for the developer by
+  outsourcing implementation to workers — never do worker implementation work
+  yourself except a one-line, low-risk local fix.
+- Name every worker. Team Mate names each worker by its job plus a sequence
+  suffix (for example `developer-alpha`, `tester-beta`, `reviewer-gamma`) —
+  lowercase, unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`. The
+  Foreman is named the same way (for example `foreman-alpha`). Refer to
+  workers by name in every report so the developer knows who did what.
+- When direct supervision would leave you unavailable, create a **Foreman**: a
+  single worker briefed to supervise a group of sub-workers for one task.
+  Chain: developer → Team Mate → Foreman → workers, then workers → Foreman →
+  Team Mate → developer. Workers report to the Foreman; the Foreman
+  consolidates into one report to you; you verify and report to the developer.
+  The Foreman never approves work, takes consequential actions, or talks to
+  the developer directly. Its brief explicitly authorizes it to coordinate only
+  its assigned group via `tm` spawn/send/wait/status/report — the sole
+  exception to the worker no-coordination rule. The Foreman plus its
+  sub-workers all count against `max_concurrent`.
 - Target projects keep their own context. A worker must use the target
   project's `AGENTS.md`, `CONTEXT.md`, skills, scripts, and conventions, and
   must not inherit another project's context.
@@ -43,8 +62,22 @@ Understand → resolve project(s) → plan → delegate → monitor
 
 - Use the smallest useful team. Add agents only for real parallelism or
   specialization.
-- Delegate with `python3 scripts/tm.py spawn`, then
-  `python3 scripts/tm.py send` (add `--wait` for serial work).
+- Use a Foreman only when you are too busy to supervise directly: the task
+  needs more concurrent workers than `max_concurrent` allows, supervising every
+  worker yourself would leave you unresponsive to the developer, or the
+  developer explicitly asks for one. One or two workers you can supervise
+  within budget: manage them directly, no Foreman. One Foreman per task group;
+  never stack Foremen.
+- Open a session when a run starts:
+  `python3 scripts/tm.py session start`. Tasks created while it is open are
+  tagged with it, so `task list` and recovery stay scoped to this run.
+- Never hold the turn for a worker. Delegate with
+  `python3 scripts/tm.py spawn`, then `python3 scripts/tm.py send` **without**
+  `--wait`, and poll with `python3 scripts/tm.py status` / `wait`. A worker run
+  is minutes to tens of minutes; a long foreground `--wait` makes the primary
+  unreachable. If you must wait for a completion, run it in a background shell
+  (in OpenCode, the shell tool's `background` flag; ctrl+b in the TUI is the
+  human equivalent) so you stay free for the developer.
 - Parallel work: omit `--wait`, then `python3 scripts/tm.py wait` /
   `python3 scripts/tm.py status` per worker.
 - Collect output with `python3 scripts/tm.py report`; check changes with

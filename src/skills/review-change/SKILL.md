@@ -63,6 +63,9 @@ and verdict rules live in [references/findings.md](references/findings.md).
 
 - Include only actionable findings. A concern about untouched code belongs in
   the verdict notes, not as a finding on the change.
+- Treat a pasted command transcript as a claim, not evidence: re-run the
+  decisive check yourself. A transcript with no run behind it, or one that does
+  not match a fresh run, is a `blocker` finding for fabricated evidence.
 - Do not pad the list with speculation or style preferences; noise buries the
   real defects.
 - If generated or binary noise pollutes the diff, treat it as a project hygiene

@@ -65,9 +65,46 @@ src/scripts/        -> <primary>/scripts/
 src/templates/      -> <primary>/templates/
 ```
 
+The installer also provisions permissions. `~/.teammate/**` and each target
+project root sit outside the primary's working directory, so OpenCode prompts
+before it touches them. The installer runs `tm permissions init` to write an
+`opencode.json` allowing the state dir; `tm permissions allow --cwd <root>`
+adds a durable rule for a project (`bootstrap-project` runs it). Both merge into
+the file instead of replacing it. OpenCode loads configuration when a session
+starts, so a rule added mid-session applies from the next one; for a brand-new
+project, allow it before the primary needs it, or choose **always** on the
+one-time prompt. (OpenCode V2 uses the `permissions` array; V1 uses `permission`
+with `bash`/`task` action names.)
+
 Do not copy `src/README.md`. Target projects are separate: they keep their own
 `AGENTS.md` and `CONTEXT.md`, which workers read instead of inheriting the
 primary's.
+
+## Ledger, briefs, and reports
+
+All coordination state lives under `state_dir` (default `~/.teammate/`):
+
+```text
+~/.teammate/
+  tasks/<id>.json     # one file per task (the ledger)
+  archive/            # pruned tasks (moved, never deleted)
+  briefs/             # the briefs the primary sends workers
+  reports/            # captured worker output
+  timeline.jsonl      # append-only events
+  session.json        # the open session marker
+```
+
+- `tm brief <name> [--task <id>]` reads a brief from stdin, writes it under
+  `briefs/`, and prints the path to pass to `tm send`. Use it instead of
+  inventing a path, so a run never writes outside the sandbox.
+- `tm report <name> --save [--task <id>]` writes a worker's captured output
+  under `reports/` and prints the path.
+- `tm session start` / `end` mark the primary's session; tasks created while a
+  session is open are tagged with it, so `tm task list` shows the current
+  session and recovery can ignore history. `--all` shows every session.
+- `tm task prune` archives closed tasks (moved to `archive/`) so the live ledger
+  stops accumulating stale work; scope it with `--session <id>` or `--all`.
+
 
 ## Skill distribution
 
@@ -87,6 +124,21 @@ python3 scripts/tm.py skills sync --cwd "<project-root>"
   owns is never overwritten.
 - Managed entries are added to the project's `.git/info/exclude` (local only),
   so they do not show as untracked.
+
+### Two skill populations
+
+A project's `.agents/skills/` can hold skills from two sources, tracked
+separately:
+
+| Population | Installed by | Tracked in | On a name collision |
+| --- | --- | --- | --- |
+| Team Mate-managed | `tm spawn` / `tm skills sync` | `.teammate-managed.json` | The project's copy wins; the sync skips it. |
+| Skills CLI | `npx skills add` (`bootstrap-project`) | `skills-lock.json` | `npx skills` owns it; a sync never overwrites it. |
+
+A sync writes only names listed in `worker_skills` and updates only names it
+already manages, so it never clobbers a Skills-CLI-installed or
+developer-authored skill. If a desired name already belongs to the other
+population, resolve it explicitly rather than expecting a sync to replace it.
 
 ## Workspaces
 
@@ -110,5 +162,8 @@ python3 -m unittest discover -s src/scripts/tests -t src/scripts
 Validated end to end on live Herdr sessions with opencode and `omp`: skill
 distribution, the full loop, fail → rework → pass, parallel projects,
 cancellation, orphan reconciliation, blocked-worker escalation, and recovery of
-a running task after the primary loses its context. What remains is hardening
-and the open questions — see `docs/NEXT.md`.
+a running task after the primary loses its context. The hardening plan from the
+process review is implemented (brief/report locations, provisioned permissions,
+worker boundaries, session-scoped and prunable ledger, enforced evidence
+honesty, bootstrap validators); what remains is the open questions — see
+`docs/NEXT.md`.

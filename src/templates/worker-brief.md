@@ -17,7 +17,10 @@
 
 ## Constraints
 
-- Work only inside this project.
+- Work only inside this project. Never read or write a path outside this
+  project root.
+- Everything you need is inline in this brief; it points at no path outside
+  this project.
 - Do not expand scope beyond the acceptance criteria.
 - Do not commit, merge, push, publish, deploy, or delete.
 

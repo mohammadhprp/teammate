@@ -86,7 +86,9 @@ in the report.
    ```
 
    Omit `--wait`: it blocks the primary on that one worker and turns the batch
-   back into serial work. `--wait` belongs to `delegate-task` for serial tasks.
+   back into serial work. Never use a long foreground `--wait` — even for a
+   single worker; if you need a completion, background the wait or poll `tm
+   status` (`monitor-agents`).
 5. **Poll the batch.**
 
    ```bash

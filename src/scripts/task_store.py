@@ -35,6 +35,17 @@ ACTIVE_STATUSES = {
     "ready_for_approval",
 }
 
+CLOSED_STATUSES = {
+    "approved",
+    "rejected",
+    "failed",
+    "cancelled",
+}
+
+ARCHIVE_DIR = "archive"
+BRIEFS_DIR = "briefs"
+REPORTS_DIR = "reports"
+
 # Findings, from docs/implementation/07-review-and-approval.md.
 SEVERITIES = ("blocker", "major", "minor", "nit")
 FINDING_CATEGORIES = (
@@ -53,6 +64,58 @@ BLOCKING_SEVERITIES = ("blocker", "major")
 
 def _tasks_dir(state_dir):
     return os.path.join(os.path.expanduser(state_dir), "tasks")
+
+
+def archive_dir(state_dir):
+    """Where pruned (archived) tasks are moved."""
+    return os.path.join(os.path.expanduser(state_dir), ARCHIVE_DIR)
+
+
+def briefs_dir(state_dir):
+    """Canonical location for worker briefs. The sandbox allows this path."""
+    return os.path.join(os.path.expanduser(state_dir), BRIEFS_DIR)
+
+
+def reports_dir(state_dir):
+    """Canonical location for captured worker reports."""
+    return os.path.join(os.path.expanduser(state_dir), REPORTS_DIR)
+
+
+def _session_path(state_dir):
+    return os.path.join(os.path.expanduser(state_dir), "session.json")
+
+
+def new_session(state_dir):
+    """Start a primary session and return its id.
+
+    Tasks created while a session is open are tagged with it so a later run can
+    tell this session's work from history.
+    """
+    session = "sess_" + uuid.uuid4().hex[:8]
+    _write_json(_session_path(state_dir), {"id": session, "started_at": _now()})
+    append_event(state_dir, session, "session.started", "primary session started")
+    return session
+
+
+def current_session(state_dir):
+    """The open session id, or ``None`` when no session marker exists."""
+    try:
+        with open(_session_path(state_dir)) as fh:
+            return json.load(fh).get("id")
+    except (OSError, ValueError):
+        return None
+
+
+def end_session(state_dir):
+    """Close the open session, returning the id that was open."""
+    session = current_session(state_dir)
+    if session:
+        append_event(state_dir, session, "session.ended", "primary session ended")
+    try:
+        os.remove(_session_path(state_dir))
+    except OSError:
+        pass
+    return session
 
 
 def _task_path(state_dir, task_id):
@@ -85,6 +148,7 @@ def create(
     constraints=None,
     worker=None,
     max_iterations=3,
+    session=None,
 ):
     task = {
         "id": new_id(),
@@ -96,6 +160,7 @@ def create(
         "root": None,
         "workspace": None,
         "worker": worker,
+        "session": session or current_session(state_dir),
         "status": "planned",
         "iteration": 0,
         "max_iterations": max_iterations,
@@ -123,7 +188,7 @@ def save(state_dir, task):
     return task
 
 
-def list_tasks(state_dir, status=None):
+def list_tasks(state_dir, status=None, session=None):
     directory = _tasks_dir(state_dir)
     if not os.path.isdir(directory):
         return []
@@ -135,9 +200,32 @@ def list_tasks(state_dir, status=None):
             task = json.load(fh)
         if status and task.get("status") != status:
             continue
+        if session is not None and task.get("session") != session:
+            continue
         tasks.append(task)
     tasks.sort(key=lambda task: task.get("created_at", 0))
     return tasks
+
+
+def prune(state_dir, session=None, statuses=None):
+    """Archive closed tasks out of the live ledger.
+
+    Tasks are moved to ``<state_dir>/archive/`` rather than deleted, so history
+    stays readable while ``task list`` and recovery stop seeing stale work.
+    """
+    statuses = set(statuses or CLOSED_STATUSES)
+    destination = archive_dir(state_dir)
+    moved = []
+    for task in list_tasks(state_dir, session=session):
+        if task.get("status") not in statuses:
+            continue
+        os.makedirs(destination, exist_ok=True)
+        os.replace(
+            _task_path(state_dir, task["id"]),
+            os.path.join(destination, f"{task['id']}.json"),
+        )
+        moved.append(task["id"])
+    return moved
 
 
 def find_by_worker(state_dir, worker):

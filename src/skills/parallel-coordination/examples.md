@@ -17,11 +17,18 @@ python3 scripts/tm.py task new --project acme --title "Fix README typo" \
   --acceptance "README install command matches install.sh"
 # tsk_2222
 
-# 2. Spawn both, then submit both briefs without --wait.
-python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name acme-1 --task tsk_1111
-python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name acme-2 --task tsk_2222
-python3 scripts/tm.py send acme-1 --brief /tmp/subtract.md
-python3 scripts/tm.py send acme-2 --brief /tmp/readme.md
+# 2. Spawn both, write each brief under the state dir, then submit both without
+#    --wait. `tm brief` prints the path to pass to `send`.
+python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-alpha --task tsk_1111
+python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-beta --task tsk_2222
+python3 scripts/tm.py brief developer-alpha --task tsk_1111 <<'EOF'
+<subtract brief>
+EOF
+python3 scripts/tm.py send developer-alpha --brief "<printed-path>"
+python3 scripts/tm.py brief developer-beta --task tsk_2222 <<'EOF'
+<README brief>
+EOF
+python3 scripts/tm.py send developer-beta --brief "<printed-path>"
 
 # 3. Poll the batch; a worker has settled when it is idle, done, or blocked.
 python3 scripts/tm.py status

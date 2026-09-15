@@ -34,6 +34,8 @@ operating model with real agents before committing to a large framework.
     we need, with per-skill specifications and build order.
 11. [Process review](11-process-review.md) — a real run reviewed: what worked,
     what broke, and the prioritized plan to improve the process.
+12. [Parallel run review](12-parallel-run-review.md) — two projects at once:
+    what the parallel run exposed, and the next improvement plan.
 
 ## Core architecture
 
