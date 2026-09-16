@@ -32,7 +32,9 @@ behavior.
 ## History
 
 Long-term R&D should investigate whether a persistent task timeline is needed
-and what minimum information it should retain.
+and what minimum information it should retain — note that
+[07-review-and-approval.md](07-review-and-approval.md) already persists
+`timeline.jsonl` with review and decision events.
 
 A useful conceptual record is:
 

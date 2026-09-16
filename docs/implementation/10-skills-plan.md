@@ -1,6 +1,7 @@
 # Skills plan
 
-**Status:** proposal. This document plans the skills; it does not build them.
+**Status:** delivered. All 30 planned skills are built under `src/skills/`; this
+document is the plan they were built from.
 
 Team Mate is, above all, a library of skills. The role definition, the `tm` CLI,
 and the templates only matter once the primary agent and its workers know *how*
@@ -109,10 +110,10 @@ The gaps this plan set out to close are addressed:
 4. **Review is layered.** `review-change` owns the method, `review-work`
    coordinates, and `independent-review` / `review-task` / `run-rework` own
    independent review and rework.
-5. **Distribution to workers is still unresolved.** The overlay installs skills
-   into `<primary>/.agents/skills/`, but workers run in target projects. How the
-   common and worker skills reach them is an open decision (see
-   [Distribution](#distribution-how-a-skill-reaches-its-audience)).
+5. **Distribution to workers is resolved and implemented.** The overlay installs
+   skills into `<primary>/.agents/skills/`, but workers run in target projects;
+   `tm spawn` / `tm skills sync` copy the common and worker skills into
+   `<project>/.agents/skills/` (option B/C, below).
 
 ## Skill contract
 
@@ -165,7 +166,8 @@ can be added without renaming anything.
 
 The installer maps `src/skills/` to `<primary>/.agents/skills/`. That reaches
 the primary but not workers, which run with `--cwd` set to a target project.
-This is the one unresolved question that fully blocks the worker category.
+This was the one question that fully blocked the worker category, resolved by
+the B/C choice below.
 
 Options:
 
@@ -656,8 +658,8 @@ next begins (mirrors `docs/NEXT.md`).
    `investigate-issue`.
    *Gate:* each addresses a failure or scale path observed in a real run.
 
-Resolve [Distribution](#distribution-how-a-skill-reaches-its-audience) before
-step 2; it is the only prerequisite that blocks a whole slice.
+Distribution (above) is resolved — option B/C, synced on spawn — so no slice is
+blocked by it.
 
 ## Traceability
 
@@ -681,7 +683,8 @@ step 2; it is the only prerequisite that blocks a whole slice.
 
 ## Open questions
 
-- How do common and worker skills reach workers? (option A/B/C above)
+- **Resolved:** common and worker skills reach workers by a project sync on spawn
+  (`tm spawn` / `tm skills sync`, option B/C above).
 - Should the runtime expose a `roles` field, or is category a documentation
   concept only?
 - Where is the line between `team-mate` and the extracted `plan-work` /

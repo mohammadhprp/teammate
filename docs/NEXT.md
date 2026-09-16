@@ -2,7 +2,7 @@
 
 Current state: The skill library is complete — 30 skills in `src/skills/` across
 common (7), teammate (15), and worker (8) — with `scripts/tm.py`,
-`scripts/task_store.py`, the templates, and a 52-test suite. The operating model
+`scripts/task_store.py`, the templates, and a 63-test suite. The operating model
 is validated end to end on live Herdr sessions with opencode and `omp`, and
 review and approval match
 [their design](implementation/07-review-and-approval.md): findings and the
@@ -11,17 +11,19 @@ findings, and review/decision events reach `timeline.jsonl`.
 
 An audit of the docs, config, skills, and `tm` code is written up in the
 [audit and improvement plan](implementation/13-audit-and-improvement-plan.md).
-That plan is the current next work: a short P0 correctness pass (a `tm spawn`
-bug, config that is documented but not enforced, an install gap), then the
-documented parallel-run gaps. It absorbs the items below and re-prioritizes the
-rest.
+The plan's P0-1…P0-5 are implemented: the `tm spawn` name clobber is fixed,
+config states what it enforces, `herdr` and `find-skills` ship with the overlay,
+`tm report --save` prefers the worker's clean `.teammate-report.md`, and workers
+stop the servers they start. What remains is the parallel-run work below and the
+open questions; the plan absorbs the items below and re-prioritizes the rest.
 
 The hardening plan from the
 [process review](implementation/11-process-review.md) is implemented:
 
 - **A1** Briefs and reports have canonical locations — `state_dir/briefs` and
-  `state_dir/reports`, written with `tm brief` and `tm report --save` — used by
-  `delegate-task`, `run-rework`, and `independent-review`.
+  `state_dir/reports`, written with `tm brief` and `tm report --save`.
+  `delegate-task`, `run-rework`, and `independent-review` write briefs there;
+  `task-ledger` records reports there.
 - **A2** `install.sh` provisions the primary's OpenCode permissions for the
   state dir; `tm permissions allow --cwd <root>` allows a project, and
   `bootstrap-project` runs it before writing into a project.
@@ -39,7 +41,7 @@ The hardening plan from the
   offline validator — HTML and accessibility for a UI — so a UI review runs at
   least one by default.
 - **B4** `src/README.md` documents the two skill populations and the collision
-  rule; `bootstrap-project` references it.
+  rule.
 - **C1** `monitor-agents` documents waiting without blocking the primary.
 - **C2** Tasks carry their session; `task list` shows the open session and
   `--all` shows history.
@@ -49,25 +51,28 @@ The hardening plan from the
   `src/AGENTS.md`, `delegate-task`, `monitor-agents`, and
   `parallel-coordination`.
 
-Remaining work is the open questions below, not unbuilt capability.
+The P0-1…P0-5 hardening from the audit plan is implemented; what remains is the
+parallel-run review below and the open questions.
 
 ## Next: act on the parallel run review
 
 A second live run — two landing pages, different styles, built and reviewed
 concurrently — is written up in the
-[parallel run review](implementation/12-parallel-run-review.md). Start with its
-P0 items, each with a gate that proves it:
+[parallel run review](implementation/12-parallel-run-review.md). E1 and E3
+landed as audit P0-4 and P0-5; E2 moved to P1-2. The rest remain, each with a
+gate that proves it:
 
-- **E1** `tm report --save` stores a clean final message, not a rendered pane
-  with TUI chrome and duplicated lines.
-- **E2** Parallel UI streams get their own port and browser session, so two
-  workers cannot hijack each other's tab.
-- **E3** A worker that starts a server stops it before reporting; no stray
-  listener survives a run.
+- **E1** (done — audit P0-4) `tm report --save` stores a clean final message,
+  not a rendered pane with TUI chrome and duplicated lines.
+- **E2** (open — audit P1-2) Parallel UI streams get their own port and browser
+  session, so two workers cannot hijack each other's tab.
+- **E3** (done — audit P0-5) A worker that starts a server stops it before
+  reporting; no stray listener survives a run.
+- **E4** (open) Keep review tasks out of the approval queue.
+- **E5** (open) Make `task show` quiet.
+- **E6** (open) Require an interim status on long builds.
 
-Then P1: keep review tasks out of the approval queue, make `task show` quiet,
-and require an interim status on long builds. See the review for owners and
-gates.
+See the review for owners and gates.
 
 ## Open questions
 

@@ -10,7 +10,7 @@ Most parallel-run items (E1–E6) are correctly documented as unbuilt in
 [NEXT.md](../NEXT.md); a smaller set are silently broken or overclaimed as done.
 
 Evidence: `path:line` citations throughout; `python3 -m unittest discover -s
-src/scripts/tests -t src/scripts` passes (52 tests).
+src/scripts/tests -t src/scripts` passes (63 tests).
 
 ## Verdict
 
@@ -20,6 +20,31 @@ findings are load-bearing defects — a real bug in `tm spawn`, config documente
 as effective but not enforced, and an install that depends on skills it does not
 ship. The rest is drift, overclaim, and the parallel-run gaps already named in
 the [parallel run review](12-parallel-run-review.md).
+
+## Implementation status
+
+The P0 correctness pass below has since landed, with the test suite at 63 tests:
+
+- **P0-1** — done. `cmd_spawn` no longer rebinds the worker name on a skipped
+  skill; a regression test covers it.
+- **P0-2** — done. `tm task new` reads `max_iterations` from config;
+  `max_concurrent`, `review_policy`, `notify`, and `primary_workspace` are marked
+  advisory, the single-file precedence is stated, and `skills_source` is
+  documented (`src/team-mate.toml`).
+- **P0-3** — done. `herdr` and `find-skills` ship in `src/skills/`.
+- **P0-4** (E1) — done. `tm report --save` prefers the worker's clean
+  `.teammate-report.md` and falls back to the pane only when it is absent.
+- **P0-5** (E3) — done. A worker stops any server it starts (or records its
+  PID/port) and `monitor-agents` confirms no listener before approval.
+
+Two ledger defects also landed: `task find --worker` now prefers the live task
+over a closed one from an earlier session, and saved report names use
+milliseconds so two saves in one second do not overwrite (P2-4, partial).
+
+P1 and P2 remain. E2, a P0 item in the
+[parallel run review](12-parallel-run-review.md), is P1-2 here: it needs a
+`bootstrap-project` / `AGENTS.md` change (per-stream ports and browser sessions),
+not just a `tm` knob.
 
 ## What is solid
 
@@ -113,7 +138,7 @@ implemented in `tm.py:240-298`).
 
 ### 9. Hygiene
 
-No CI (`.github/` has assets only; the 52 tests never run automatically).
+No CI (`.github/` has assets only; the 63 tests never run automatically).
 Repo-root `.agents/skills/` is 129 tracked files / 24 skills (personal and
 external: `adhd`, `ponytail`, `arena`, `notion-cli`, `skill-creator`, `herdr`,
 `find-skills`) mixed into the product repo. `templates/worker-report.md` is still
@@ -152,11 +177,12 @@ Ordered; each names the owning surface and the gate that proves it.
 
 | # | Change | Owner | Gate |
 | --- | --- | --- | --- |
-| P2-1 | Add CI running the 52 tests + a skill frontmatter validator | `.github/workflows` | CI fails on a bad `SKILL.md` or broken test |
+| P2-1 | Add CI running the 63 tests + a skill frontmatter validator | `.github/workflows` | CI fails on a bad `SKILL.md` or broken test |
 | P2-2 | Resolve root `.agents/skills/` (remove personal skills, or document "this repo is also its own primary") | repo root, `install.sh` | The repo contains only product skills |
 | P2-3 | Decide `templates/worker-report.md` (build or drop) | `src/templates`, plan | Plan and tree agree |
 | P2-4 | Ledger robustness: collision-free report names, consistent brief/report naming, optional lock | `tm.py`, `task_store.py` | Two saves in one second do not overwrite |
 | P2-5 | Tests for `cmd_spawn`, status transitions, `verdict` | `src/scripts/tests` | New paths covered |
+| P2-6 | E7 — record tokens/cost and wall-clock per task | `task_store.py`, [06-reporting](06-reporting-and-observability.md) | A completed task shows elapsed time and cost |
 
 ### Sequencing and non-goals
 

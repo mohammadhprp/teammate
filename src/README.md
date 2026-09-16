@@ -167,5 +167,7 @@ cancellation, orphan reconciliation, blocked-worker escalation, and recovery of
 a running task after the primary loses its context. The hardening plan from the
 process review is implemented (brief/report locations, provisioned permissions,
 worker boundaries, session-scoped and prunable ledger, enforced evidence
-honesty, bootstrap validators); what remains is the open questions — see
-`docs/NEXT.md`.
+honesty, bootstrap validators). What remains is the parallel-run work named in
+`docs/NEXT.md` — per-stream ports and browser sessions (E2), keeping review
+tasks out of the approval queue (E4), a quiet `task show` (E5), and interim
+status on long builds (E6) — plus the open questions.
