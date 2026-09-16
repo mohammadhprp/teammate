@@ -35,6 +35,16 @@ class TaskStoreTest(unittest.TestCase):
         path = os.path.join(self.state, "tasks", f"{task['id']}.json")
         self.assertTrue(os.path.isfile(path))
 
+    def test_create_defaults_to_a_build_task(self):
+        self.assertEqual(self.make()["kind"], "build")
+
+    def test_create_stores_the_review_kind(self):
+        self.assertEqual(self.make(kind="review")["kind"], "review")
+
+    def test_create_rejects_an_unknown_kind(self):
+        with self.assertRaises(ValueError):
+            self.make(kind="spot-check")
+
     def test_create_appends_a_timeline_event(self):
         task = self.make()
 

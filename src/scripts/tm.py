@@ -112,6 +112,7 @@ DECISIONS = {
 SKILLS_SUBDIR = os.path.join(".agents", "skills")
 MANAGED_MARKER = ".teammate-managed.json"
 REPORT_FILE = ".teammate-report.md"
+REPORT_PREVIEW_LINES = 5
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
 EXCLUDE_END = "# end Team Mate distributed skills"
 
@@ -540,11 +541,33 @@ def cmd_notify(args):
     print("notified")
 
 
+def _report_lines(task):
+    """A short report pointer, never the full capture (E5).
+
+    New tasks store the report path; a legacy task keeps only the content, so
+    show a few lines and say the rest was truncated.
+    """
+    path = task.get("report_path")
+    if path:
+        return [f"Report: {path}"]
+    report = task.get("report")
+    if not report:
+        return []
+    lines = report.splitlines()
+    preview = lines[:REPORT_PREVIEW_LINES]
+    out = ["Report: (legacy inline capture, truncated)"]
+    out += [f"  {line}" for line in preview]
+    if len(lines) > REPORT_PREVIEW_LINES:
+        out.append(f"  ... {len(lines) - REPORT_PREVIEW_LINES} more line(s)")
+    return out
+
+
 def _render_task(task):
     lines = [
         f"Task: {task['id']}",
         f"Title: {task['title']}",
         f"Status: {task['status']}",
+        f"Kind: {task.get('kind', 'build')}",
         f"Project: {task['project']} ({task.get('root') or '?'})",
         f"Worker: {task.get('worker') or '-'} ({task.get('workspace') or '-'})",
         f"Iteration: {task['iteration']} of {task['max_iterations']}",
@@ -573,8 +596,7 @@ def _render_task(task):
         lines.append(f"Decision: {task['decision']}")
     if task.get("note"):
         lines.append(f"Note: {task['note']}")
-    if task.get("report"):
-        lines += ["Report:", task["report"]]
+    lines += _report_lines(task)
     return "\n".join(lines)
 
 
@@ -592,6 +614,7 @@ def cmd_task_new(args):
         args.constraint,
         args.worker,
         max_iterations,
+        kind=args.kind,
     )
     print(task["id"])
 
@@ -617,7 +640,8 @@ def cmd_task_list(args):
         print(
             f"{task['id']}\t{task['status']}\t{task['project']}\t"
             f"i{task['iteration']}/{task['max_iterations']}\t"
-            f"{task.get('worker') or '-'}\t{task['title']}"
+            f"{task.get('worker') or '-'}\t{task.get('kind', 'build')}\t"
+            f"{task['title']}"
         )
 
 
@@ -654,9 +678,21 @@ def _require_no_open_blocking(state_dir, task_id):
         )
 
 
+def _require_build_task(state_dir, task_id):
+    """Reviews record evidence; only build tasks await the developer (E4)."""
+    task = task_store.load(state_dir, task_id)
+    if task.get("kind", "build") == "review":
+        raise HerdrError(
+            f"{task_id} is a review task; reviews do not await approval "
+            "or take a developer decision"
+        )
+
+
 def cmd_task_update(args):
     if args.status in ("ready_for_approval", "approved"):
         _require_no_open_blocking(args.state_dir, args.id)
+    if args.status == "ready_for_approval":
+        _require_build_task(args.state_dir, args.id)
     fields = {}
     if args.status:
         fields["status"] = args.status
@@ -665,6 +701,7 @@ def cmd_task_update(args):
     if args.report_file:
         with open(args.report_file) as fh:
             fields["report"] = fh.read()
+        fields["report_path"] = args.report_file
     if args.note:
         fields["note"] = args.note
     task = task_store.update(args.state_dir, args.id, **fields)
@@ -711,6 +748,7 @@ def cmd_task_resolve(args):
 def cmd_task_decide(args):
     if args.decision not in DECISIONS:
         raise ValueError(f"unknown decision: {args.decision}")
+    _require_build_task(args.state_dir, args.id)
     if args.decision in ("approve", "finalize"):
         _require_no_open_blocking(args.state_dir, args.id)
     status = DECISIONS[args.decision]
@@ -848,6 +886,12 @@ def build_parser():
     a.add_argument("--acceptance", action="append", required=True)
     a.add_argument("--constraint", action="append")
     a.add_argument("--worker")
+    a.add_argument(
+        "--kind",
+        choices=list(task_store.KINDS),
+        default="build",
+        help="task kind (default: build); review tasks never await approval",
+    )
     a.add_argument(
         "--max-iterations",
         type=int,

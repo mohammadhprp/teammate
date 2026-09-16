@@ -42,6 +42,10 @@ CLOSED_STATUSES = {
     "cancelled",
 }
 
+# Task kinds, from docs/implementation/12-parallel-run-review.md (E4). A review
+# task records evidence against a build task; it never awaits approval.
+KINDS = ("build", "review")
+
 ARCHIVE_DIR = "archive"
 BRIEFS_DIR = "briefs"
 REPORTS_DIR = "reports"
@@ -149,7 +153,10 @@ def create(
     worker=None,
     max_iterations=3,
     session=None,
+    kind="build",
 ):
+    if kind not in KINDS:
+        raise ValueError(f"invalid kind: {kind}")
     task = {
         "id": new_id(),
         "title": title,
@@ -161,6 +168,7 @@ def create(
         "workspace": None,
         "worker": worker,
         "session": session or current_session(state_dir),
+        "kind": kind,
         "status": "planned",
         "iteration": 0,
         "max_iterations": max_iterations,

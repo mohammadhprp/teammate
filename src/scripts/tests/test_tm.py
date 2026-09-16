@@ -274,6 +274,45 @@ class RenderTaskTest(unittest.TestCase):
 
         self.assertIn("Note: approved by the developer", rendered)
 
+    def make(self, **overrides):
+        task = {
+            "id": "tsk_1",
+            "title": "t",
+            "status": "ready_for_approval",
+            "project": "acme",
+            "root": "/tmp/acme",
+            "worker": "acme-1",
+            "workspace": "w1",
+            "iteration": 1,
+            "max_iterations": 3,
+            "goal": "do it",
+            "acceptance": ["it is done"],
+            "constraints": [],
+            "findings": [],
+            "report": None,
+        }
+        task.update(overrides)
+        return task
+
+    def test_show_prints_the_report_path_not_its_content(self):
+        task = self.make(report_path="/state/reports/r.md")
+
+        rendered = tm._render_task(task)
+
+        self.assertIn("Report: /state/reports/r.md", rendered)
+        self.assertLess(len(rendered.splitlines()), 30)
+
+    def test_show_truncates_a_legacy_inline_report(self):
+        report = "\n".join(f"report line {i}" for i in range(200))
+        task = self.make(report=report)
+
+        rendered = tm._render_task(task)
+
+        self.assertIn("truncated", rendered)
+        self.assertIn("report line 0", rendered)
+        self.assertNotIn("report line 199", rendered)
+        self.assertLess(len(rendered.splitlines()), 30)
+
 
 class TaskCommandsTest(unittest.TestCase):
     def setUp(self):
@@ -333,6 +372,82 @@ class TaskCommandsTest(unittest.TestCase):
                     note=None,
                 )
             )
+
+    def make_review(self):
+        return task_store.create(
+            self.state, "acme", "review", "g", ["c"], kind="review"
+        )
+
+    def test_a_review_task_cannot_await_approval(self):
+        review = self.make_review()
+
+        with self.assertRaises(tm.HerdrError):
+            tm.cmd_task_update(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=review["id"],
+                    status="ready_for_approval",
+                    iteration=None,
+                    report_file=None,
+                    note=None,
+                )
+            )
+
+        self.assertEqual(task_store.load(self.state, review["id"])["status"], "planned")
+
+    def test_a_build_task_can_await_approval(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_task_update(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    status="ready_for_approval",
+                    iteration=None,
+                    report_file=None,
+                    note=None,
+                )
+            )
+
+        self.assertEqual(
+            task_store.load(self.state, self.task["id"])["status"],
+            "ready_for_approval",
+        )
+
+    def test_decide_is_refused_for_a_review_task(self):
+        review = self.make_review()
+
+        with self.assertRaises(tm.HerdrError):
+            tm.cmd_task_decide(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=review["id"],
+                    decision="request-changes",
+                    note=None,
+                )
+            )
+
+        self.assertEqual(task_store.load(self.state, review["id"])["status"], "planned")
+
+    def test_update_stores_the_report_path(self):
+        report = os.path.join(self.state, "worker.md")
+        with open(report, "w") as fh:
+            fh.write("line 0\nline 1\n")
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_task_update(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    status="awaiting_review",
+                    iteration=None,
+                    report_file=report,
+                    note=None,
+                )
+            )
+
+        self.assertEqual(
+            task_store.load(self.state, self.task["id"])["report_path"], report
+        )
 
     def add_blocking(self):
         task_store.record_findings(
@@ -440,6 +555,7 @@ class TaskNewTest(unittest.TestCase):
             constraint=None,
             worker=None,
             max_iterations=None,
+            kind="build",
             config_data={},
         )
         args.__dict__.update(overrides)
@@ -462,6 +578,16 @@ class TaskNewTest(unittest.TestCase):
         task = self.new_task()
 
         self.assertEqual(task["max_iterations"], 3)
+
+    def test_kind_defaults_to_build(self):
+        task = self.new_task()
+
+        self.assertEqual(task["kind"], "build")
+
+    def test_review_kind_is_stored(self):
+        task = self.new_task(kind="review")
+
+        self.assertEqual(task["kind"], "review")
 
 
 class BriefAndReportTest(unittest.TestCase):
