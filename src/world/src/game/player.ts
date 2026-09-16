@@ -155,6 +155,8 @@ export class Player {
     this.bob += dt
     const hover = 0.9 + Math.sin(this.bob * 1.6) * 0.07 + this.moving * 0.1
     this.root.position.set(this.x, hover, this.z)
+    // the pod hovers; its contact shadow stays on the deck
+    this.avatar.contactShadow.position.y = 0.06 - hover
     this.root.rotation.y = this.heading
     this.root.rotation.z = damp(this.root.rotation.z, -angleDelta(this.heading, Math.atan2(this.vx, this.vz)) * 0.25 * this.moving, 4, dt)
     this.root.rotation.x = damp(this.root.rotation.x, this.moving * 0.09, 4, dt)
@@ -188,6 +190,7 @@ export class Player {
 
     this.bob += dt
     this.root.position.y = 0.9 + Math.sin(this.bob * 1.6) * 0.07
+    this.avatar.contactShadow.position.y = 0.06 - this.root.position.y
     this.avatar.head.rotation.y = Math.sin(this.bob * 0.5) * 0.06
 
     const cp = Math.cos(this.camPitch)

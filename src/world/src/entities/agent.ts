@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { C } from '../core/palette'
-import { buildRobot, buildTeamMate, type RobotModel } from './robot'
+import { buildRobot, buildTeamMate, ROBOT_RIDE_HEIGHT, type RobotModel } from './robot'
 import type { RoleIcon } from '../core/textures'
 import type { AgentRole } from '../world/layout'
 import type { NavGraph, NavNode } from '../world/nav'
@@ -54,6 +54,18 @@ const POSTURE: Record<
   returning: { pitch: 0, scan: 0.16, neck: 1.24, lean: 0.03, roll: 0, lens: 0.45, pulse: 2.2, ring: 0.6, blink: 0, bob: 0.02, bobSpeed: 2.6 },
   complete: { pitch: 0.07, scan: 0.06, neck: 1.19, lean: 0, roll: 0, lens: 0.1, pulse: 1.0, ring: 0.22, blink: 0, bob: 0.01, bobSpeed: 1.4 },
   blocked: { pitch: 0.32, scan: 0.3, neck: 1.13, lean: 0, roll: 0, lens: 1.0, pulse: 5.0, ring: 1.0, blink: 0, bob: 0.03, bobSpeed: 4 },
+}
+
+/** How dark the floor contact shadow reads per state (a local channel, so the
+ * shared `POSTURE` contract stays untouched). */
+const SHADOW_OPACITY: Record<AgentState, number> = {
+  docked: 0.34,
+  moving: 0.26,
+  working: 0.42,
+  reporting: 0.38,
+  returning: 0.28,
+  complete: 0.3,
+  blocked: 0.4,
 }
 
 const ACCENT_BY_ROLE: Record<AgentRole, number> = {
@@ -129,7 +141,7 @@ export class Agent {
     this.x = x
     this.z = z
     this.facing = facing
-    this.root.position.set(x, 0.42, z)
+    this.root.position.set(x, ROBOT_RIDE_HEIGHT, z)
     this.root.rotation.y = facing
     this.path = []
     this.pathIndex = 0
@@ -271,27 +283,31 @@ export class Agent {
   }
 
   private animate(dt: number) {
-    this.root.position.set(this.x, 0.42, this.z)
+    this.root.position.set(this.x, ROBOT_RIDE_HEIGHT, this.z)
     this.root.rotation.y = this.facing
 
     const m = this.model
     const P = POSTURE[this.state]
-    // tracks
+    // tracks stay planted; only the chassis group breathes
     for (const w of m.leftWheels) w.rotation.x = this.wheelSpin
     for (const w of m.rightWheels) w.rotation.x = this.wheelSpin
 
-    // hover bob and the whole postural read, damped so a state change settles
-    m.root.position.y = Math.sin(this.bob * P.bobSpeed) * P.bob
+    // suspension bob and the whole postural read, damped so a state settles
+    m.body.position.y = Math.sin(this.bob * P.bobSpeed) * P.bob
 
     const blink = P.blink > 0 ? (Math.sin(this.bob * P.blink) > 0 ? 1 : 0.35) : 1
     m.head.rotation.y = Math.sin(this.bob * 0.8 + this.ringPhase) * P.scan
     const pitch = P.pitch + (this.state === 'working' ? Math.sin(this.bob * 5) * 0.05 : 0)
     m.head.rotation.x = damp(m.head.rotation.x, pitch, 7, dt)
     m.neck.position.y = damp(m.neck.position.y, P.neck, 6, dt)
-    m.root.rotation.x = damp(m.root.rotation.x, P.lean, 6, dt)
-    // idle track stance: a slow weight shift on the base
+    m.body.rotation.x = damp(m.body.rotation.x, P.lean, 6, dt)
+    // idle track stance: a slow weight shift on the chassis
     const roll = P.roll + (this.state === 'docked' ? Math.sin(this.bob * 0.7) * 0.03 : 0)
-    m.root.rotation.z = damp(m.root.rotation.z, roll, 5, dt)
+    m.body.rotation.z = damp(m.body.rotation.z, roll, 5, dt)
+
+    // contact shadow: soft, planted, and a little stronger when the robot works
+    ;(m.contactShadow.material as THREE.MeshBasicMaterial).opacity =
+      SHADOW_OPACITY[this.state]
 
     // status ring: pulses, brighter the busier the robot is
     const pulse = 0.45 + 0.35 * Math.sin(this.ringPhase * P.pulse)

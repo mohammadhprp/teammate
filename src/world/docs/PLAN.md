@@ -192,6 +192,24 @@ Defined and never called, so they render nowhere and mislead the next reader:
 - **Accept:** `grep` for any exported prop name finds a call site, or the export
   is gone.
 
+### W-25 [Done] Entity art pass (Option A)
+The developer avatar and the robot base were reskinned against
+[`ENTITY-ART-PLAN.md`](ENTITY-ART-PLAN.md): a procedural surface library
+(`core/surfaces.ts`), a merged/ wheeled robot base with a recessed `▷` hatch and
+dominant twin-barrel head, an egg-shell developer pod with clumped hair and
+visible eyes, a chassis suspension over planted tracks, per-entity contact
+shadows, and a PMREM environment on the entity materials only.
+- **Files:** `core/surfaces.ts` (new), `core/palette.ts`, `core/textures.ts`,
+  `core/engine.ts`, `entities/robot.ts`, `entities/developer.ts`,
+  `entities/agent.ts`, `game/player.ts`.
+- **Measured:** robot 80 → 20 meshes (12 merged non-animated), developer
+  ~116 → 24; entity render cost 67 draw calls / 58.5k tris in view; ship
+  materials untouched. Details and the floor/hover decision are in the plan's
+  §12.
+- **Accept met:** clean console, `typecheck` + `build` pass, no new
+  dependency, no art file. Follow-ups left to W-11 (typing idle) and W-12
+  (spawn lift / terrain tilt) now that the rigs exist.
+
 ---
 
 ## 4. Systems robustness (M4)

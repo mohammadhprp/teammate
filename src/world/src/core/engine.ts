@@ -3,7 +3,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { C } from './palette'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { C, M } from './palette'
+import { surfaceMapStats } from './surfaces'
 import { clamp } from './math'
 
 export interface UpdateFn {
@@ -91,6 +93,18 @@ export class Engine {
     )
     this.composer.addPass(this.bloom)
     this.composer.addPass(new OutputPass())
+
+    // --- environment --------------------------------------------------------
+    // One small PMREM so entity metal and glass have something to reflect. It is
+    // assigned per entity material in `M.applyEntityEnv` — never to
+    // `scene.environment` — so the batched ship keeps its look byte for byte.
+    const pmrem = new THREE.PMREMGenerator(this.renderer)
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    M.applyEntityEnv(env)
+    pmrem.dispose()
+    if (import.meta.env.DEV) {
+      console.debug(`[surfaces] ${surfaceMapStats().generated} procedural maps cached`)
+    }
 
     window.addEventListener('resize', this.onResize)
   }

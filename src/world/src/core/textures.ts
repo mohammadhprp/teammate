@@ -242,7 +242,7 @@ export function plaqueTexture(title: string, accent = 0x46c47c, done = true) {
   return toTexture(canvas)
 }
 
-export type RoleIcon = 'gear' | 'code' | 'check' | 'flask' | 'none'
+export type RoleIcon = 'gear' | 'code' | 'check' | 'flask' | 'triangle' | 'none'
 
 /** The role badge carried on a worker robot's side panel. */
 export function roleIconTexture(kind: RoleIcon, color = 0x3a3e42) {
@@ -306,6 +306,15 @@ export function roleIconTexture(kind: RoleIcon, color = 0x3a3e42) {
     ctx.beginPath()
     ctx.moveTo(92, 52)
     ctx.lineTo(164, 52)
+    ctx.stroke()
+  } else {
+    // `triangle` (and the `none` default): the sheet's recessed-hatch glyph "▷"
+    ctx.lineWidth = 20
+    ctx.beginPath()
+    ctx.moveTo(96, 62)
+    ctx.lineTo(96, 194)
+    ctx.lineTo(196, 128)
+    ctx.closePath()
     ctx.stroke()
   }
   return toTexture(canvas)

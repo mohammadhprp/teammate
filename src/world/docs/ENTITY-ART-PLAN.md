@@ -1,7 +1,8 @@
 # Entity art plan — realistic developer + robot models
 
-Status: **plan only, no code written**. This document is the executable brief for
-the entity visual redesign against
+Status: **Option A implemented** — steps 1–8 are done. The measurements and the
+one open decision (floor vs hover) are recorded in §12. This document was the
+executable brief for the entity visual redesign against
 [`docs/reference/entities-reference.png`](reference/entities-reference.png).
 
 Scope: `src/entities/developer.ts`, `src/entities/robot.ts`,
@@ -454,3 +455,41 @@ Manual pass for this work:
 2. Say whether the entities should sit on the floor or hover (R10).
 3. Say whether the backlog `docs/PLAN.md` should record this choice and add an
    entity-art item, or whether this document stands alone.
+
+---
+
+## 12. Implementation record (Option A, steps 1–8)
+
+Measured on the dev build (`npm run dev`, Chrome, 1440×900), the same way W-18
+measured the ship. Counts are per model, from `Object3D.traverse`.
+
+| Item | Before | After |
+| --- | --- | --- |
+| Robot meshes / model | ≈80 | **20** |
+| — merged surface meshes (non-animated) | 0 (none merged) | **12** |
+| — status ring + contact shadow | 1 | 2 |
+| — animated road wheels | 6 wheels (inside 36 track pieces) | 6 |
+| Developer meshes / model | ≈116 | **24** |
+| Procedural surface maps | 0 | **6** (128–256 px, cached by key) |
+| Entity render cost (6 entities) | 500+ draw calls | **67 draw calls, 58.5k tris** in view |
+| PMREM environments | 0 | 1, on entity materials only |
+
+`npm run typecheck` and `npm run build` pass. Browser smoke test: console clean
+(no errors, no three.js deprecation warnings), only the one-time
+`[surfaces] 5 procedural maps cached` dev line; a full mission ran at ×8 with
+all four role variants plus Team Mate present.
+
+**Floor vs hover (R10) — seated on the deck.** The 0.42 offset was judged an
+unintended hover: the status ring sat at ≈0.45 ("not on the floor"), the tracked
+base is a ground vehicle, and step 6's planted tracks and contact shadow only
+make sense on the deck. Robots now ride at `ROBOT_RIDE_HEIGHT = 0.07` so the
+lowest tread link sits just above the floor panel (top ≈0.05). The status ring
+(`-0.008`) and the contact shadow (`-0.014`) were retuned to sit above the panel
+top with `polygonOffset`, `depthWrite: false` and an explicit `renderOrder`, so
+nothing z-fights from any camera angle. The developer pod still hovers by design;
+its contact shadow is kept on the deck by `game/player.ts`.
+
+**Deviation from §8's budget.** The plan budgeted ≤6 maps; the shipped library
+uses exactly 6 (cavity AO, micro grain, panel grooves, roughness variation,
+fabric weave, contact blob), generated once and shared across every entity
+material — per-material strength lives in `normalScale` / `roughness`.

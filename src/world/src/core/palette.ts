@@ -1,4 +1,11 @@
 import * as THREE from 'three'
+import {
+  cavityAOMap,
+  fabricNormal,
+  microNormal,
+  panelNormal,
+  roughnessVariation,
+} from './surfaces'
 
 /**
  * TEAM MATE palette.
@@ -79,6 +86,165 @@ class Materials {
   readonly rubber = std(C.rubber, 0.9, 0.1)
   readonly black = std(C.black, 0.7, 0.3)
 
+  // --- entity surfaces (additive) ------------------------------------------
+  // The ship's materials above are untouched on purpose: batched geometry keys
+  // by material identity, so mutating one would repaint the whole ship. These
+  // are used only by the robot and the developer.
+  //
+  // Four procedural maps are generated once and shared across every entity
+  // material; per-material strength lives in `normalScale`, and `roughness` is
+  // the real base value (the shared roughness map only adds variation).
+  private readonly eDetail = cavityAOMap(256, 0.09)
+  private readonly eGrain = microNormal(128, 1)
+  private readonly ePanel = panelNormal(256, [0.34, 0.67])
+  private readonly eTooth = roughnessVariation(128, 1, 0.15)
+  private readonly eWeave = fabricNormal(256, 0.8)
+
+  /** Matte cream entity plastic — robot chassis, barrels, hatch frame. */
+  readonly plasticCream = std(0xe7e0d2, 0.64, 0.02, {
+    map: this.eDetail,
+    normalMap: this.ePanel,
+    normalScale: new THREE.Vector2(0.4, 0.4),
+    roughnessMap: this.eTooth,
+  })
+
+  /** Near-black mechanical frame — tracks housing, head band, seams. */
+  readonly frameDark = std(0x212428, 0.5, 0.34, {
+    map: this.eDetail,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.4, 0.4),
+    roughnessMap: this.eTooth,
+  })
+
+  /** Belt rubber: deep matte with a strong tooth. */
+  readonly trackRubber = std(0x191b1d, 0.94, 0.04, {
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.9, 0.9),
+    roughnessMap: this.eTooth,
+  })
+
+  /** Brushed steel hardware — hubs, rings, screws. */
+  readonly entitySteel = std(C.steel, 0.34, 0.82, {
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.18, 0.18),
+    roughnessMap: this.eTooth,
+  })
+
+  /** Polished chrome — developer's laptop. */
+  readonly entityChrome = std(0xd4d8dc, 0.2, 0.92, {
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.12, 0.12),
+    roughnessMap: this.eTooth,
+  })
+
+  /** Real lens glass: dark, glossy, clearcoated. Per-robot clones add emissive. */
+  readonly lensGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x0b0f12,
+    roughness: 0.1,
+    metalness: 0.2,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+  })
+
+  /** Hoodie fabric: matte charcoal with a soft sheen Standard cannot give. */
+  readonly fabric = new THREE.MeshPhysicalMaterial({
+    color: 0x474d53,
+    roughness: 0.94,
+    metalness: 0,
+    sheen: 0.55,
+    sheenRoughness: 0.72,
+    sheenColor: new THREE.Color(0x8a929b),
+    normalMap: this.eWeave,
+    normalScale: new THREE.Vector2(0.5, 0.5),
+  })
+
+  /** Darker fabric for the hood lining, cuffs and hem. */
+  readonly fabricDark = new THREE.MeshPhysicalMaterial({
+    color: 0x363b41,
+    roughness: 0.96,
+    metalness: 0,
+    sheen: 0.4,
+    sheenRoughness: 0.8,
+    sheenColor: new THREE.Color(0x717980),
+    normalMap: this.eWeave,
+    normalScale: new THREE.Vector2(0.5, 0.5),
+  })
+
+  /** Soft skin with a trace of sheen so the face catches the key light. */
+  readonly skinSoft = new THREE.MeshPhysicalMaterial({
+    color: 0xf0c39c,
+    roughness: 0.58,
+    metalness: 0,
+    sheen: 0.22,
+    sheenRoughness: 0.6,
+    sheenColor: new THREE.Color(0xffd9bb),
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.18, 0.18),
+  })
+
+  readonly skinWarm = new THREE.MeshStandardMaterial({
+    color: 0xdcac86,
+    roughness: 0.6,
+    metalness: 0,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.18, 0.18),
+  })
+
+  readonly hairMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3527,
+    roughness: 0.84,
+    metalness: 0,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.7, 0.7),
+  })
+
+  readonly shoeMat = new THREE.MeshStandardMaterial({
+    color: 0x24282b,
+    roughness: 0.52,
+    metalness: 0.08,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.3, 0.3),
+  })
+
+  readonly soleMat = new THREE.MeshStandardMaterial({
+    color: 0xeceff1,
+    roughness: 0.5,
+    metalness: 0.02,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.3, 0.3),
+  })
+
+  /** Matte black glasses frame. */
+  readonly frameGlasses = std(0x121417, 0.34, 0.4)
+
+  /** Eye white — a touch glossy so the eyes catch the key light. */
+  readonly eyeWhite = std(0xf3f0ea, 0.34, 0)
+
+  /** Nearly clear glasses lens, so the eyes still read through the frame. */
+  readonly eyeglass = new THREE.MeshPhysicalMaterial({
+    color: 0x9fb4bd,
+    roughness: 0.08,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.22,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04,
+  })
+
+  /** Pod shell cream — smoother than the robot plastic. */
+  readonly podShell = std(0xf6f3ee, 0.4, 0.06, {
+    map: this.eDetail,
+    normalMap: this.eGrain,
+    normalScale: new THREE.Vector2(0.22, 0.22),
+  })
+
+  /** Pod / seat cushion fabric. */
+  readonly cushion = std(0x3b4045, 0.88, 0.02, {
+    normalMap: this.eWeave,
+    normalScale: new THREE.Vector2(0.5, 0.5),
+    roughnessMap: this.eTooth,
+  })
+
   /** Window glazing: barely there, just enough to catch a highlight. */
   readonly glass = new THREE.MeshPhysicalMaterial({
     color: 0xcfe3ee,
@@ -139,6 +305,27 @@ class Materials {
       this.accentGlow.set(key, m)
     }
     return m
+  }
+
+  /**
+   * Give the entity surfaces something to reflect. Called once by the engine
+   * with a PMREM environment; assigned per material (never
+   * `scene.environment`) so the batched ship is guaranteed unchanged.
+   */
+  applyEntityEnv(env: THREE.Texture) {
+    const set = (mat: THREE.MeshStandardMaterial, intensity: number) => {
+      mat.envMap = env
+      mat.envMapIntensity = intensity
+      mat.needsUpdate = true
+    }
+    set(this.entitySteel, 0.9)
+    set(this.entityChrome, 1)
+    set(this.lensGlass, 1)
+    set(this.podShell, 0.35)
+    set(this.plasticCream, 0.3)
+    set(this.frameDark, 0.5)
+    set(this.frameGlasses, 0.6)
+    set(this.shoeMat, 0.3)
   }
 
   /** Slightly transparent hologram body. */
