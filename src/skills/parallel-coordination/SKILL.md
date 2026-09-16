@@ -21,8 +21,9 @@ The primary stays the single point of coordination and does the assembling.
 
 ## When not to use
 
-- The streams share files, a branch, or an ordering dependency: they are not
-  independent, so run them serially — one worker at a time, waiting via
+- The streams share files, a branch, runtime resources (a port, a browser
+  session), or an ordering dependency: they are not independent, so run them
+  serially — one worker at a time, waiting via
   `python3 scripts/tm.py wait` / `status` (or a backgrounded wait), not a flag —
   or give one stream sole ownership of the shared area.
 - There is only one stream: plain `delegate-task` is simpler, and a parallel
@@ -43,7 +44,17 @@ Map each stream to the files and shared state it writes. Two streams may run
 together only when their write sets are disjoint and neither consumes the
 other's output; otherwise one worker's edit silently overwrites or invalidates
 the other's, and no worker can see it happen. Shared state includes the same
-file, the same branch, the same task or store, and the same external service.
+file, the same branch, the same task or store, the same external service, the
+same **port**, and the same **browser session or profile**.
+
+Runtime resources collide the same way files do: two UI streams that both listen
+on `:8081`, or both drive `agent-browser` without a session, fight over one tab
+— one logs a hijacked shared tab while the other renders the wrong page. Check
+ports and browser sessions in the same pass as the file write-set, before
+spawning, not after a collision. Give each UI stream its own port from a small
+convention (`:8080`, `:8081`, ... one per stream) and its own
+`agent-browser --session <stream>`; no two streams share a port or a
+browser session.
 
 When overlap is unavoidable, decide the conflict-resolution strategy *before*
 spawning: a single owner for the shared area, or a declared merge order with one
@@ -69,8 +80,10 @@ in the report.
 
 ## Procedure
 
-1. **Confirm independence** for every pair of streams (see above). If a pair is
-   not independent, serialize it or assign ownership before continuing.
+1. **Confirm independence** for every pair of streams (see above) — write set,
+   shared state, and runtime resources. For UI streams, assign each its own port
+   and its own `agent-browser --session <stream>` before continuing. If a
+   pair is not independent, serialize it or assign ownership before continuing.
 2. **Count live workers** and reduce the batch to the `max_concurrent` budget:
 
    ```bash

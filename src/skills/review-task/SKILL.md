@@ -65,8 +65,11 @@ queue.
 ## Failure and escalation
 
 - Evidence missing, a check that cannot run, or a criterion that cannot be
-  interpreted → `inconclusive`; return it to the requester instead of passing it
-  or settling it yourself.
+  interpreted → `inconclusive`; returning it is correct when the evidence is
+  insufficient, not a forced `pass` or `fail`. The requester records it on the
+  build task with `python3 scripts/tm.py task update <id> --verdict inconclusive`
+  and escalates to the developer. Return it instead of passing it or settling it
+  yourself.
 - The change is too large or too vague to judge against the criteria → say so
   and ask the requester to narrow the review.
 - Never approve. Approval is the developer's; a reviewer only recommends a

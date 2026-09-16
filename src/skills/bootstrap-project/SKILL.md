@@ -83,7 +83,10 @@ Fix that *before* delegating: give the project its context and its skills.
    result is judged. Under **Checks**, name at least one validator that runs
    offline for this work. For a UI that means an HTML check and an accessibility
    check (`npx html-validate`, `npx @axe-core/cli`, or the stack's equivalent),
-   not only a screenshot; a validator the review cannot run is not a check.
+   not only a screenshot; a validator the review cannot run is not a check. For
+   a UI, also name the dev/preview port the app is served on and require a
+   per-worker `agent-browser` session (`--session <stream>`), so a later
+   parallel run has a convention to follow instead of fighting over one tab.
    Keep any developer-authored sections; add what is missing.
 
 6. **Create `CONTEXT.md` if missing.** A short file naming the project's

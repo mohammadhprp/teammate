@@ -43,6 +43,27 @@ second and the tests run again, because the combined tree is a state neither
 worker's own run proved. `git diff` for each stream is read in the primary; no
 worker is asked to merge another's change.
 
+## Two UI streams, one port and session each
+
+Two UI changes in `acme` — a settings page and a profile page — touch different
+files, so they may overlap. Their servers and browsers must not:
+
+```bash
+# settings stream: its own port and its own browser session.
+(cd ~/code/acme && python3 -m http.server 8080) &
+agent-browser --session settings shot --out settings.png
+
+# profile stream: a different port and a different session.
+(cd ~/code/acme && python3 -m http.server 8081) &
+agent-browser --session profile shot --out profile.png
+```
+
+Distinct ports (`:8080`, `:8081`) and distinct sessions (`--session settings`,
+`--session profile`) keep the streams out of each other's way. Sharing either
+collides: both on `:8081` and neither with a session, one worker logged "A
+concurrent agent-browser session on :8081 hijacked the shared browser tab
+mid-run" — it was rendering the other stream's page.
+
 ## Streams that only look independent
 
 A refactor of `parser.py` and a feature that also edits `parser.py` share a

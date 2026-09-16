@@ -20,6 +20,8 @@
 
 - Offline validators (name the exact command):
 - For a UI: HTML / markup validator and an accessibility check:
+- For a UI: dev/preview port the app is served on:
+- For a UI: browser session per worker (`agent-browser --session <stream>`), never shared:
 - How a reviewer runs them without network access:
 
 ## Conventions

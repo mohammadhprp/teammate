@@ -63,12 +63,15 @@ instead of re-deriving it here.
    python3 scripts/tm.py task findings <id> --file <findings.json>   # an object or an array
    python3 scripts/tm.py task update <id> --status ready_for_approval --report-file <f>  # pass
    python3 scripts/tm.py task update <id> --status rework --report-file <f>              # fail
+   python3 scripts/tm.py task update <id> --verdict inconclusive --report-file <f>       # cannot determine
    ```
 
    `task show` renders the verdict and the open findings, so a resumed primary
-   reads the same state the reviewer recorded. On a pass, first close the
-   findings that now hold — `task update` and `task decide` refuse a pass while
-   an open `blocker`/`major` remains:
+   reads the same state the reviewer recorded. On an `inconclusive` verdict,
+   record it and escalate to the developer (step 5); do not set
+   `ready_for_approval` — the approval gate refuses a task whose verdict is not
+   `pass`. On a pass, first close the findings that now hold — `task update` and
+   `task decide` refuse a pass while an open `blocker`/`major` remains:
 
    ```bash
    python3 scripts/tm.py task resolve <id> --all      # findings fixed or accepted

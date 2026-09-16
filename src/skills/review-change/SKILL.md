@@ -80,6 +80,17 @@ Name the checks you actually ran; the verdict rests on them.
 - **inconclusive** — correctness cannot be determined, usually because evidence
   is missing or the change cannot be run.
 
+When correctness cannot be determined, record `inconclusive` rather than forcing
+a `pass` or a `fail`; a guessed verdict is worse than an honest gap. Record it on
+the build task and escalate to the developer:
+
+```bash
+python3 scripts/tm.py task update <id> --verdict inconclusive
+```
+
+`pass` and `fail` stay derived from the findings; `--verdict auto` clears an
+inconclusive back to that derived value.
+
 ## Output
 
 A findings list and a verdict (`pass` / `fail` / `inconclusive`) that names the
