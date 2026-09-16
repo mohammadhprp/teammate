@@ -19,6 +19,10 @@ The history behind that state:
 
 ## Open questions
 
+Each is answered as far as the evidence allows — a decision where the answer is
+ours, an experiment with a gate where it needs a live run — in the
+[open questions](implementation/14-open-questions.md) doc.
+
 - How should Team Mate identify projects beyond a name-to-root mapping?
 - What is the minimum useful skill set once more runs test the library?
 - How much state should persist, and what should happen on restart?

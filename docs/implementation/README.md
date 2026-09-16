@@ -39,6 +39,8 @@ operating model with real agents before committing to a large framework.
 13. [Audit and improvement plan](13-audit-and-improvement-plan.md) — the docs,
     config, skills, and `tm` code audited against what they enforce, with a
     prioritized plan.
+14. [Open questions](14-open-questions.md) — resolutions and bounded experiments
+    for the remaining research questions.
 
 ## Core architecture
 
