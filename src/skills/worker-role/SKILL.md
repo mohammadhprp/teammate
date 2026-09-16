@@ -21,6 +21,13 @@ the assignment, and guessing when a question was available.
 - Never skipped. Even a trivial assignment inherits these scope, autonomy, and
   reporting rules.
 
+## Inputs
+
+- The brief: the project name and root, the goal, every acceptance criterion,
+  the constraints, and the expected output.
+- The project's own context — `AGENTS.md` / `CONTEXT.md`, loaded with
+  `load-project-context`.
+
 ## The boundary
 
 - **One project, one scope.** Work only in the project root the brief names.

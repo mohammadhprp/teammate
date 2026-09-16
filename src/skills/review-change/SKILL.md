@@ -16,8 +16,7 @@ evidence.
 
 - A completed change — a local diff, a branch, or a patch — must be checked
   against acceptance criteria.
-- A reviewer worker is asked to judge another worker's output, or the primary
-  must verify before approval.
+- The primary must verify a change before approval.
 
 ## When not to use
 

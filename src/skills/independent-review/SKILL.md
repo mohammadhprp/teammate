@@ -1,18 +1,21 @@
 ---
 name: independent-review
-description: "Prevent an implementer from being the only judge of its own work: decide whether a result needs a separate reviewer worker, then spawn and brief that reviewer with the objective, acceptance criteria, and evidence — never the implementer's conclusion — and collect findings only. Use when the change is important or risky — auth, money, user data, migrations, public interfaces, concurrency, or parallel writers — when a criterion is hard to self-check, or whenever the developer asks for a second opinion — even if the implementer already reported success."
+description: "Prevent an implementer from being the only judge of its own work: once `review-work`'s gate warrants a separate reviewer, spawn and brief that reviewer with the objective, acceptance criteria, and evidence — never the implementer's conclusion — and collect findings only. Use when the change is important or risky — auth, money, user data, migrations, public interfaces, concurrency, or parallel writers — when a criterion is hard to self-check, or whenever the developer asks for a second opinion — even if the implementer already reported success."
 ---
 
 # Independent review
 
 A worker's report is a claim from the worker that wrote the code. When a result
-matters, someone who did not write it should judge it. This skill decides
-whether that someone is a separate reviewer worker and, if so, creates and
-briefs it. The reviewer applies `review-task`, the worker wrapper over the
-shared `review-change` method, and returns findings; `review-work` keeps the
-verdict and the loop.
+matters, someone who did not write it should judge it. Once `review-work`'s gate
+decides a separate reviewer worker is warranted, this skill creates and briefs
+it. The reviewer applies `review-task`, the worker wrapper over the shared
+`review-change` method, and returns findings; `review-work` keeps the verdict
+and the loop.
 
 ## When to use
+
+`review-work` owns the gate: it decides whether to review and whether a separate
+reviewer worker is warranted. This skill applies once that gate picks one.
 
 - The change is important or risky — authentication, money, user data,
   migrations, public interfaces, concurrency, or parallel writers on shared
@@ -41,12 +44,11 @@ verdict and the loop.
 
 ## Procedure
 
-1. **Decide.** Judge the change against the risk list above and the
-   self-check question; a trivial, low-risk change is reviewed in place, not by
-   a separate worker. If `review_policy` is `never`, spawn no reviewer however
-   risky the change looks — surface the risk to the developer with
-   `escalate-decision`. Name the reason in the brief — a review you cannot
-   justify is cost without value.
+1. **Take the gate's decision.** `review-work` decides whether to review
+   (`review_policy`) and whether a separate reviewer worker is warranted; once
+   one is, this skill's job is to spawn and brief that reviewer, not to
+   re-decide. Name the reason in the brief — a review you cannot justify is cost
+   without value.
 
 2. **Assemble evidence, not conclusions.** Collect the diff
    (`python3 scripts/tm.py diff --cwd "<root>"`), the changed files, and the

@@ -14,7 +14,7 @@ python3 scripts/tm.py task new --project acme --title "Add subtract" \
 # tsk_1a2b3c4d
 
 # 2. Spawn a worker linked to the task, write the brief under the state dir,
-#    then send that path (--wait for serial work).
+#    then send that path without --wait and wait in the background.
 python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-alpha --task tsk_1a2b3c4d
 # developer-alpha  idle  acme  wP  wP:t1
 python3 scripts/tm.py brief developer-alpha --task tsk_1a2b3c4d <<'EOF'
@@ -35,7 +35,7 @@ python3 scripts/tm.py diff --cwd ~/code/acme --stat
 python3 scripts/tm.py task update tsk_1a2b3c4d --status ready_for_approval
 
 # 5. After the developer approves
-python3 scripts/tm.py task update tsk_1a2b3c4d --status approved
+python3 scripts/tm.py task decide tsk_1a2b3c4d approve
 python3 scripts/tm.py stop developer-alpha
 ```
 

@@ -47,5 +47,7 @@ worker is asked to merge another's change.
 
 A refactor of `parser.py` and a feature that also edits `parser.py` share a
 write set. Running them together means the second worker overwrites the first,
-and neither can see it. Serialize them with `delegate-task --wait`, or make one
-stream own `parser.py` and rebase the other after it lands.
+and neither can see it. They are not independent, so run them serially — one
+worker at a time, waiting via `python3 scripts/tm.py wait` / `status` (or a
+backgrounded wait), not a flag — or make one stream own `parser.py` and rebase
+the other after it lands.

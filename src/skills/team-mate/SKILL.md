@@ -1,6 +1,6 @@
 ---
 name: team-mate
-description: "Lead the Team Mate coordination loop as the primary agent: coordinate a delegated request end to end — resolve projects, delegate to workers, monitor, review, rework, and report across one or more projects. Planning is `plan-work`; the durable ledger is `task-ledger`. Use whenever a request should be delegated to a worker, spans more than a trivial local edit, touches more than one project, or needs independent verification before the developer approves it — including when the developer just says 'work on project X' or 'have two agents look at it.'"
+description: "Lead the Team Mate coordination loop as the primary agent: coordinate a delegated request end to end — resolve projects, delegate to workers, monitor, review, rework, and report across one or more projects. Planning is `plan-work`; the durable ledger is `task-ledger`. Use whenever a request should be delegated to a worker, spans more than a trivial local edit, touches more than one project, or needs independent verification before the developer approves it — including when the developer just says 'work on project X.'"
 ---
 
 # Team Mate

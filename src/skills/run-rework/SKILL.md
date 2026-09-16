@@ -59,7 +59,8 @@ disagreement from quietly consuming the developer's time.
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
    <feedback brief>
    EOF
-   python3 scripts/tm.py send "<name>" --brief "<printed-path>" --wait --timeout <ms>
+   python3 scripts/tm.py send "<name>" --brief "<printed-path>"
+   # then poll `tm status` or background `tm wait` (`monitor-agents`)
    ```
 
    Keep the feedback inside the worker's sandbox: inline every fact, and never

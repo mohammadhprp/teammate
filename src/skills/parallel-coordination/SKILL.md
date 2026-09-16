@@ -21,9 +21,10 @@ The primary stays the single point of coordination and does the assembling.
 
 ## When not to use
 
-- The streams share files, a branch, or an ordering dependency: serialize them
-  with `delegate-task --wait`, or give one stream sole ownership of the shared
-  area.
+- The streams share files, a branch, or an ordering dependency: they are not
+  independent, so run them serially — one worker at a time, waiting via
+  `python3 scripts/tm.py wait` / `status` (or a backgrounded wait), not a flag —
+  or give one stream sole ownership of the shared area.
 - There is only one stream: plain `delegate-task` is simpler, and a parallel
   wrapper adds coordination without saving time.
 

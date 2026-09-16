@@ -16,8 +16,8 @@ being a reviewer worker.
 
 ## When to use
 
-- You are spawned, or asked, to review another worker's output, or to
-  independently check a change you did not write.
+- You are spawned as a reviewer worker, briefed to judge another worker's output
+  you did not write.
 - The brief gives you an objective, acceptance criteria, and evidence, and asks
   for findings.
 

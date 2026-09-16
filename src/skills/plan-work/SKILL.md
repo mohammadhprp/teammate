@@ -1,6 +1,6 @@
 ---
 name: plan-work
-description: "Turn an ambiguous goal into explicit, testable work before any agent is spawned: restate the outcome, derive acceptance criteria a reviewer could check, choose serial vs parallel, size the smallest useful team, and pick each worker's role. Use whenever a request is non-trivial, should be delegated, spans more than a trivial local edit, arrives vague ('make the app faster', 'add auth', 'have two agents look at it'), or reaches a point where it must become tasks — and use it to ask the developer up front instead of spending agents on the wrong work."
+description: "Turn an ambiguous goal into explicit, testable work before any agent is spawned: restate the outcome, derive acceptance criteria a reviewer could check, choose serial vs parallel, size the smallest useful team, and pick each worker's role. Use whenever a request is non-trivial, should be delegated, spans more than a trivial local edit, arrives vague ('make the app faster', 'add auth'), or reaches a point where it must become tasks — and use it to ask the developer up front instead of spending agents on the wrong work."
 ---
 
 # Plan work
@@ -66,7 +66,8 @@ it. Planning never spawns a worker itself.
 
 5. **Choose the smallest useful team.** One worker per coherent change. Add a
    worker only for real parallelism or a genuinely separate role — most often an
-   independent reviewer when `review_policy` requires it or the change is risky.
+   independent reviewer when the change is risky or a criterion is hard to
+   self-check (`independent-review`).
    Do not create a worker to help plan; planning is yours.
 
 6. **Assign a role per worker.** The role follows from the assignment —
@@ -75,10 +76,11 @@ it. Planning never spawns a worker itself.
    output. A worker asked to review is told to return findings only, not to fix
    (that is `review-task`).
 
-7. **Choose the review path.** From `review_policy` (`always` | `on-risk` |
-   `never`) and the risk of the change: independent review
-   (`independent-review`), self-check only, or none. Fold the reviewer into the
-   team size chosen above; rework beyond the plan is `run-rework`.
+7. **Choose the review path.** `review_policy` (`always` | `on-risk` |
+   `never`) decides whether a settled task is reviewed; whether that review is a
+   separate reviewer worker is a per-change call (`review-work`,
+   `independent-review`). Fold any reviewer into the team size chosen above;
+   rework beyond the plan is `run-rework`.
 
 8. **Record the plan, then delegate.** Record each task with `task-ledger` so
    the plan survives a restart, then spawn with `delegate-task`. Planning ends

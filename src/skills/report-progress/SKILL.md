@@ -22,6 +22,14 @@ shared `handoff-report` contract.
 - Nothing important changed since the last report. Routine worker activity
   belongs to `monitor-agents`, not a developer report.
 
+## Inputs
+
+- The persisted task (`python3 scripts/tm.py task show <id>`): goal, criteria,
+  iteration, verdict, and findings.
+- The shared `handoff-report` contract and `templates/report.md`.
+- `notify` from `team-mate.toml`, and the decision you are asking the developer
+  to make.
+
 ## Procedure
 
 1. **Assemble the report** with the `handoff-report` contract, filling

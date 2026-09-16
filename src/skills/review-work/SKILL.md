@@ -25,6 +25,15 @@ instead of re-deriving it here.
 - You only need the review method (findings, severity, verdict): that is
   `review-change`.
 
+## Inputs
+
+- The settled task from the ledger (`python3 scripts/tm.py task show <id>`): its
+  goal, acceptance criteria, and iteration.
+- The worker's fresh output — `report`, `diff`, and the project's own check
+  commands (from `load-project-context`).
+- `review_policy` from `team-mate.toml`, and the `review-change` method the
+  reviewer applies.
+
 ## Procedure
 
 1. **Assemble the review inputs.** Read the persisted task with

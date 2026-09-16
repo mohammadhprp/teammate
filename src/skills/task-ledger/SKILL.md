@@ -92,7 +92,8 @@ The ledger is shared across runs, so tag each run and keep it clean.
    A task holds one `worker`. Spawning a second worker with the same `--task`
    overwrites the first link, so give parallel workers their own tasks; and
    reuse a worker name for one task at a time, because `task find --worker`
-   resolves to the earliest task still linked to that name.
+   resolves to an active task if any, otherwise the newest matching task — a
+   closed task from an earlier session never shadows the live one.
 
 3. **Update at each transition.** Move the status as the work moves; record the
    iteration on rework and attach the report once it exists:
@@ -115,10 +116,11 @@ The ledger is shared across runs, so tag each run and keep it clean.
    python3 scripts/tm.py task show <id>
    ```
 
-   - A live worker with no ledger task: the record was lost — create one, or
-     stop the worker.
-   - A separate reviewer worker is unledgered by design and owns no task;
-     `recover-run` must not flag a live reviewer as drift.
+   - A live worker with no ledger task is either a by-design reviewer or a lost
+     record. A reviewer is spawned without `--task` and owns no task, so take
+     no action and `recover-run` must not flag it as drift; any other
+     unledgered live worker means the record was lost — reconcile it with
+     `recover-run`.
    - A task whose recorded worker is absent from `status`: orphaned (step 5).
    - Otherwise resume from the recorded status, not from memory.
 

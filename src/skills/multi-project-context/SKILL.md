@@ -55,6 +55,11 @@ The precedence order — platform / system constraints, then Team Mate
 coordination rules, then the target project's instructions, then task-specific
 instructions — is defined in `load-project-context`.
 
+## Output
+
+Each task mapped to exactly one resolved project root and workspace label, with
+no context crossing a project boundary.
+
 ## Failure and escalation
 
 Confirm with the developer when a project is ambiguous, when a task would touch

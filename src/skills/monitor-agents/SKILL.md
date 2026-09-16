@@ -67,8 +67,8 @@ design.
    python3 scripts/tm.py wait "<name>" --timeout <ms>
    ```
 
-   Output: `<name> <state>`. Or rely on `python3 scripts/tm.py send --wait` from
-   `delegate-task`.
+   Output: `<name> <state>`. Background this wait, or keep it to a short
+   `--timeout` and re-check; `delegate-task` sends with no `--wait`.
 
 2. **Poll (parallel).**
 
