@@ -92,6 +92,12 @@ decision that approves is refused while a `blocker`/`major` is still open.
 - **`inconclusive`** means the reviewer cannot determine correctness, usually
   because evidence is missing. Escalate to the developer.
 
+`pass` and `fail` are derived from the findings, but `inconclusive` is recorded
+explicitly with
+`python3 scripts/tm.py task update <id> --verdict inconclusive` (and
+`--verdict auto` clears it). The approval gate and `task decide` are refused
+while the verdict is not `pass`.
+
 A `pass` verdict must not include open blocker or major findings.
 
 ## Evidence collection

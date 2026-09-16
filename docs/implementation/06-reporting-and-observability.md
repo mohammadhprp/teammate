@@ -36,6 +36,10 @@ and what minimum information it should retain — note that
 [07-review-and-approval.md](07-review-and-approval.md) already persists
 `timeline.jsonl` with review and decision events.
 
+The ledger now shows each task's elapsed time and, when the runtime reports
+them, recorded tokens and cost (audit E7) — recorded only when available, never
+fabricated.
+
 A useful conceptual record is:
 
 ```text

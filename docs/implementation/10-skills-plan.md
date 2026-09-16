@@ -648,7 +648,6 @@ Skills stay instructions; deterministic work goes to scripts and templates.
 | `scripts/task_store.py` | `task-ledger`, `recover-run`. | existing |
 | `templates/worker-brief.md` | `delegate-task`, `accept-assignment`, `plan-work`. | existing |
 | `templates/report.md` | `report-progress`, `handoff-report`, `report-result`. | existing |
-| `templates/worker-report.md` | `report-result` (worker → primary). | planned |
 | `review-change/references/findings.md` | `review-change`, `review-work`, `review-task`. | existing |
 
 Prefer extending the existing templates over adding new ones. Add a script only
@@ -664,7 +663,8 @@ next begins (mirrors `docs/NEXT.md`).
    *Gate:* the primary and a worker both cite the same evidence standard and
    report shape.
 2. **P0 worker** — `worker-role`, `accept-assignment`, `implement-task`,
-   `report-result`, plus the worker `templates/worker-report.md`.
+   `report-result`. No separate worker-report template: the `handoff-report`
+   contract and `templates/report.md` already define the worker's report.
    *Gate:* a worker completes delegate → build → report from skills alone, with
    no extra prompting.
 3. **P0 teammate** — extract `plan-work` and `task-ledger` from `team-mate`.

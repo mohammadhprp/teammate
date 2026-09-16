@@ -43,6 +43,21 @@ shared Team Mate capabilities.
   into the primary's `.agents/skills/`, so the overlay is copied into a primary
   repository to make it a Team Mate primary.
 
+## Two skill sets
+
+This repository carries two unrelated skill sets:
+
+- `.agents/skills/` — the coding agent's own skills for working on *this*
+  repository (for example `commit`, `review`, `skill-creator`, `adhd`,
+  `ponytail`). This is tooling, not the product; `install.sh` does not install
+  it.
+- `src/skills/` — the Team Mate product overlay installed into a primary
+  repository. These are the skills the product ships; `herdr` and `find-skills`
+  exist in both, in the root set for working here and in the overlay as product
+  skills.
+
+Do not confuse the two: the root set is not the product.
+
 ## Documentation workflow
 
 - Read `docs/VISION.md` before changing the product model.
