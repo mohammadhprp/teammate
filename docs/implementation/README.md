@@ -41,6 +41,8 @@ operating model with real agents before committing to a large framework.
     prioritized plan.
 14. [Open questions](14-open-questions.md) — resolutions and bounded experiments
     for the remaining research questions.
+15. [Minimum skill set experiment](15-minimum-skill-set-experiment.md) — the
+    runnable protocol for the first experiment: the worker skill floor.
 
 ## Core architecture
 

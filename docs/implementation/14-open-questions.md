@@ -56,7 +56,9 @@ Everything else is a coordinator concern or a specialization.
 **Experiment / gate.** Run one non-trivial delegated task with a worker given
 **only** those eight skills. *Gate:* the task completes without an absent skill
 being needed — or the first "needed but not installed" skill names the true gap.
-Repeat over a few task types; the union of gaps is the real floor.
+Repeat over a few task types; the union of gaps is the real floor. The runnable
+protocol and record table are in
+[Minimum skill set experiment](15-minimum-skill-set-experiment.md).
 
 **Residual.** The floor depends on task mix; it is only meaningful after several
 different runs, not one.
