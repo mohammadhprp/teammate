@@ -28,6 +28,8 @@
 
 <what the worker must produce>
 
-End with the `handoff-report` shape (see `report-result`): requested,
+Write the report as clean markdown to `.teammate-report.md` in the project
+root, in the `handoff-report` shape (see `report-result`): requested,
 implemented, changed, verified, issues, remaining concerns, assessment,
-decision.
+decision. That file is what the primary collects; end with the same report as
+your final message, but do not rely on a terminal pane capture.

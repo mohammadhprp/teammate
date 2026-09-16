@@ -66,6 +66,10 @@ The primary's `report-progress` renders this contract for the developer through
 3. Carry unresolved items into `Remaining concerns`; never hide them in prose.
 4. Make `Decision` the single next step the reader owns, or `none` when the work
    is complete.
+5. Leave clean markdown, not a pane capture. When a worker writes a report for
+   the primary to collect, save the full report to `.teammate-report.md` in the
+   project root and make it the final message as well; a rendered terminal pane
+   is only the fallback.
 
 ## Output
 

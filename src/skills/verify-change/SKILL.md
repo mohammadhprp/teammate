@@ -53,7 +53,11 @@ skipped now returns later as a `review-change` finding and a rework cycle.
    reconstruct a transcript from memory or expectation — an unrun transcript is
    fabricated evidence, and review will catch it. Evidence from before your last
    edit does not count; re-run after every change.
-5. **Separate proven from assumed.** Name what you did not check.
+5. **Confirm nothing you started is still running.** Stop every server, watcher,
+   or long-lived process you launched for the check, or record its PID and port
+   in the report when it must stay up. A stray listener is a failed handoff, not
+   a harmless leftover.
+6. **Separate proven from assumed.** Name what you did not check.
    `verify-evidence`'s rule applies to your own run: a suite that never touched
    the change is a pass with zero checks, not proof.
 

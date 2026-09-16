@@ -38,6 +38,9 @@ the assignment, and guessing when a question was available.
 - **No consequential actions.** Do not commit, merge, push, publish, deploy, or
   delete; leave the tree for the primary unless the brief says otherwise
   (`commit-changes`).
+- **Stop what you start.** If you launch a server, watcher, or any long-lived
+  process, stop it before you report — or record its PID and port in the report
+  when the primary must keep it. Never leave a stray listener running.
 - **Ask, don't guess.** A question before you build is cheap; building the wrong
   thing is not (`raise-blocker`).
 

@@ -97,8 +97,10 @@ All coordination state lives under `state_dir` (default `~/.teammate/`):
 - `tm brief <name> [--task <id>]` reads a brief from stdin, writes it under
   `briefs/`, and prints the path to pass to `tm send`. Use it instead of
   inventing a path, so a run never writes outside the sandbox.
-- `tm report <name> --save [--task <id>]` writes a worker's captured output
-  under `reports/` and prints the path.
+- `tm report <name> --save [--task <id>]` writes a worker's output under
+  `reports/` and prints the path. It prefers the clean markdown the worker
+  wrote to `.teammate-report.md` in its project root and falls back to the
+  captured terminal pane only when that file is absent.
 - `tm session start` / `end` mark the primary's session; tasks created while a
   session is open are tagged with it, so `tm task list` shows the current
   session and recovery can ignore history. `--all` shows every session.

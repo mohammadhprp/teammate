@@ -113,6 +113,11 @@ design.
    <name>`). Reconcile it with `recover-run` rather than failing the task
    blindly.
 
+8. **Confirm nothing stray is left.** Before treating the work as ready for
+   approval, check the report's recorded PIDs and ports and confirm no listener
+   the worker started is still running. A live server from a finished task is an
+   open finding, not harmless residue: stop it or escalate before review.
+
 ## Output
 
 Settled state, the worker's report, and any blocker text.

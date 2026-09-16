@@ -44,9 +44,12 @@ shape, and make the report your final output so the primary can collect it.
    - `Assessment` — which criteria hold, and your confidence.
    - `Decision` — the primary's next step, e.g. "ready for review", or the
      question blocking you.
-3. **Make it the final output.** Emit the report as your last message so the
-   primary reads it from the tab. Do not change the task's status or mark it
-   approved — that is the primary's call.
+3. **Write the clean report, then make it your final output.** Write the full
+   report as clean markdown to `.teammate-report.md` in the project root — no
+   terminal chrome, no duplicated wrapped lines, no token/cost sidebar. That
+   file is what the primary collects; the rendered terminal pane is only a
+   fallback. Emit the same report as your last message, too. Do not change the
+   task's status or mark it approved — that is the primary's call.
 
 ## Output
 
