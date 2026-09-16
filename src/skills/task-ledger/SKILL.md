@@ -77,6 +77,10 @@ The ledger is shared across runs, so tag each run and keep it clean.
 - **`task list` shows the open session by default**, so a new run does not
   inherit stale work. Pass `--all` for every session, or `--session <id>`.
   `recover-run` reconciles only the open session.
+- **Read the run at a glance.** `python3 scripts/tm.py session summary` rolls up
+  the open session's tasks by status, its distinct workers, the elapsed span,
+  and recorded cost/tokens when present — the numbers to weigh cost, latency,
+  and agent count.
 - **Archive closed tasks.** `python3 scripts/tm.py task prune` moves closed
   tasks to `<state_dir>/archive/`; it archives, never deletes. Scope with
   `--session <id>` or `--all`.

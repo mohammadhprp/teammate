@@ -23,6 +23,11 @@ sees exactly one project's context.
 
 - Map each project to its root directory and its workspace label. The label
   defaults to the `--cwd` basename; pass `--project` to override it.
+- Register the resolved project so its identity is durable, not re-typed:
+  `python3 scripts/tm.py project add --name <name> --root <root>`. Use
+  `python3 scripts/tm.py project list` to reuse a known root, and to catch a
+  name that already points somewhere else — the registry refuses to rebind a
+  name to a different root without `--force`.
 - Before delegating, prepare it: `bootstrap-project` writes its `AGENTS.md` and
   installs the skills the work needs, so the worker starts with context.
 - When the developer uses an informal name, or two projects look similar,
