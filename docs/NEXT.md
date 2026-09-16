@@ -9,6 +9,13 @@ review and approval match
 developer's decision are persisted in the ledger, verdicts are derived from the
 findings, and review/decision events reach `timeline.jsonl`.
 
+An audit of the docs, config, skills, and `tm` code is written up in the
+[audit and improvement plan](implementation/13-audit-and-improvement-plan.md).
+That plan is the current next work: a short P0 correctness pass (a `tm spawn`
+bug, config that is documented but not enforced, an install gap), then the
+documented parallel-run gaps. It absorbs the items below and re-prioritizes the
+rest.
+
 The hardening plan from the
 [process review](implementation/11-process-review.md) is implemented:
 

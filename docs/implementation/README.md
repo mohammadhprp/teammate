@@ -36,6 +36,9 @@ operating model with real agents before committing to a large framework.
     what broke, and the prioritized plan to improve the process.
 12. [Parallel run review](12-parallel-run-review.md) — two projects at once:
     what the parallel run exposed, and the next improvement plan.
+13. [Audit and improvement plan](13-audit-and-improvement-plan.md) — the docs,
+    config, skills, and `tm` code audited against what they enforce, with a
+    prioritized plan.
 
 ## Core architecture
 
