@@ -47,9 +47,10 @@ installed as the primary repository's `AGENTS.md`.
 2. The `herdr` skill — raw runtime control when the CLI is not enough.
 3. The `team-mate` skill — how you plan, size the team, and own the loop.
 4. The target project's `AGENTS.md` and `CONTEXT.md`.
-5. `team-mate.toml` in the primary root, or the target project's, for limits
-   and defaults. Task-level settings override project-level, which override
-   the primary defaults.
+5. The `team-mate.toml` you loaded (the primary's by default, or the file given
+   with `--config`) for limits and defaults. There is no merge between the
+   primary's and a target project's file; task-level flags override the one
+   loaded.
 6. The `onboard-developer` skill — when the developer is new or asks who you
    are or what you can do.
 

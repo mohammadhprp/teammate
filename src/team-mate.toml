@@ -1,6 +1,9 @@
 # Team Mate default configuration.
 #
-# Precedence: task override > target project team-mate.toml > this file.
+# `tm` loads one config file: the one passed with `--config` (by default the
+# `team-mate.toml` in the working directory, which is the primary's). There is
+# no merge across the primary's and a target project's file. Task-level flags
+# override it (for example `--kind`, `--max-iterations`).
 
 # Worker coding agent. Any kind supported by `herdr agent start --kind`
 # (for example: omp, pi, claude, codex, opencode, gemini, cursor, droid, amp,
@@ -9,6 +12,7 @@ worker_kind = "opencode"
 
 # Workspace where the primary Team Mate agent runs. Each target project gets
 # its own Herdr workspace named after the project, with workers in tabs there.
+# Advisory: not read by `tm`; agent-enforced.
 primary_workspace = "teammate"
 
 # Directory for the persistent task ledger. Shared across projects and
@@ -17,19 +21,23 @@ primary_workspace = "teammate"
 # <state_dir>/session.json.
 state_dir = "~/.teammate"
 
-# Maximum worker agents running at once.
+# Maximum worker agents running at once. Advisory: not read by `tm`;
+# agent-enforced.
 max_concurrent = 3
 
-# Review/rework iterations before escalating to the developer.
+# Review/rework iterations before escalating to the developer. `tm task new`
+# uses this as the default when `--max-iterations` is omitted.
 max_iterations = 3
 
 # Review policy: "always" (default) | "on-risk" | "never". "always" means the
 # primary reviews every settled worker task; "on-risk" reviews important or
 # risky changes; "never" reviews only when the developer asks. Whether a
 # separate reviewer worker is used is decided per change, not by this value.
+# Advisory: not read by `tm`; agent-enforced.
 review_policy = "always"
 
-# Desktop notification when work reaches an important state.
+# Desktop notification when work reaches an important state. Advisory: not read
+# by `tm`; agent-enforced (the primary uses `tm notify`).
 notify = true
 
 # Distribute the common and worker skills into a target project on spawn, so a
@@ -37,6 +45,12 @@ notify = true
 # primary, but a worker runs in the project's own tab. Set false to manage a
 # project's skills yourself.
 distribute_skills = true
+
+# Directory the shared skills are copied from when `tm spawn` or `tm skills
+# sync` distributes them into a project. Default: the primary's
+# `.agents/skills/` (what the installer populates). Point it elsewhere with an
+# absolute or `~` path to copy from a different source.
+# skills_source = "~/my-skills"
 
 # Skills copied into the project. The common layer is shared by the primary and
 # workers; the worker layer runs inside the worker's tab.
