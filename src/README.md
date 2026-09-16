@@ -25,7 +25,7 @@ src/
                        #   common:   commit-changes, review-change,
                        #             showcase-work, load-project-context,
                        #             verify-evidence, handoff-report,
-                       #             debug-issue
+                       #             debug-issue, agent-browser
                        #   worker:   worker-role, accept-assignment,
                        #             implement-task, verify-change,
                        #             raise-blocker, report-result,

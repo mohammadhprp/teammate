@@ -56,7 +56,7 @@ distribute_skills = true
 # workers; the worker layer runs inside the worker's tab.
 worker_skills = [
   "commit-changes", "review-change", "showcase-work", "load-project-context",
-  "verify-evidence", "handoff-report", "debug-issue",
+  "verify-evidence", "handoff-report", "debug-issue", "agent-browser",
   "worker-role", "accept-assignment", "implement-task", "verify-change",
   "raise-blocker", "report-result", "review-task", "investigate-issue",
 ]
