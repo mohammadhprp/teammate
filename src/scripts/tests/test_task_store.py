@@ -256,6 +256,28 @@ class FindingsTest(unittest.TestCase):
 
         self.assertEqual(task_store.verdict(task), "pass")
 
+    def test_verdict_honours_an_inconclusive_override(self):
+        task = task_store.update(self.state, self.task["id"], verdict="inconclusive")
+
+        self.assertEqual(task_store.verdict(task), "inconclusive")
+
+    def test_verdict_clears_the_override_back_to_pass(self):
+        task_store.update(self.state, self.task["id"], verdict="inconclusive")
+
+        task = task_store.update(self.state, self.task["id"], verdict=None)
+
+        self.assertEqual(task_store.verdict(task), "pass")
+
+    def test_an_open_blocking_finding_beats_the_override(self):
+        self.add(title="broken", severity="major")
+        task = task_store.update(self.state, self.task["id"], verdict="inconclusive")
+
+        self.assertEqual(task_store.verdict(task), "fail")
+
+    def test_update_rejects_an_unknown_verdict(self):
+        with self.assertRaises(ValueError):
+            task_store.update(self.state, self.task["id"], verdict="maybe")
+
     def test_resolve_findings_closes_all_or_selected(self):
         self.add(title="one", severity="major")
         self.add(title="two", severity="major")

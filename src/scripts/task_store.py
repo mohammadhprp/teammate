@@ -65,6 +65,10 @@ FINDING_CATEGORIES = (
 FINDING_STATUSES = ("open", "resolved", "accepted")
 BLOCKING_SEVERITIES = ("blocker", "major")
 
+# Verdicts, from docs/implementation/07-review-and-approval.md. pass/fail are
+# derived from findings; inconclusive is an explicit reviewer override.
+VERDICTS = ("inconclusive",)
+
 
 def _tasks_dir(state_dir):
     return os.path.join(os.path.expanduser(state_dir), "tasks")
@@ -266,6 +270,9 @@ def update(state_dir, task_id, **fields):
     status = fields.get("status")
     if status is not None and status not in STATUSES:
         raise ValueError(f"invalid status: {status}")
+    verdict = fields.get("verdict")
+    if verdict is not None and verdict not in VERDICTS:
+        raise ValueError(f"invalid verdict: {verdict}")
     task.update(fields)
     return save(state_dir, task)
 
@@ -332,5 +339,10 @@ def count_findings(task, status=None, severities=None):
 
 
 def verdict(task):
-    """A pass has no open blocker or major finding; otherwise fail."""
-    return "fail" if count_findings(task, "open", BLOCKING_SEVERITIES) else "pass"
+    """The effective verdict: an open blocker/major fails, otherwise the
+    stored ``inconclusive`` override if set, else pass."""
+    if count_findings(task, "open", BLOCKING_SEVERITIES):
+        return "fail"
+    if task.get("verdict") == "inconclusive":
+        return "inconclusive"
+    return "pass"

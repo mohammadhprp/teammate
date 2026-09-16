@@ -562,6 +562,18 @@ def _report_lines(task):
     return out
 
 
+def _format_duration(ms):
+    """A compact elapsed time: ``42s``, ``3m 12s``, ``1h 04m``."""
+    seconds = max(0, ms // 1000)
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, seconds = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {seconds:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes:02d}m"
+
+
 def _render_task(task):
     lines = [
         f"Task: {task['id']}",
@@ -571,6 +583,16 @@ def _render_task(task):
         f"Project: {task['project']} ({task.get('root') or '?'})",
         f"Worker: {task.get('worker') or '-'} ({task.get('workspace') or '-'})",
         f"Iteration: {task['iteration']} of {task['max_iterations']}",
+    ]
+    if task.get("created_at") is not None and task.get("updated_at") is not None:
+        lines.append(
+            f"Elapsed: {_format_duration(task['updated_at'] - task['created_at'])}"
+        )
+    if task.get("cost") is not None:
+        lines.append(f"Cost: {task['cost']}")
+    if task.get("tokens") is not None:
+        lines.append(f"Tokens: {task['tokens']}")
+    lines += [
         "Goal:",
         f"  {task['goal']}",
         "Acceptance:",
@@ -688,11 +710,19 @@ def _require_build_task(state_dir, task_id):
         )
 
 
+def _require_pass_verdict(state_dir, task_id):
+    """Only a pass may advance to approval; inconclusive escalates instead."""
+    verdict = task_store.verdict(task_store.load(state_dir, task_id))
+    if verdict != "pass":
+        raise HerdrError(f"verdict is {verdict}; resolve it before approval")
+
+
 def cmd_task_update(args):
     if args.status in ("ready_for_approval", "approved"):
         _require_no_open_blocking(args.state_dir, args.id)
     if args.status == "ready_for_approval":
         _require_build_task(args.state_dir, args.id)
+        _require_pass_verdict(args.state_dir, args.id)
     fields = {}
     if args.status:
         fields["status"] = args.status
@@ -704,6 +734,15 @@ def cmd_task_update(args):
         fields["report_path"] = args.report_file
     if args.note:
         fields["note"] = args.note
+    verdict = getattr(args, "verdict", None)
+    if verdict == "inconclusive":
+        fields["verdict"] = "inconclusive"
+    elif verdict == "auto":
+        fields["verdict"] = None
+    if getattr(args, "cost", None) is not None:
+        fields["cost"] = args.cost
+    if getattr(args, "tokens", None) is not None:
+        fields["tokens"] = args.tokens
     task = task_store.update(args.state_dir, args.id, **fields)
     kind, summary = "task.updated", f"status={task['status']}"
     if task["status"] == "awaiting_review":
@@ -713,6 +752,10 @@ def cmd_task_update(args):
     elif task["status"] == "rework":
         kind, summary = "review.verdict", "fail"
     task_store.append_event(args.state_dir, task["id"], kind, summary)
+    if verdict == "inconclusive":
+        task_store.append_event(
+            args.state_dir, task["id"], "review.verdict", "inconclusive"
+        )
     print(f"{task['id']}\t{task['status']}")
 
 
@@ -751,6 +794,7 @@ def cmd_task_decide(args):
     _require_build_task(args.state_dir, args.id)
     if args.decision in ("approve", "finalize"):
         _require_no_open_blocking(args.state_dir, args.id)
+        _require_pass_verdict(args.state_dir, args.id)
     status = DECISIONS[args.decision]
     fields = {"decision": args.decision, "status": status}
     if args.note:
@@ -958,6 +1002,13 @@ def build_parser():
     a.add_argument("--iteration", type=int)
     a.add_argument("--report-file")
     a.add_argument("--note")
+    a.add_argument(
+        "--verdict",
+        choices=["inconclusive", "auto"],
+        help="record an inconclusive verdict, or auto to derive pass/fail",
+    )
+    a.add_argument("--cost", type=float, help="recorded cost in USD, when known")
+    a.add_argument("--tokens", type=int, help="recorded token count, when known")
     a.set_defaults(func=cmd_task_update)
 
     return parser

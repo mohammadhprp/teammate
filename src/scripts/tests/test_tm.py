@@ -313,6 +313,30 @@ class RenderTaskTest(unittest.TestCase):
         self.assertNotIn("report line 199", rendered)
         self.assertLess(len(rendered.splitlines()), 30)
 
+    def test_show_prints_elapsed_seconds(self):
+        task = self.make(created_at=0, updated_at=42_000)
+
+        self.assertIn("Elapsed: 42s", tm._render_task(task))
+
+    def test_elapsed_formats_minutes_and_hours(self):
+        minutes = self.make(created_at=0, updated_at=192_000)
+        hours = self.make(created_at=0, updated_at=3_840_000)
+
+        self.assertIn("Elapsed: 3m 12s", tm._render_task(minutes))
+        self.assertIn("Elapsed: 1h 04m", tm._render_task(hours))
+
+    def test_cost_and_tokens_render_only_when_set(self):
+        rendered = tm._render_task(self.make(cost=0.42, tokens=1234))
+
+        self.assertIn("Cost: 0.42", rendered)
+        self.assertIn("Tokens: 1234", rendered)
+
+    def test_cost_and_tokens_are_absent_when_unset(self):
+        rendered = tm._render_task(self.make())
+
+        self.assertNotIn("Cost:", rendered)
+        self.assertNotIn("Tokens:", rendered)
+
 
 class TaskCommandsTest(unittest.TestCase):
     def setUp(self):
@@ -453,6 +477,72 @@ class TaskCommandsTest(unittest.TestCase):
         task_store.record_findings(
             self.state, self.task["id"], [{"title": "broken", "severity": "major"}]
         )
+
+    def update(self, **overrides):
+        args = types.SimpleNamespace(
+            state_dir=self.state,
+            id=self.task["id"],
+            status=None,
+            iteration=None,
+            report_file=None,
+            note=None,
+        )
+        args.__dict__.update(overrides)
+        with contextlib.redirect_stdout(io.StringIO()):
+            tm.cmd_task_update(args)
+
+    def test_inconclusive_verdict_is_stored_and_recorded(self):
+        self.update(verdict="inconclusive")
+
+        task = task_store.load(self.state, self.task["id"])
+        self.assertEqual(task_store.verdict(task), "inconclusive")
+        self.assertIn("inconclusive", "".join(self.events()))
+
+    def test_inconclusive_verdict_blocks_ready_for_approval(self):
+        self.update(verdict="inconclusive")
+
+        with self.assertRaises(tm.HerdrError):
+            self.update(status="ready_for_approval")
+
+        self.assertEqual(
+            task_store.load(self.state, self.task["id"])["status"], "planned"
+        )
+
+    def test_inconclusive_verdict_blocks_an_approval_decision(self):
+        self.update(verdict="inconclusive")
+
+        with self.assertRaises(tm.HerdrError):
+            tm.cmd_task_decide(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    id=self.task["id"],
+                    decision="approve",
+                    note=None,
+                )
+            )
+
+    def test_verdict_auto_clears_the_override(self):
+        self.update(verdict="inconclusive")
+        self.update(verdict="auto")
+
+        task = task_store.load(self.state, self.task["id"])
+        self.assertEqual(task_store.verdict(task), "pass")
+
+    def test_show_prints_the_elapsed_time(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_show(
+                types.SimpleNamespace(state_dir=self.state, id=self.task["id"])
+            )
+
+        self.assertIn("Elapsed:", buf.getvalue())
+
+    def test_update_records_cost_and_tokens_when_given(self):
+        self.update(cost=0.42, tokens=1234)
+
+        task = task_store.load(self.state, self.task["id"])
+        self.assertEqual(task["cost"], 0.42)
+        self.assertEqual(task["tokens"], 1234)
 
     def test_pass_is_refused_while_blocking_findings_are_open(self):
         self.add_blocking()
