@@ -54,6 +54,13 @@ to tens of minutes, so never sit inside it.
 - **Do not foreground a long `--wait`.** `tm send --wait` and `tm wait` hold the
   whole turn. Keep a foreground wait short (a small `--timeout`) and re-check
   rather than blocking for the full run.
+- **Report a long run once.** Staying free is not the same as staying silent.
+  When a worker has run longer than about 15 minutes without settling, emit one
+  interim, developer-visible status — worker name, current state, and elapsed
+  time — then return to polling or the backgrounded wait. A long build that
+  reports nothing until review is a process failure: the developer should never
+  discover a 50-minute run only when it ends. The threshold is what turns
+  routine polling into a progress report; it does not license a blocking wait.
 
 If a foreground command does hang the primary, the developer can press ctrl+b in
 the primary's tab to move it to the background — an escape hatch, not the

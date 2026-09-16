@@ -74,6 +74,12 @@ instead of re-deriving it here.
    python3 scripts/tm.py task resolve <id> --all      # findings fixed or accepted
    ```
 
+   `<id>` is the **build** task: the findings and verdict belong to it, and a
+   pass moves only that task to `ready_for_approval`. If the review worker is
+   itself ledgered, its own task is `--kind review` and never enters the
+   approval queue (`task-ledger`); a review is evidence for the build decision,
+   not something the developer approves.
+
 4. **Drive rework.** On `fail`, follow `run-rework` to send the open findings
    back and repeat monitor → review until it converges or `max_iterations` is
    reached.

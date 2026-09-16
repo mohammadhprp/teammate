@@ -65,6 +65,11 @@ reviewer worker is warranted. This skill applies once that gate picks one.
    python3 scripts/tm.py spawn --cwd "<root>" --project "<project>" --name "<reviewer>"
    ```
 
+   A reviewer is normally spawned without `--task` and owns no task. If the
+   review itself must be tracked, ledger it as a `--kind review` task
+   (`tm task new --kind review`); the findings and verdict still land on the
+   **build** task, and the review task never enters the approval queue.
+
 4. **Brief it to review, not to fix.** Give the reviewer the objective, every
    acceptance criterion, and the evidence paths. Tell it to apply `review-task`,
    judge the work rather than the summary, name the checks it runs, and return

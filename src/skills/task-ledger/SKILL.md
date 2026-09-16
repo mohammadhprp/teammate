@@ -41,7 +41,7 @@ Keep to these; they are the whole vocabulary the CLI accepts.
 | `working` | A worker owns it | `spawn --task` sets this automatically |
 | `awaiting_review` | Worker settled, result not yet judged | you, after collecting the report |
 | `rework` | Blocking findings, being fixed | you, with the iteration |
-| `ready_for_approval` | Review passed, awaiting the developer | you, after a passing review |
+| `ready_for_approval` | A **build** task passed review, awaiting the developer | you, after a passing review |
 | `approved` / `rejected` | The developer's decision | you, on the decision |
 | `failed` | Could not complete — orphan, unrecoverable error | you, on failure |
 | `cancelled` | Stopped deliberately, or superseded | you, on cancellation |
@@ -49,6 +49,23 @@ Keep to these; they are the whole vocabulary the CLI accepts.
 `iteration` counts review/rework cycles against `max_iterations` (default 3). A
 review that ran zero checks is not a pass: record it as `rework` or leave it
 `awaiting_review`, never `ready_for_approval` (see `review-change`).
+
+## Task kind
+
+Every task also has a `kind`: `build` (the default) or `review`. A **build**
+task carries a change and ends at the developer's `ready_for_approval` gate; a
+**review** task records a reviewer's findings and verdict against its build
+task, can never reach `ready_for_approval`, and is not the developer's to
+approve — `task decide` does not apply to it. Record one with `--kind review`:
+
+```bash
+python3 scripts/tm.py task new --kind review --project <name> --title <t> \
+  --goal <g> --acceptance "<c>"
+```
+
+Reviewers are normally spawned without `--task` and own no task (step 4), so
+most reviews need no ledger entry; create a `--kind review` task only when the
+review itself must be tracked.
 
 ## Session and hygiene
 

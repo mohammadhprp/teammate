@@ -57,7 +57,10 @@ being a reviewer worker.
 
 Findings with severity and category, and a verdict that names the criteria and
 the checks you ran — nothing else. Carry it back through `report-result` (the
-`handoff-report` shape); do not fix or approve.
+`handoff-report` shape); do not fix or approve. Your findings and verdict are
+recorded on the **build** task, which the requester owns; if the review is
+ledgered as its own task, it is `--kind review` and never enters the approval
+queue.
 
 ## Failure and escalation
 

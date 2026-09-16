@@ -15,12 +15,15 @@ shared `handoff-report` contract.
 - A worker is blocked, failed, or the review loop is not converging.
 - A consequential action — merge, push, publish, deploy, delete, or exposing
   secrets — needs the developer's approval.
+- A worker has run past the long-run threshold (about 15 minutes) without
+  settling: one interim status, per `monitor-agents`.
 - Work completes or is cancelled.
 
 ## When not to use
 
-- Nothing important changed since the last report. Routine worker activity
-  belongs to `monitor-agents`, not a developer report.
+- Nothing important changed since the last report. Routine worker polling
+  belongs to `monitor-agents`, not a developer report; only crossing the
+  long-run threshold earns the one interim status above, not every poll.
 
 ## Inputs
 
