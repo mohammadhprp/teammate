@@ -87,9 +87,9 @@ Out of scope:
 
 ## Current state
 
-All 30 planned skills are now built under `src/skills/`; with `visual-report`
-(added later) the library is 31: 16 teammate, 7 common, and 8 worker. It started
-from six primary (teammate) skills:
+All 30 planned skills are now built under `src/skills/`, plus four added later:
+the teammate `visual-report` and the tool skills `herdr`, `find-skills`, and
+`agent-browser` — 34 in total. It started from six primary (teammate) skills:
 
 | Skill | Category | Notes |
 | --- | --- | --- |
@@ -226,6 +226,7 @@ New skills must slot into this shape rather than introduce a parallel one.
 | P1 | `review-change` | both | Review a diff against criteria; findings, severity, verdict. | existing |
 | P1 | `showcase-work` | both | Present finished work to the developer or the primary clearly. | existing |
 | P2 | `debug-issue` | both | Reproduce → hypothesise → minimal fix → verify. | existing |
+| P1 | `agent-browser` | both | Drive a real browser for UI checks and screenshots. | existing |
 
 ### Teammate skills
 
