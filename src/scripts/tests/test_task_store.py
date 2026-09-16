@@ -292,5 +292,62 @@ class FindingsTest(unittest.TestCase):
         self.assertEqual(task_store.verdict(task), "pass")
 
 
+class ProjectRegistryTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_register_then_list_round_trip(self):
+        root = os.path.join(self.tmp.name, "acme")
+
+        task_store.register_project(self.state, "acme", root)
+
+        self.assertEqual(task_store.list_projects(self.state), {"acme": root})
+
+    def test_root_is_stored_absolute(self):
+        root = os.path.join(self.tmp.name, "acme", "..", "acme")
+
+        stored = task_store.register_project(self.state, "acme", root)
+
+        self.assertEqual(stored, os.path.abspath(root))
+        self.assertTrue(os.path.isabs(stored))
+
+    def test_rebinding_a_name_to_a_different_root_is_refused(self):
+        first = os.path.join(self.tmp.name, "one")
+        second = os.path.join(self.tmp.name, "two")
+        task_store.register_project(self.state, "acme", first)
+
+        with self.assertRaises(ValueError):
+            task_store.register_project(self.state, "acme", second)
+
+        self.assertEqual(task_store.list_projects(self.state)["acme"], first)
+
+    def test_force_rebinds_a_name(self):
+        task_store.register_project(
+            self.state, "acme", os.path.join(self.tmp.name, "one")
+        )
+        second = os.path.join(self.tmp.name, "two")
+
+        task_store.register_project(self.state, "acme", second, force=True)
+
+        self.assertEqual(task_store.list_projects(self.state)["acme"], second)
+
+    def test_reregistering_the_same_root_is_a_noop(self):
+        root = os.path.join(self.tmp.name, "acme")
+        task_store.register_project(self.state, "acme", root)
+
+        task_store.register_project(self.state, "acme", root)
+
+        self.assertEqual(task_store.list_projects(self.state), {"acme": root})
+
+    def test_listing_without_a_registry_is_empty(self):
+        self.assertEqual(task_store.list_projects(self.state), {})
+
+    def test_an_empty_name_is_rejected(self):
+        with self.assertRaises(ValueError):
+            task_store.register_project(self.state, "", self.tmp.name)
+
+
 if __name__ == "__main__":
     unittest.main()

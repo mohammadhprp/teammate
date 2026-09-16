@@ -50,6 +50,20 @@ class ParserTest(unittest.TestCase):
 
         self.assertIsNone(args.max_iterations)
 
+    def test_project_add_is_registered(self):
+        args = tm.build_parser().parse_args(
+            ["project", "add", "--name", "acme", "--root", "/tmp/acme"]
+        )
+
+        self.assertIs(args.func, tm.cmd_project_add)
+        self.assertFalse(args.force)
+
+    def test_session_summary_is_registered(self):
+        args = tm.build_parser().parse_args(["session", "summary"])
+
+        self.assertIs(args.func, tm.cmd_session_summary)
+        self.assertFalse(args.all)
+
 
 class SpawnTest(unittest.TestCase):
     def setUp(self):
@@ -921,6 +935,119 @@ class TaskListAndPruneTest(unittest.TestCase):
             tm.cmd_task_prune(
                 types.SimpleNamespace(state_dir=self.state, session=None, all=False)
             )
+
+
+class ProjectCommandTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+        self.root = os.path.join(self.tmp.name, "acme")
+
+    def add(self, name="acme", root=None, force=False):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_project_add(
+                types.SimpleNamespace(
+                    state_dir=self.state,
+                    name=name,
+                    root=self.root if root is None else root,
+                    force=force,
+                )
+            )
+        return buf.getvalue()
+
+    def list_projects(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_project_list(types.SimpleNamespace(state_dir=self.state))
+        return buf.getvalue()
+
+    def test_add_prints_the_registered_project(self):
+        out = self.add()
+
+        self.assertEqual(out, f"project\tacme\t{self.root}\n")
+        self.assertEqual(task_store.list_projects(self.state), {"acme": self.root})
+
+    def test_list_prints_sorted_entries(self):
+        self.add(name="zeta")
+        self.add(name="alpha", root=os.path.join(self.tmp.name, "alpha"))
+
+        self.assertEqual(
+            self.list_projects(),
+            f"alpha\t{os.path.join(self.tmp.name, 'alpha')}\nzeta\t{self.root}\n",
+        )
+
+    def test_list_without_a_registry_prints_no_projects(self):
+        self.assertEqual(self.list_projects(), "no projects\n")
+
+
+class SessionSummaryTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def summary(self, **overrides):
+        args = types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_session_summary(args)
+        return buf.getvalue()
+
+    def test_counts_tasks_by_status_and_distinct_workers(self):
+        task_store.new_session(self.state)
+        first = task_store.create(self.state, "acme", "a", "g", ["c"], worker="w1")
+        task_store.create(self.state, "acme", "b", "g", ["c"], worker="w1")
+        task_store.create(self.state, "acme", "c", "g", ["c"], worker="w2")
+        task_store.update(self.state, first["id"], status="working")
+
+        out = self.summary()
+
+        self.assertIn("tasks\t3\tplanned=2 working=1", out)
+        self.assertIn("workers\t2", out)
+
+    def test_cost_and_tokens_are_included_only_when_recorded(self):
+        task = task_store.create(self.state, "acme", "a", "g", ["c"])
+        task_store.update(self.state, task["id"], cost=0.42, tokens=1234)
+
+        out = self.summary()
+
+        self.assertIn("cost\t0.42", out)
+        self.assertIn("tokens\t1234", out)
+
+    def test_cost_and_tokens_are_omitted_when_unrecorded(self):
+        task_store.create(self.state, "acme", "a", "g", ["c"])
+
+        out = self.summary()
+
+        self.assertNotIn("cost\t", out)
+        self.assertNotIn("tokens\t", out)
+
+    def test_span_covers_earliest_created_to_latest_updated(self):
+        task = task_store.create(self.state, "acme", "a", "g", ["c"])
+        path = os.path.join(self.state, "tasks", f"{task['id']}.json")
+        with open(path) as fh:
+            stored = json.load(fh)
+        stored["created_at"] = 0
+        stored["updated_at"] = 192_000
+        with open(path, "w") as fh:
+            json.dump(stored, fh)
+
+        self.assertIn("span\t3m 12s", self.summary())
+
+    def test_defaults_to_the_open_session(self):
+        task_store.new_session(self.state)
+        task_store.create(self.state, "acme", "old", "g", ["c"])
+        task_store.end_session(self.state)
+        task_store.new_session(self.state)
+        task_store.create(self.state, "acme", "new", "g", ["c"])
+
+        self.assertIn("tasks\t1\t", self.summary())
+
+    def test_no_tasks(self):
+        self.assertEqual(self.summary(), "no tasks\n")
 
 
 class PermissionsTest(unittest.TestCase):

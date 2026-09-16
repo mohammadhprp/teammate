@@ -49,6 +49,7 @@ KINDS = ("build", "review")
 ARCHIVE_DIR = "archive"
 BRIEFS_DIR = "briefs"
 REPORTS_DIR = "reports"
+PROJECTS_FILE = "projects.json"
 
 # Findings, from docs/implementation/07-review-and-approval.md.
 SEVERITIES = ("blocker", "major", "minor", "nit")
@@ -124,6 +125,42 @@ def end_session(state_dir):
     except OSError:
         pass
     return session
+
+
+def _projects_path(state_dir):
+    return os.path.join(os.path.expanduser(state_dir), PROJECTS_FILE)
+
+
+def list_projects(state_dir):
+    """The durable project registry (name -> absolute root).
+
+    Returns an empty mapping when no registry exists, so callers can list
+    safely before anything has been registered.
+    """
+    try:
+        with open(_projects_path(state_dir)) as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def register_project(state_dir, name, root, force=False):
+    """Bind a project name to an absolute root, durably.
+
+    Re-registering the same name -> root is a no-op. Rebinding a name to a
+    different root is refused unless ``force`` is set.
+    """
+    if not name:
+        raise ValueError("a project needs a name")
+    root = os.path.abspath(os.path.expanduser(root))
+    projects = list_projects(state_dir)
+    existing = projects.get(name)
+    if existing is not None and existing != root and not force:
+        raise ValueError(f"project {name} is already registered at {existing}")
+    projects[name] = root
+    _write_json(_projects_path(state_dir), projects)
+    return root
 
 
 def _task_path(state_dir, task_id):

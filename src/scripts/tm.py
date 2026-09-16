@@ -498,6 +498,38 @@ def cmd_session_end(args):
     print(task_store.end_session(args.state_dir) or "none")
 
 
+def cmd_session_summary(args):
+    if args.all:
+        session = None
+    else:
+        session = _resolve_session(args.state_dir, args.session)
+        if session is None:
+            session = task_store.current_session(args.state_dir)
+    tasks = task_store.list_tasks(args.state_dir, session=session)
+    if not tasks:
+        print("no tasks")
+        return
+    counts = {}
+    for task in tasks:
+        status = task.get("status", "?")
+        counts[status] = counts.get(status, 0) + 1
+    breakdown = " ".join(f"{status}={counts[status]}" for status in sorted(counts))
+    print(f"tasks\t{len(tasks)}\t{breakdown}")
+    workers = {task.get("worker") for task in tasks if task.get("worker")}
+    print(f"workers\t{len(workers)}")
+    created = min(task.get("created_at", 0) for task in tasks)
+    updated = max(task.get("updated_at", 0) for task in tasks)
+    print(f"span\t{_format_duration(updated - created)}")
+    if any(task.get("cost") is not None for task in tasks):
+        print(
+            f"cost\t{sum(task['cost'] for task in tasks if task.get('cost') is not None)}"
+        )
+    if any(task.get("tokens") is not None for task in tasks):
+        print(
+            f"tokens\t{sum(task['tokens'] for task in tasks if task.get('tokens') is not None)}"
+        )
+
+
 def cmd_stop(args):
     info = get_agent(args.name)
     herdr("agent", "send-keys", args.name, "ctrl+c")
@@ -529,6 +561,20 @@ def cmd_skills_sync(args):
     print(f"skills\t{len(installed)}\t{target}")
     if skipped:
         print(f"skipped\t{len(skipped)}\t{' '.join(sorted(skipped))}")
+
+
+def cmd_project_add(args):
+    root = task_store.register_project(args.state_dir, args.name, args.root, args.force)
+    print(f"project\t{args.name}\t{root}")
+
+
+def cmd_project_list(args):
+    projects = task_store.list_projects(args.state_dir)
+    if not projects:
+        print("no projects")
+        return
+    for name in sorted(projects):
+        print(f"{name}\t{projects[name]}")
 
 
 def cmd_notify(args):
@@ -900,6 +946,14 @@ def build_parser():
     a.set_defaults(func=cmd_session_status)
     a = actions.add_parser("end", help="close the open session")
     a.set_defaults(func=cmd_session_end)
+    a = actions.add_parser("summary", help="roll up the open session's tasks")
+    a.add_argument("--session", help="session id, or 'current'")
+    a.add_argument(
+        "--all",
+        action="store_true",
+        help="summarize every session, not just the open one",
+    )
+    a.set_defaults(func=cmd_session_summary)
 
     p = sub.add_parser(
         "permissions", help="provision the primary's OpenCode permissions"
@@ -919,6 +973,20 @@ def build_parser():
     a = actions.add_parser("sync", help="copy common and worker skills into a project")
     a.add_argument("--cwd", required=True, help="project root")
     a.set_defaults(func=cmd_skills_sync)
+
+    p = sub.add_parser("project", help="manage the project registry")
+    actions = p.add_subparsers(dest="action", required=True)
+    a = actions.add_parser("add", help="register a project name to an absolute root")
+    a.add_argument("--name", required=True)
+    a.add_argument("--root", required=True, help="project root (stored absolute)")
+    a.add_argument(
+        "--force",
+        action="store_true",
+        help="rebind a name that is already registered at a different root",
+    )
+    a.set_defaults(func=cmd_project_add)
+    a = actions.add_parser("list", help="list registered projects")
+    a.set_defaults(func=cmd_project_list)
 
     p = sub.add_parser("task", help="manage the persistent task ledger")
     actions = p.add_subparsers(dest="action", required=True)
