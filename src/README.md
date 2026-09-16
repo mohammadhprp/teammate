@@ -13,7 +13,6 @@ Herdr is the agent runtime; Team Mate is the coordination layer on top of it.
 src/
   AGENTS.md            # Team Mate role → installed as <primary>/AGENTS.md
   team-mate.toml       # default limits and worker kind
-  world/               # playable 3D world that shows the vision (own README)
   skills/              # Team Mate skills, by audience:
                        #   teammate: team-mate, onboard-developer,
                        #             bootstrap-project, plan-work,
