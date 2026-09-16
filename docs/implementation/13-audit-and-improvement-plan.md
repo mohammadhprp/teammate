@@ -10,7 +10,7 @@ Most parallel-run items (E1–E6) are correctly documented as unbuilt in
 [NEXT.md](../NEXT.md); a smaller set are silently broken or overclaimed as done.
 
 Evidence: `path:line` citations throughout; `python3 -m unittest discover -s
-src/scripts/tests -t src/scripts` passes (63 tests).
+src/scripts/tests -t src/scripts` passes (84 tests).
 
 ## Verdict
 
@@ -23,7 +23,7 @@ the [parallel run review](12-parallel-run-review.md).
 
 ## Implementation status
 
-The P0 correctness pass below has since landed, with the test suite at 63 tests:
+The P0 correctness pass below has since landed, with the test suite at 84 tests:
 
 - **P0-1** — done. `cmd_spawn` no longer rebinds the worker name on a skipped
   skill; a regression test covers it.
@@ -37,18 +37,22 @@ The P0 correctness pass below has since landed, with the test suite at 63 tests:
 - **P0-5** (E3) — done. A worker stops any server it starts (or records its
   PID/port) and `monitor-agents` confirms no listener before approval.
 
-Two ledger defects also landed: `task find --worker` now prefers the live task
-over a closed one from an earlier session, and saved report names use
-milliseconds so two saves in one second do not overwrite (P2-4, partial).
+Beyond P0, these also landed: the review-task `kind` (P1-1 / E4), a quiet
+`task show` (P1-3 / E5), an interim status on long runs (P1-4 / E6), the
+skill-text and doc-drift corrections (P1-6, P1-7), CI running the suite plus a
+skill-frontmatter validator (P2-1), and two ledger fixes — `task find --worker`
+acts on the live task and saved report names are collision-free (P2-4, partial).
+A teammate skill, `visual-report`, was added to render the developer report as
+self-contained HTML (31 skills now).
 
-P1 and P2 remain. E2, a P0 item in the
-[parallel run review](12-parallel-run-review.md), is P1-2 here: it needs a
-`bootstrap-project` / `AGENTS.md` change (per-stream ports and browser sessions),
-not just a `tm` knob.
+Still open: E2 (P1-2), the `inconclusive` verdict (P1-5), and P2-2, P2-3, P2-6.
+E2 was a P0 item in the [parallel run review](12-parallel-run-review.md) and is
+P1-2 here: it needs a `bootstrap-project` / `AGENTS.md` change (per-stream ports
+and browser sessions), not just a `tm` knob.
 
 ## What is solid
 
-- **The skill library is internally consistent.** 30 skills (7 common / 15
+- **The skill library is internally consistent.** 31 skills (7 common / 16
   teammate / 8 worker), valid frontmatter, names matching directories; every
   `tm` command and flag referenced in a skill resolves against `build_parser()`.
 - **The ledger model matches its design.** Findings as data, derived verdict,
@@ -138,7 +142,7 @@ implemented in `tm.py:240-298`).
 
 ### 9. Hygiene
 
-No CI (`.github/` has assets only; the 63 tests never run automatically).
+No CI (`.github/` has assets only; the 84 tests never run automatically).
 Repo-root `.agents/skills/` is 129 tracked files / 24 skills (personal and
 external: `adhd`, `ponytail`, `arena`, `notion-cli`, `skill-creator`, `herdr`,
 `find-skills`) mixed into the product repo. `templates/worker-report.md` is still
@@ -177,7 +181,7 @@ Ordered; each names the owning surface and the gate that proves it.
 
 | # | Change | Owner | Gate |
 | --- | --- | --- | --- |
-| P2-1 | Add CI running the 63 tests + a skill frontmatter validator | `.github/workflows` | CI fails on a bad `SKILL.md` or broken test |
+| P2-1 | Add CI running the 84 tests + a skill frontmatter validator | `.github/workflows` | CI fails on a bad `SKILL.md` or broken test |
 | P2-2 | Resolve root `.agents/skills/` (remove personal skills, or document "this repo is also its own primary") | repo root, `install.sh` | The repo contains only product skills |
 | P2-3 | Decide `templates/worker-report.md` (build or drop) | `src/templates`, plan | Plan and tree agree |
 | P2-4 | Ledger robustness: collision-free report names, consistent brief/report naming, optional lock | `tm.py`, `task_store.py` | Two saves in one second do not overwrite |

@@ -87,8 +87,9 @@ Out of scope:
 
 ## Current state
 
-All 30 skills in this plan are now built under `src/skills/`: 15 teammate,
-7 common, and 8 worker. It started from six primary (teammate) skills:
+All 30 planned skills are now built under `src/skills/`; with `visual-report`
+(added later) the library is 31: 16 teammate, 7 common, and 8 worker. It started
+from six primary (teammate) skills:
 
 | Skill | Category | Notes |
 | --- | --- | --- |
@@ -245,6 +246,7 @@ New skills must slot into this shape rather than introduce a parallel one.
 | P1 | `escalate-decision` | When and how to interrupt the developer; approval gates. | existing |
 | P2 | `parallel-coordination` | Run independent workers, merge results, avoid write conflicts. | existing |
 | P2 | `recover-run` | Restart, orphaned/blocked/`unknown` agents, cancellation. | existing |
+| P1 | `visual-report` | Render the developer-facing report as self-contained HTML. | existing |
 
 ### Worker skills
 
@@ -510,6 +512,24 @@ with two planned refinements: extract planning and the ledger out of
 - **Failure/escalation:** Ambiguous recovery → escalate rather than duplicate
   work.
 - **Depends on:** `task-ledger`, `monitor-agents`.
+
+#### `visual-report` — P1
+
+- **Purpose:** Turn the developer-facing report into one self-contained HTML file
+  whose visuals are the evidence.
+- **Use when:** Reporting a result to the developer and a text report would hide
+  the point — a UI to see, a before/after, or a concrete example.
+- **Not when:** Routine progress; unverified work.
+- **Inputs:** The `handoff-report` content, the diff and checks, rendered UI
+  screenshots, `scripts/render_report.py`, `references/report-schema.md`.
+- **Procedure:** Assemble from facts; pick the visual the work demands; capture
+  the artifacts and keep the command; write the manifest; render and open the
+  file; ask for the decision.
+- **Output:** An offline HTML report path plus the one-line summary and decision.
+- **Failure/escalation:** No screenshot → show the code/example/checks view and
+  say so; never fabricate an image; nothing verifiable → do not render.
+- **Depends on:** `handoff-report`, `verify-evidence`; delivered by
+  `report-progress`.
 
 ### Worker skills
 

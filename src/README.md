@@ -19,7 +19,8 @@ src/
                        #             task-ledger, delegate-task, monitor-agents,
                        #             independent-review, review-work,
                        #             run-rework, escalate-decision,
-                       #             report-progress, parallel-coordination,
+                       #             report-progress, visual-report,
+                       #             parallel-coordination,
                        #             recover-run, multi-project-context
                        #   common:   commit-changes, review-change,
                        #             showcase-work, load-project-context,

@@ -41,13 +41,18 @@ shared `handoff-report` contract.
    the report reflects the recorded goal, criteria, iteration, and report
    rather than memory; let `handoff-report` govern the content — evidence
    behind every claim, remaining concerns stated honestly.
-2. **Notify** when `notify` is true in `team-mate.toml`:
+2. **Show it visually when the work has something to look at.** For a UI change
+   to see, a before/after, or a logic change best shown as code or an input →
+   output example, render the report with `visual-report` and open the HTML for
+   the developer. The text still carries the decision; the visual carries the
+   evidence.
+3. **Notify** when `notify` is true in `team-mate.toml`:
 
    ```bash
    python3 scripts/tm.py notify "Team Mate: <title>" --body "<status>" --sound request
    ```
 
-3. **Ask for a decision** — approve, request changes, reject, or finalize —
+4. **Ask for a decision** — approve, request changes, reject, or finalize —
    with one clear question, framed with `escalate-decision`, and record the
    answer with `python3 scripts/tm.py task decide <id> <decision>`. Do not
    commit, merge, or push without approval.
