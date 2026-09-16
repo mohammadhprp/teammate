@@ -466,7 +466,7 @@ def cmd_report(args):
     directory = task_store.reports_dir(args.state_dir)
     os.makedirs(directory, exist_ok=True)
     stem = f"{args.task}-{args.name}" if args.task else args.name
-    path = os.path.join(directory, f"{stem}-{int(time.time())}.md")
+    path = os.path.join(directory, f"{stem}-{int(time.time() * 1000)}.md")
     with open(path, "w") as fh:
         fh.write(text)
     print(path)

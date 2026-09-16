@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 
@@ -544,6 +545,31 @@ class BriefAndReportTest(unittest.TestCase):
             tm.herdr_text, tm.get_agent = original_text, original_agent
 
         self.assertEqual(buf.getvalue(), "shown\n")
+
+    def test_two_saves_in_the_same_second_do_not_collide(self):
+        original_text, original_agent = tm.herdr_text, tm.get_agent
+        tm.herdr_text = lambda *cmd: "worker output\n"
+        tm.get_agent = lambda name: {"cwd": self.tmp.name}
+        paths = []
+        try:
+            for _ in range(2):
+                args = types.SimpleNamespace(
+                    state_dir=self.state,
+                    name="developer-alpha",
+                    source="recent-unwrapped",
+                    lines=300,
+                    save=True,
+                    task=None,
+                )
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    tm.cmd_report(args)
+                paths.append(buf.getvalue().strip())
+                time.sleep(0.002)
+        finally:
+            tm.herdr_text, tm.get_agent = original_text, original_agent
+
+        self.assertNotEqual(paths[0], paths[1])
 
     def test_report_save_prefers_the_workers_clean_report_file(self):
         project = os.path.join(self.tmp.name, "project")

@@ -229,10 +229,19 @@ def prune(state_dir, session=None, statuses=None):
 
 
 def find_by_worker(state_dir, worker):
-    for task in list_tasks(state_dir):
-        if task.get("worker") == worker:
+    """The task to act on for a worker.
+
+    An active task wins; a closed task from an earlier session must not shadow
+    the live one. Among equals, the most recently created task wins.
+    """
+    matches = [task for task in list_tasks(state_dir) if task.get("worker") == worker]
+    if not matches:
+        return None
+    matches.sort(key=lambda task: task.get("created_at", 0), reverse=True)
+    for task in matches:
+        if task.get("status") in ACTIVE_STATUSES:
             return task
-    return None
+    return matches[0]
 
 
 def append_event(state_dir, task_id, kind, summary):

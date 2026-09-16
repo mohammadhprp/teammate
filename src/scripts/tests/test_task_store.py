@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import time
 import unittest
 
 import task_store
@@ -80,6 +81,26 @@ class TaskStoreTest(unittest.TestCase):
             task_store.find_by_worker(self.state, "acme-1")["id"], task["id"]
         )
         self.assertIsNone(task_store.find_by_worker(self.state, "nobody"))
+
+    def test_find_by_worker_prefers_an_active_task_over_a_closed_one(self):
+        closed = self.make(worker="acme-1")
+        task_store.update(self.state, closed["id"], status="approved")
+        live = self.make(worker="acme-1")
+
+        self.assertEqual(
+            task_store.find_by_worker(self.state, "acme-1")["id"], live["id"]
+        )
+
+    def test_find_by_worker_falls_back_to_the_newest_closed_task(self):
+        older = self.make(worker="acme-1")
+        task_store.update(self.state, older["id"], status="approved")
+        time.sleep(0.002)
+        newer = self.make(worker="acme-1")
+        task_store.update(self.state, newer["id"], status="rejected")
+
+        self.assertEqual(
+            task_store.find_by_worker(self.state, "acme-1")["id"], newer["id"]
+        )
 
     def test_append_event_writes_jsonl(self):
         task_store.append_event(self.state, "tsk_x", "worker.spawned", "acme-1")
