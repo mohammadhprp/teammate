@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="760" fill="#0f1216"/>
+  <rect x="0" y="0" width="260" height="760" fill="#151a20"/>
+  <line x1="260" y1="0" x2="260" y2="760" stroke="#242b34"/>
+  <text x="32" y="56" font-size="18" font-weight="700" fill="#f2f4f7">Acme</text>
+  <rect x="24" y="96" width="212" height="40" rx="8" fill="#1d2b4d"/>
+  <text x="44" y="121" font-size="14" fill="#8fb2ff" font-weight="600">Settings</text>
+  <text x="44" y="177" font-size="14" fill="#9aa4b2">Members</text>
+  <text x="44" y="219" font-size="14" fill="#9aa4b2">Billing</text>
+  <text x="44" y="261" font-size="14" fill="#9aa4b2">Integrations</text>
+  <text x="300" y="72" font-size="26" font-weight="700" fill="#f2f4f7">Settings</text>
+  <text x="300" y="100" font-size="14" fill="#9aa4b2">Manage your workspace preferences.</text>
+  <rect x="300" y="132" width="860" height="220" rx="14" fill="#151a20" stroke="#242b34"/>
+  <text x="332" y="176" font-size="15" font-weight="600" fill="#f2f4f7">Appearance</text>
+  <text x="332" y="200" font-size="13" fill="#9aa4b2">Choose how the app looks.</text>
+  <text x="332" y="256" font-size="14" fill="#f2f4f7">Dark theme</text>
+  <rect x="1052" y="242" width="46" height="24" rx="12" fill="#2f6fed"/>
+  <circle cx="1086" cy="254" r="9" fill="#ffffff"/>
+  <text x="332" y="336" font-size="12" fill="#6f7a89">Persisted per user · contrast 7.1:1 · applies on next load.</text>
+  <rect x="300" y="384" width="860" height="150" rx="14" fill="#151a20" stroke="#242b34"/>
+  <text x="332" y="428" font-size="15" font-weight="600" fill="#f2f4f7">Notifications</text>
+  <text x="332" y="470" font-size="14" fill="#f2f4f7">Email digests</text>
+  <rect x="1052" y="456" width="46" height="24" rx="12" fill="#3a4657"/>
+  <circle cx="1064" cy="468" r="9" fill="#ffffff"/>
+</svg>

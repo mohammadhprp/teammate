@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="760" fill="#f4f6f9"/>
+  <rect x="0" y="0" width="260" height="760" fill="#ffffff"/>
+  <line x1="260" y1="0" x2="260" y2="760" stroke="#e3e6ea"/>
+  <text x="32" y="56" font-size="18" font-weight="700" fill="#16181d">Acme</text>
+  <rect x="24" y="96" width="212" height="40" rx="8" fill="#eef2ff"/>
+  <text x="44" y="121" font-size="14" fill="#2f6fed" font-weight="600">Settings</text>
+  <text x="44" y="177" font-size="14" fill="#5b6270">Members</text>
+  <text x="44" y="219" font-size="14" fill="#5b6270">Billing</text>
+  <text x="44" y="261" font-size="14" fill="#5b6270">Integrations</text>
+  <text x="300" y="72" font-size="26" font-weight="700" fill="#16181d">Settings</text>
+  <text x="300" y="100" font-size="14" fill="#5b6270">Manage your workspace preferences.</text>
+  <rect x="300" y="132" width="860" height="220" rx="14" fill="#ffffff" stroke="#e3e6ea"/>
+  <text x="332" y="176" font-size="15" font-weight="600" fill="#16181d">Appearance</text>
+  <text x="332" y="200" font-size="13" fill="#5b6270">Choose how the app looks.</text>
+  <text x="332" y="256" font-size="14" fill="#16181d">Theme</text>
+  <rect x="332" y="272" width="220" height="38" rx="8" fill="#ffffff" stroke="#c9ccd2"/>
+  <text x="348" y="297" font-size="14" fill="#16181d">Light</text>
+  <path d="M532 288 l6 6 6-6" stroke="#5b6270" stroke-width="2" fill="none"/>
+  <text x="332" y="336" font-size="12" fill="#9aa1ad">Dark mode is not available yet.</text>
+  <rect x="300" y="384" width="860" height="150" rx="14" fill="#ffffff" stroke="#e3e6ea"/>
+  <text x="332" y="428" font-size="15" font-weight="600" fill="#16181d">Notifications</text>
+  <text x="332" y="470" font-size="14" fill="#16181d">Email digests</text>
+  <rect x="1052" y="456" width="46" height="24" rx="12" fill="#d7dbe1"/>
+  <circle cx="1064" cy="468" r="9" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,56 @@
+{
+  "title": "Dark theme for the settings page",
+  "summary": "Adds a persisted dark theme and fixes an empty-input crash in the theme resolver.",
+  "task": "tsk_demo01",
+  "project": "acme-web",
+  "status": "ready for approval",
+  "verdict": "pass",
+  "iteration": "2 of 3",
+  "generated_at": "2026-09-16 12:10",
+  "sections": {
+    "requested": "Add a dark theme to the settings page that persists per user, and make the theme resolver return a default instead of raising on empty input.",
+    "implemented": "A dark theme toggle persisted in user preferences, applied on load; the resolver now returns the default theme for empty input.",
+    "changed": "src/settings/* — +180 / -24",
+    "verified": "`pytest` 412 passed; contrast measured at 7.1:1; `html-validate` clean. Not checked: Safari.",
+    "assessment": "Every acceptance criterion holds and no blocking finding is open; verdict pass.",
+    "decision": "Approve, request changes, or reject."
+  },
+  "blocks": [
+    {
+      "type": "images",
+      "label": "Before / after — 1280×800",
+      "items": [
+        { "src": "before.svg", "caption": "Before — light only, no dark theme" },
+        { "src": "after.svg", "caption": "After — dark theme, persisted" }
+      ]
+    },
+    {
+      "type": "code",
+      "label": "The resolver fix",
+      "language": "python",
+      "before": "def theme(prefs):\n    return prefs[\"theme\"]",
+      "after": "def theme(prefs):\n    return prefs.get(\"theme\", DEFAULT_THEME)"
+    },
+    {
+      "type": "example",
+      "label": "Empty preferences",
+      "input": "theme({})",
+      "output": "\"light\"          # before: KeyError: 'theme'",
+      "note": "The boundary the old code crashed on."
+    },
+    {
+      "type": "diff",
+      "label": "Diff",
+      "text": "@@ -12,4 +12,6 @@ def theme(prefs):\n-    return prefs[\"theme\"]\n+    value = prefs.get(\"theme\", DEFAULT_THEME)\n+    return value if value in THEMES else DEFAULT_THEME"
+    }
+  ],
+  "checks": [
+    { "name": "unit tests", "command": "pytest -q", "result": "pass", "output": "412 passed in 3.1s" },
+    { "name": "contrast", "command": "npx axe labels", "result": "pass", "output": "0 violations (min 7.1:1)" },
+    { "name": "markup", "command": "npx html-validate src/settings", "result": "pass", "output": "0 errors" }
+  ],
+  "findings": [
+    { "severity": "major", "category": "bug", "title": "Crash on empty preferences", "file": "src/settings/theme.py", "line": 14, "status": "resolved", "detail": "`prefs[\"theme\"]` raised `KeyError` for a new user.", "suggestion": "Return the default theme when the key is absent." },
+    { "severity": "minor", "category": "edge-case", "title": "Unknown theme value silently ignored", "file": "src/settings/theme.py", "line": 15, "status": "resolved", "suggestion": "Fall back to the default when the stored value is not a known theme." }
+  ]
+}

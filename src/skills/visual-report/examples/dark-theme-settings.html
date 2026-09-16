@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dark theme for the settings page — Team Mate report</title>
+<style>
+:root {
+  --bg: #f5f6f8; --card: #ffffff; --ink: #16181d; --muted: #5b6270;
+  --line: #e3e6ea; --accent: #2f6fed; --ok: #1a7f4b; --ok-bg: #e6f4ec;
+  --bad: #c0392b; --bad-bg: #fbecea; --warn: #9a6b00; --warn-bg: #fdf3da;
+  --muted-bg: #eef0f3; --code-bg: #1b1e24; --code-ink: #e7e9ee;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.page { max-width: 1040px; margin: 0 auto; padding: 32px 24px 64px; }
+.hero { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 28px 22px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 11px;
+  font-weight: 700; color: var(--accent); }
+h1 { font-size: 26px; line-height: 1.25; margin: 8px 0 10px; }
+.summary { font-size: 16px; color: #2b2f38; margin: 0 0 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { font-size: 12px; color: var(--muted); background: var(--muted-bg);
+  border-radius: 999px; padding: 3px 10px; }
+.badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; }
+.badge--ok { color: var(--ok); background: var(--ok-bg); }
+.badge--bad { color: var(--bad); background: var(--bad-bg); }
+.badge--warn { color: var(--warn); background: var(--warn-bg); }
+.badge--muted { color: var(--muted); background: var(--muted-bg); }
+.generated { display: block; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.block, .card { background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; padding: 20px 24px; margin-top: 18px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin: 0 0 12px; }
+.prose p { margin: 0 0 10px; }
+.prose ul { margin: 0 0 10px; padding-left: 20px; }
+.prose code, .where, .finding-detail code { background: var(--muted-bg);
+  border-radius: 4px; padding: 1px 5px; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.gallery, .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.gallery .figure:only-child { grid-column: 1 / -1; }
+@media (max-width: 760px) { .gallery, .split { grid-template-columns: 1fr; } }
+.figure { margin: 0; }
+.figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; }
+.figure figcaption { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.figure--missing .missing { border: 1px dashed #c9ccd2; border-radius: 10px;
+  padding: 28px 12px; text-align: center; color: var(--muted); font-size: 13px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+.tag--before { color: var(--bad); }
+.tag--after { color: var(--ok); }
+.code { background: var(--code-bg); color: var(--code-ink); border-radius: 10px;
+  padding: 14px 16px; overflow: auto; font-size: 12.5px; line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; }
+.code--tight { padding: 8px 10px; font-size: 12px; }
+.diff { background: var(--code-bg); color: var(--code-ink); border-radius: 10px;
+  padding: 12px 0; overflow: auto; font-size: 12.5px; line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; }
+.diff-line { display: block; padding: 0 16px; white-space: pre; }
+.diff--add { background: rgba(26,127,75,.22); }
+.diff--del { background: rgba(192,57,43,.22); }
+.diff--hunk { color: #9db4ff; }
+.diff--head { color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--line);
+  padding: 6px 10px 8px 0; }
+.table td { border-bottom: 1px solid var(--line); padding: 10px 10px 10px 0;
+  vertical-align: top; }
+.table tr:last-child td { border-bottom: 0; }
+.where { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.finding-detail { font-size: 13px; color: #3a3f49; margin-top: 4px; }
+.finding-fix { font-size: 13px; color: var(--ok); margin-top: 4px; }
+.decision { background: #10203f; color: #fff; border-radius: 14px;
+  padding: 20px 24px; margin-top: 18px; }
+.decision-label { text-transform: uppercase; letter-spacing: .1em; font-size: 11px;
+  font-weight: 700; color: #8fb2ff; margin-bottom: 8px; }
+.decision-body p { margin: 0; font-size: 16px; }
+.footer { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; }
+.footer code { background: var(--muted-bg); border-radius: 4px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="hero">
+    <div class="kicker">Team Mate report</div>
+    <h1>Dark theme for the settings page</h1>
+    <p class="summary">Adds a persisted dark theme and fixes an empty-input crash in the theme resolver.</p>
+    <div class="meta"><span class="chip">task tsk_demo01</span><span class="chip">project acme-web</span><span class="chip">iteration 2 of 3</span><span class="badge badge--muted">ready for approval</span><span class="badge badge--ok">verdict: pass</span></div>
+    <span class="generated">generated 2026-09-16 12:10</span>
+  </header>
+  <section class="block"><h2>Before / after — 1280×800</h2><div class="gallery"><figure class="figure"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9Ijc2MCIgdmlld0JveD0iMCAwIDEyMDAgNzYwIiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSwgU2Vnb2UgVUksIFJvYm90bywgSGVsdmV0aWNhLCBBcmlhbCwgc2Fucy1zZXJpZiI+CiAgPHJlY3Qgd2lkdGg9IjEyMDAiIGhlaWdodD0iNzYwIiBmaWxsPSIjZjRmNmY5Ii8+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjI2MCIgaGVpZ2h0PSI3NjAiIGZpbGw9IiNmZmZmZmYiLz4KICA8bGluZSB4MT0iMjYwIiB5MT0iMCIgeDI9IjI2MCIgeTI9Ijc2MCIgc3Ryb2tlPSIjZTNlNmVhIi8+CiAgPHRleHQgeD0iMzIiIHk9IjU2IiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTYxODFkIj5BY21lPC90ZXh0PgogIDxyZWN0IHg9IjI0IiB5PSI5NiIgd2lkdGg9IjIxMiIgaGVpZ2h0PSI0MCIgcng9IjgiIGZpbGw9IiNlZWYyZmYiLz4KICA8dGV4dCB4PSI0NCIgeT0iMTIxIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMmY2ZmVkIiBmb250LXdlaWdodD0iNjAwIj5TZXR0aW5nczwvdGV4dD4KICA8dGV4dCB4PSI0NCIgeT0iMTc3IiBmb250LXNpemU9IjE0IiBmaWxsPSIjNWI2MjcwIj5NZW1iZXJzPC90ZXh0PgogIDx0ZXh0IHg9IjQ0IiB5PSIyMTkiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM1YjYyNzAiPkJpbGxpbmc8L3RleHQ+CiAgPHRleHQgeD0iNDQiIHk9IjI2MSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzViNjI3MCI+SW50ZWdyYXRpb25zPC90ZXh0PgogIDx0ZXh0IHg9IjMwMCIgeT0iNzIiIGZvbnQtc2l6ZT0iMjYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxNjE4MWQiPlNldHRpbmdzPC90ZXh0PgogIDx0ZXh0IHg9IjMwMCIgeT0iMTAwIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNWI2MjcwIj5NYW5hZ2UgeW91ciB3b3Jrc3BhY2UgcHJlZmVyZW5jZXMuPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iMTMyIiB3aWR0aD0iODYwIiBoZWlnaHQ9IjIyMCIgcng9IjE0IiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNlM2U2ZWEiLz4KICA8dGV4dCB4PSIzMzIiIHk9IjE3NiIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjYwMCIgZmlsbD0iIzE2MTgxZCI+QXBwZWFyYW5jZTwvdGV4dD4KICA8dGV4dCB4PSIzMzIiIHk9IjIwMCIgZm9udC1zaXplPSIxMyIgZmlsbD0iIzViNjI3MCI+Q2hvb3NlIGhvdyB0aGUgYXBwIGxvb2tzLjwvdGV4dD4KICA8dGV4dCB4PSIzMzIiIHk9IjI1NiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzE2MTgxZCI+VGhlbWU8L3RleHQ+CiAgPHJlY3QgeD0iMzMyIiB5PSIyNzIiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzgiIHJ4PSI4IiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNjOWNjZDIiLz4KICA8dGV4dCB4PSIzNDgiIHk9IjI5NyIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzE2MTgxZCI+TGlnaHQ8L3RleHQ+CiAgPHBhdGggZD0iTTUzMiAyODggbDYgNiA2LTYiIHN0cm9rZT0iIzViNjI3MCIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CiAgPHRleHQgeD0iMzMyIiB5PSIzMzYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5YWExYWQiPkRhcmsgbW9kZSBpcyBub3QgYXZhaWxhYmxlIHlldC48L3RleHQ+CiAgPHJlY3QgeD0iMzAwIiB5PSIzODQiIHdpZHRoPSI4NjAiIGhlaWdodD0iMTUwIiByeD0iMTQiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iI2UzZTZlYSIvPgogIDx0ZXh0IHg9IjMzMiIgeT0iNDI4IiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNjAwIiBmaWxsPSIjMTYxODFkIj5Ob3RpZmljYXRpb25zPC90ZXh0PgogIDx0ZXh0IHg9IjMzMiIgeT0iNDcwIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMTYxODFkIj5FbWFpbCBkaWdlc3RzPC90ZXh0PgogIDxyZWN0IHg9IjEwNTIiIHk9IjQ1NiIgd2lkdGg9IjQ2IiBoZWlnaHQ9IjI0IiByeD0iMTIiIGZpbGw9IiNkN2RiZTEiLz4KICA8Y2lyY2xlIGN4PSIxMDY0IiBjeT0iNDY4IiByPSI5IiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=" alt="Before — light only, no dark theme"><figcaption>Before — light only, no dark theme</figcaption></figure><figure class="figure"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9Ijc2MCIgdmlld0JveD0iMCAwIDEyMDAgNzYwIiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSwgU2Vnb2UgVUksIFJvYm90bywgSGVsdmV0aWNhLCBBcmlhbCwgc2Fucy1zZXJpZiI+CiAgPHJlY3Qgd2lkdGg9IjEyMDAiIGhlaWdodD0iNzYwIiBmaWxsPSIjMGYxMjE2Ii8+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjI2MCIgaGVpZ2h0PSI3NjAiIGZpbGw9IiMxNTFhMjAiLz4KICA8bGluZSB4MT0iMjYwIiB5MT0iMCIgeDI9IjI2MCIgeTI9Ijc2MCIgc3Ryb2tlPSIjMjQyYjM0Ii8+CiAgPHRleHQgeD0iMzIiIHk9IjU2IiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZjJmNGY3Ij5BY21lPC90ZXh0PgogIDxyZWN0IHg9IjI0IiB5PSI5NiIgd2lkdGg9IjIxMiIgaGVpZ2h0PSI0MCIgcng9IjgiIGZpbGw9IiMxZDJiNGQiLz4KICA8dGV4dCB4PSI0NCIgeT0iMTIxIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOGZiMmZmIiBmb250LXdlaWdodD0iNjAwIj5TZXR0aW5nczwvdGV4dD4KICA8dGV4dCB4PSI0NCIgeT0iMTc3IiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWFhNGIyIj5NZW1iZXJzPC90ZXh0PgogIDx0ZXh0IHg9IjQ0IiB5PSIyMTkiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5YWE0YjIiPkJpbGxpbmc8L3RleHQ+CiAgPHRleHQgeD0iNDQiIHk9IjI2MSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlhYTRiMiI+SW50ZWdyYXRpb25zPC90ZXh0PgogIDx0ZXh0IHg9IjMwMCIgeT0iNzIiIGZvbnQtc2l6ZT0iMjYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmMmY0ZjciPlNldHRpbmdzPC90ZXh0PgogIDx0ZXh0IHg9IjMwMCIgeT0iMTAwIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWFhNGIyIj5NYW5hZ2UgeW91ciB3b3Jrc3BhY2UgcHJlZmVyZW5jZXMuPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iMTMyIiB3aWR0aD0iODYwIiBoZWlnaHQ9IjIyMCIgcng9IjE0IiBmaWxsPSIjMTUxYTIwIiBzdHJva2U9IiMyNDJiMzQiLz4KICA8dGV4dCB4PSIzMzIiIHk9IjE3NiIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjYwMCIgZmlsbD0iI2YyZjRmNyI+QXBwZWFyYW5jZTwvdGV4dD4KICA8dGV4dCB4PSIzMzIiIHk9IjIwMCIgZm9udC1zaXplPSIxMyIgZmlsbD0iIzlhYTRiMiI+Q2hvb3NlIGhvdyB0aGUgYXBwIGxvb2tzLjwvdGV4dD4KICA8dGV4dCB4PSIzMzIiIHk9IjI1NiIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2YyZjRmNyI+RGFyayB0aGVtZTwvdGV4dD4KICA8cmVjdCB4PSIxMDUyIiB5PSIyNDIiIHdpZHRoPSI0NiIgaGVpZ2h0PSIyNCIgcng9IjEyIiBmaWxsPSIjMmY2ZmVkIi8+CiAgPGNpcmNsZSBjeD0iMTA4NiIgY3k9IjI1NCIgcj0iOSIgZmlsbD0iI2ZmZmZmZiIvPgogIDx0ZXh0IHg9IjMzMiIgeT0iMzM2IiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmY3YTg5Ij5QZXJzaXN0ZWQgcGVyIHVzZXIgwrcgY29udHJhc3QgNy4xOjEgwrcgYXBwbGllcyBvbiBuZXh0IGxvYWQuPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iMzg0IiB3aWR0aD0iODYwIiBoZWlnaHQ9IjE1MCIgcng9IjE0IiBmaWxsPSIjMTUxYTIwIiBzdHJva2U9IiMyNDJiMzQiLz4KICA8dGV4dCB4PSIzMzIiIHk9IjQyOCIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjYwMCIgZmlsbD0iI2YyZjRmNyI+Tm90aWZpY2F0aW9uczwvdGV4dD4KICA8dGV4dCB4PSIzMzIiIHk9IjQ3MCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2YyZjRmNyI+RW1haWwgZGlnZXN0czwvdGV4dD4KICA8cmVjdCB4PSIxMDUyIiB5PSI0NTYiIHdpZHRoPSI0NiIgaGVpZ2h0PSIyNCIgcng9IjEyIiBmaWxsPSIjM2E0NjU3Ii8+CiAgPGNpcmNsZSBjeD0iMTA2NCIgY3k9IjQ2OCIgcj0iOSIgZmlsbD0iI2ZmZmZmZiIvPgo8L3N2Zz4K" alt="After — dark theme, persisted"><figcaption>After — dark theme, persisted</figcaption></figure></div></section><section class="block"><h2>The resolver fix</h2><div class="split"><div><div class="tag tag--before">before</div><pre class="code"><code data-lang="python">def theme(prefs):
+    return prefs[&quot;theme&quot;]</code></pre></div><div><div class="tag tag--after">after</div><pre class="code"><code data-lang="python">def theme(prefs):
+    return prefs.get(&quot;theme&quot;, DEFAULT_THEME)</code></pre></div></div></section><section class="block"><h2>Empty preferences</h2><div class="split"><div><div class="tag">input</div><pre class="code"><code>theme({})</code></pre></div><div><div class="tag">output</div><pre class="code"><code>&quot;light&quot;          # before: KeyError: &#x27;theme&#x27;</code></pre></div></div><p class="note">The boundary the old code crashed on.</p></section><section class="block"><h2>Diff</h2><pre class="diff"><span class="diff-line diff--hunk">@@ -12,4 +12,6 @@ def theme(prefs):</span><span class="diff-line diff--del">-    return prefs[&quot;theme&quot;]</span><span class="diff-line diff--add">+    value = prefs.get(&quot;theme&quot;, DEFAULT_THEME)</span><span class="diff-line diff--add">+    return value if value in THEMES else DEFAULT_THEME</span></pre></section>
+  <div class="sections"><section class="card"><h2>Requested</h2><p>Add a dark theme to the settings page that persists per user, and make the theme resolver return a default instead of raising on empty input.</p></section><section class="card"><h2>Implemented</h2><p>A dark theme toggle persisted in user preferences, applied on load; the resolver now returns the default theme for empty input.</p></section><section class="card"><h2>Changed</h2><p>src/settings/* — +180 / -24</p></section><section class="card"><h2>Verified</h2><p><code>pytest</code> 412 passed; contrast measured at 7.1:1; <code>html-validate</code> clean. Not checked: Safari.</p></section><section class="card"><h2>Assessment</h2><p>Every acceptance criterion holds and no blocking finding is open; verdict pass.</p></section></div>
+  <section class="card"><h2>Checks</h2><table class="table"><thead><tr><th>Check</th><th>Command</th><th>Result</th><th>Output</th></tr></thead><tbody><tr><td><strong>unit tests</strong></td><td><code>pytest -q</code></td><td><span class="badge badge--ok">pass</span></td><td><pre class="code code--tight"><code>412 passed in 3.1s</code></pre></td></tr><tr><td><strong>contrast</strong></td><td><code>npx axe labels</code></td><td><span class="badge badge--ok">pass</span></td><td><pre class="code code--tight"><code>0 violations (min 7.1:1)</code></pre></td></tr><tr><td><strong>markup</strong></td><td><code>npx html-validate src/settings</code></td><td><span class="badge badge--ok">pass</span></td><td><pre class="code code--tight"><code>0 errors</code></pre></td></tr></tbody></table></section>
+  <section class="card"><h2>Findings</h2><table class="table"><thead><tr><th>Severity</th><th>Category</th><th>Finding</th><th>Status</th></tr></thead><tbody><tr><td><span class="badge badge--bad">major</span></td><td>bug</td><td><strong>Crash on empty preferences</strong><div class='where'>src/settings/theme.py:14</div><div class="finding-detail"><code>prefs[&quot;theme&quot;]</code> raised <code>KeyError</code> for a new user.</div><div class="finding-fix">fix: Return the default theme when the key is absent.</div></td><td><span class="badge badge--ok">resolved</span></td></tr><tr><td><span class="badge badge--warn">minor</span></td><td>edge-case</td><td><strong>Unknown theme value silently ignored</strong><div class='where'>src/settings/theme.py:15</div><div class="finding-fix">fix: Fall back to the default when the stored value is not a known theme.</div></td><td><span class="badge badge--ok">resolved</span></td></tr></tbody></table></section>
+  <section class="decision"><div class="decision-label">Decision</div><div class="decision-body"><p>Approve, request changes, or reject.</p></div></section>
+  <footer class="footer">Rendered by the <code>visual-report</code> skill.</footer>
+</main>
+</body>
+</html>
