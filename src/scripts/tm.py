@@ -111,6 +111,7 @@ DECISIONS = {
 
 SKILLS_SUBDIR = os.path.join(".agents", "skills")
 MANAGED_MARKER = ".teammate-managed.json"
+REPORT_FILE = ".teammate-report.md"
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
 EXCLUDE_END = "# end Team Mate distributed skills"
 
@@ -201,7 +202,7 @@ def _write_manifest(target, names):
 
 
 def _exclude_from_git(root, names):
-    """Keep managed skills out of ``git status`` via the project's local exclude.
+    """Keep managed skills and the worker report file out of ``git status``.
 
     Only ``.git/info/exclude`` is touched, which is never committed, so a
     project's own files are untouched.
@@ -231,6 +232,7 @@ def _exclude_from_git(root, names):
         kept += [EXCLUDE_BEGIN]
         kept += [f"/.agents/skills/{name}/" for name in sorted(names)]
         kept += [f"/.agents/skills/{MANAGED_MARKER}"]
+        kept += [f"/{REPORT_FILE}"]
         kept += [EXCLUDE_END]
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
@@ -288,8 +290,8 @@ def cmd_spawn(args):
         if names:
             installed, skipped, _ = sync_skills(config, cwd, names)
             print(f"skills\t{len(installed)}\t{cwd}")
-            for name in skipped:
-                print(f"warning: skill {name} not distributed", file=sys.stderr)
+            for skill in skipped:
+                print(f"warning: skill {skill} not distributed", file=sys.stderr)
         else:
             print(
                 "warning: no worker_skills configured; the worker starts "
@@ -421,16 +423,43 @@ def cmd_wait(args):
     print(f"{args.name}\t{state}")
 
 
+def worker_report_file(name):
+    """The clean report file a worker left in its project, or ``None``.
+
+    ``report-result`` has the worker write its final report to
+    ``.teammate-report.md`` in the project root, which is the agent's ``cwd``,
+    so the primary collects markdown instead of a rendered terminal pane. Only
+    used for the default ``recent-unwrapped`` source: an explicit pane source
+    (for example ``visible`` when inspecting a blocked dialog) must read the
+    pane, not a stale report file.
+    """
+    try:
+        cwd = get_agent(name).get("cwd")
+    except (HerdrError, OSError):
+        return None
+    if not cwd:
+        return None
+    path = os.path.join(cwd, REPORT_FILE)
+    return path if os.path.isfile(path) else None
+
+
 def cmd_report(args):
-    text = herdr_text(
-        "agent",
-        "read",
-        args.name,
-        "--source",
-        args.source,
-        "--lines",
-        str(args.lines),
-    )
+    source_file = None
+    if args.source == "recent-unwrapped":
+        source_file = worker_report_file(args.name)
+    if source_file:
+        with open(source_file) as fh:
+            text = fh.read()
+    else:
+        text = herdr_text(
+            "agent",
+            "read",
+            args.name,
+            "--source",
+            args.source,
+            "--lines",
+            str(args.lines),
+        )
     if not args.save:
         sys.stdout.write(text)
         return
@@ -550,6 +579,10 @@ def _render_task(task):
 
 
 def cmd_task_new(args):
+    max_iterations = args.max_iterations
+    if max_iterations is None:
+        config = getattr(args, "config_data", None) or {}
+        max_iterations = config.get("max_iterations", 3)
     task = task_store.create(
         args.state_dir,
         args.project,
@@ -558,7 +591,7 @@ def cmd_task_new(args):
         args.acceptance,
         args.constraint,
         args.worker,
-        args.max_iterations,
+        max_iterations,
     )
     print(task["id"])
 
@@ -815,7 +848,12 @@ def build_parser():
     a.add_argument("--acceptance", action="append", required=True)
     a.add_argument("--constraint", action="append")
     a.add_argument("--worker")
-    a.add_argument("--max-iterations", type=int, default=3)
+    a.add_argument(
+        "--max-iterations",
+        type=int,
+        default=None,
+        help="review/rework budget (default: max_iterations from config, else 3)",
+    )
     a.set_defaults(func=cmd_task_new)
 
     a = actions.add_parser("list", help="list tasks")
@@ -884,6 +922,7 @@ def build_parser():
 def main(argv=None):
     args = build_parser().parse_args(argv)
     config = load_config(args.config)
+    args.config_data = config
     args.state_dir = os.path.expanduser(
         args.state_dir or config.get("state_dir", "~/.teammate")
     )

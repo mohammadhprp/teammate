@@ -31,6 +31,98 @@ class ParserTest(unittest.TestCase):
 
         self.assertFalse(args.skills)
 
+    def test_task_new_max_iterations_defaults_to_config(self):
+        args = tm.build_parser().parse_args(
+            [
+                "task",
+                "new",
+                "--project",
+                "p",
+                "--title",
+                "t",
+                "--goal",
+                "g",
+                "--acceptance",
+                "c",
+            ]
+        )
+
+        self.assertIsNone(args.max_iterations)
+
+
+class SpawnTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = os.path.join(self.tmp.name, "state")
+        self.project = os.path.join(self.tmp.name, "project")
+        os.makedirs(self.project)
+
+    def test_a_skipped_skill_does_not_clobber_the_worker_name(self):
+        source = os.path.join(self.tmp.name, "source")
+        os.makedirs(os.path.join(source, "worker-role"))
+        with open(os.path.join(source, "worker-role", "SKILL.md"), "w") as fh:
+            fh.write("---\nname: worker-role\n---\n")
+        config = {
+            "skills_source": source,
+            "worker_skills": ["worker-role", "commit-changes"],
+            "worker_kind": "opencode",
+        }
+
+        calls = []
+
+        def fake_herdr(*cmd):
+            calls.append(cmd)
+            if cmd[:2] == ("workspace", "list"):
+                return {
+                    "result": {
+                        "workspaces": [{"label": "project", "workspace_id": "w1"}]
+                    }
+                }
+            if cmd[:2] == ("tab", "create"):
+                return {
+                    "result": {
+                        "root_pane": {"pane_id": "w1:p1"},
+                        "tab": {"tab_id": "w1:t1"},
+                    }
+                }
+            if cmd[:2] == ("agent", "start"):
+                return {"result": {"agent": {"agent_status": "idle"}}}
+            return {}
+
+        task = task_store.create(self.state, "project", "t", "g", ["c"])
+        original_config, original_herdr = tm.load_config, tm.herdr
+        tm.load_config = lambda path: config
+        tm.herdr = fake_herdr
+        try:
+            args = types.SimpleNamespace(
+                config="ignored",
+                kind=None,
+                name="developer-alpha",
+                cwd=self.project,
+                project=None,
+                skills=True,
+                label=None,
+                task=task["id"],
+                state_dir=self.state,
+            )
+            buf = io.StringIO()
+            with (
+                contextlib.redirect_stdout(buf),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                tm.cmd_spawn(args)
+        finally:
+            tm.load_config, tm.herdr = original_config, original_herdr
+
+        saved = task_store.load(self.state, task["id"])
+        self.assertEqual(saved["worker"], "developer-alpha")
+        started = [c for c in calls if c[:2] == ("agent", "start")][0]
+        self.assertEqual(started[2], "developer-alpha")
+        self.assertIn("developer-alpha", buf.getvalue())
+        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+            self.assertIn("developer-alpha in project", fh.read())
+
 
 class GitExcludeTest(unittest.TestCase):
     def setUp(self):
@@ -61,6 +153,19 @@ class GitExcludeTest(unittest.TestCase):
         self.assertIn(tm.EXCLUDE_BEGIN, text)
         self.assertIn("/.agents/skills/worker-role/", text)
         self.assertIn(f"/.agents/skills/{tm.MANAGED_MARKER}", text)
+        status = subprocess.run(
+            ["git", "-C", self.project, "status", "--short"],
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(status.strip(), "")
+
+    def test_the_worker_report_file_is_excluded(self):
+        tm.sync_skills(self.config, self.project)
+        with open(os.path.join(self.project, tm.REPORT_FILE), "w") as fh:
+            fh.write("### Requested\n")
+
+        self.assertIn(f"/{tm.REPORT_FILE}", self.exclude_text())
         status = subprocess.run(
             ["git", "-C", self.project, "status", "--short"],
             capture_output=True,
@@ -318,6 +423,46 @@ class TaskCommandsTest(unittest.TestCase):
         self.assertIn("task.decision", text)
 
 
+class TaskNewTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def new_task(self, **overrides):
+        args = types.SimpleNamespace(
+            state_dir=self.state,
+            project="acme",
+            title="t",
+            goal="g",
+            acceptance=["c"],
+            constraint=None,
+            worker=None,
+            max_iterations=None,
+            config_data={},
+        )
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_task_new(args)
+        return task_store.load(self.state, buf.getvalue().strip())
+
+    def test_config_max_iterations_is_the_default(self):
+        task = self.new_task(config_data={"max_iterations": 5})
+
+        self.assertEqual(task["max_iterations"], 5)
+
+    def test_the_flag_overrides_config(self):
+        task = self.new_task(max_iterations=2, config_data={"max_iterations": 5})
+
+        self.assertEqual(task["max_iterations"], 2)
+
+    def test_without_config_the_builtin_default_is_three(self):
+        task = self.new_task()
+
+        self.assertEqual(task["max_iterations"], 3)
+
+
 class BriefAndReportTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -351,8 +496,9 @@ class BriefAndReportTest(unittest.TestCase):
             calls["cmd"] = cmd
             return "worker output\n"
 
-        original = tm.herdr_text
+        original_text, original_agent = tm.herdr_text, tm.get_agent
         tm.herdr_text = fake_read
+        tm.get_agent = lambda name: {"cwd": self.tmp.name}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
@@ -366,7 +512,7 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text = original
+            tm.herdr_text, tm.get_agent = original_text, original_agent
 
         path = buf.getvalue().strip()
         self.assertTrue(
@@ -379,8 +525,9 @@ class BriefAndReportTest(unittest.TestCase):
         self.assertEqual(calls["cmd"][0], "agent")
 
     def test_report_without_save_prints_the_output(self):
-        original = tm.herdr_text
+        original_text, original_agent = tm.herdr_text, tm.get_agent
         tm.herdr_text = lambda *cmd: "shown\n"
+        tm.get_agent = lambda name: {"cwd": self.tmp.name}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
@@ -394,9 +541,68 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text = original
+            tm.herdr_text, tm.get_agent = original_text, original_agent
 
         self.assertEqual(buf.getvalue(), "shown\n")
+
+    def test_report_save_prefers_the_workers_clean_report_file(self):
+        project = os.path.join(self.tmp.name, "project")
+        os.makedirs(project)
+        with open(os.path.join(project, tm.REPORT_FILE), "w") as fh:
+            fh.write("### Requested\n\nclean markdown, no TUI chrome\n")
+
+        def fail_pane(*cmd):
+            raise AssertionError("the terminal pane should not be captured")
+
+        original_text, original_agent = tm.herdr_text, tm.get_agent
+        tm.herdr_text = fail_pane
+        tm.get_agent = lambda name: {"cwd": project}
+        try:
+            args = types.SimpleNamespace(
+                state_dir=self.state,
+                name="developer-alpha",
+                source="recent-unwrapped",
+                lines=300,
+                save=True,
+                task="tsk_1",
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_report(args)
+        finally:
+            tm.herdr_text, tm.get_agent = original_text, original_agent
+
+        path = buf.getvalue().strip()
+        with open(path) as fh:
+            self.assertEqual(
+                fh.read(), "### Requested\n\nclean markdown, no TUI chrome\n"
+            )
+
+    def test_report_visible_source_reads_the_pane_not_the_report_file(self):
+        project = os.path.join(self.tmp.name, "project")
+        os.makedirs(project)
+        with open(os.path.join(project, tm.REPORT_FILE), "w") as fh:
+            fh.write("stale report\n")
+
+        original_text, original_agent = tm.herdr_text, tm.get_agent
+        tm.herdr_text = lambda *cmd: "blocked dialog\n"
+        tm.get_agent = lambda name: {"cwd": project}
+        try:
+            args = types.SimpleNamespace(
+                state_dir=self.state,
+                name="developer-alpha",
+                source="visible",
+                lines=80,
+                save=False,
+                task=None,
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_report(args)
+        finally:
+            tm.herdr_text, tm.get_agent = original_text, original_agent
+
+        self.assertEqual(buf.getvalue(), "blocked dialog\n")
 
 
 class SessionCommandTest(unittest.TestCase):
