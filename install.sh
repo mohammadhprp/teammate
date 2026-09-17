@@ -16,6 +16,7 @@ REPO="mohammadhprp/teammate"
 BRANCH="master"
 TARBALL_URL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz"
 HERDR_URL="https://herdr.dev"
+HERDR_INSTALL_URL="https://herdr.dev/install.sh"
 
 DEST="teammate"
 KIND=""
@@ -177,11 +178,28 @@ if [ ! -d "$DEST/.git" ] && command -v git >/dev/null 2>&1; then
   git -C "$DEST" init -q && info "initialized git repository"
 fi
 
-# Check for Herdr before launching.
+# Check for Herdr before launching, offering to install it when missing.
 if ! command -v herdr >/dev/null 2>&1; then
-  warn "herdr is not installed; Team Mate uses it as its agent runtime"
-  printf '\nInstall Herdr from %s, then re-run this script.\n' "$HERDR_URL"
-  exit 1
+  answer=""
+  if ( : <>/dev/tty ) 2>/dev/null; then
+    printf 'Install Herdr now? [y/N] ' >/dev/tty
+    read answer </dev/tty || answer=""
+  fi
+  case "$answer" in
+    y|Y|yes|Yes|YES)
+      printf 'Installing Herdr...\n'
+      if curl -fsSL "$HERDR_INSTALL_URL" | sh; then
+        PATH="$HOME/.local/bin:$PATH"
+        export PATH
+        hash -r 2>/dev/null || true
+      fi
+      ;;
+  esac
+  if ! command -v herdr >/dev/null 2>&1; then
+    warn "herdr is not installed; Team Mate uses it as its agent runtime"
+    printf '\nInstall Herdr from %s, then re-run this script.\n' "$HERDR_URL"
+    exit 1
+  fi
 fi
 command -v python3 >/dev/null 2>&1 || warn "python3 not found; the tm CLI needs Python 3"
 
