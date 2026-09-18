@@ -1167,7 +1167,7 @@ def main(argv=None):
     )
     try:
         report = task_store.migrate(args.state_dir)
-        if report["moved"] or report["left"]:
+        if report["moved"]:
             print(
                 f"migration\t{len(report['moved'])} moved\t{len(report['left'])} left",
                 file=sys.stderr,
