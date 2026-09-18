@@ -70,8 +70,9 @@ Understand → resolve project(s) → plan → delegate → monitor
   within budget: manage them directly, no Foreman. One Foreman per task group;
   never stack Foremen.
 - Open a session when a run starts:
-  `python3 scripts/tm.py session start`. Tasks created while it is open are
-  tagged with it, so `task list` and recovery stay scoped to this run.
+  `python3 scripts/tm.py session start --project <name>`. Tasks created while it
+  is open are tagged with it, so `task list` and recovery stay scoped to this
+  run.
 - Never hold the turn for a worker. Delegate with
   `python3 scripts/tm.py spawn`, then `python3 scripts/tm.py send` **without**
   `--wait`, and poll with `python3 scripts/tm.py status` / `wait`. A worker run

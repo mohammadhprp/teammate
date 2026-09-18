@@ -116,8 +116,8 @@ before/after code and one concrete input → output.
 
 ```bash
 python3 <skill-dir>/scripts/render_report.py report.json \
-  --out ~/.teammate/reports/tsk_4b7d01-visual.html
-open ~/.teammate/reports/tsk_4b7d01-visual.html
+  --out ~/.teammate/acme/reports/tsk_4b7d01-visual.html
+open ~/.teammate/acme/reports/tsk_4b7d01-visual.html
 ```
 
 A missing `before.png` renders a **not captured** placeholder — the report stays

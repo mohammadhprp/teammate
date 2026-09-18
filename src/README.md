@@ -83,30 +83,45 @@ primary's.
 
 ## Ledger, briefs, and reports
 
-All coordination state lives under `state_dir` (default `~/.teammate/`):
+All coordination state lives under `state_dir` (default `~/.teammate/`), one
+directory per project (the project name slugged to a filesystem-safe
+lowercase form):
 
 ```text
 ~/.teammate/
-  tasks/<id>.json     # one file per task (the ledger)
-  archive/            # pruned tasks (moved, never deleted)
-  briefs/             # the briefs the primary sends workers
-  reports/            # captured worker output
-  timeline.jsonl      # append-only events
-  session.json        # the open session marker
+  projects.json                # shared: project name -> absolute root
+  <project-slug>/
+    tasks/<id>.json            # one file per task (the ledger)
+    archive/                   # pruned tasks (moved, never deleted)
+    briefs/                    # the briefs the primary sends workers
+    reports/                   # captured worker output
+    timeline.jsonl             # append-only events
+    session.json               # the open session marker
 ```
 
-- `tm brief <name> [--task <id>]` reads a brief from stdin, writes it under
-  `briefs/`, and prints the path to pass to `tm send`. Use it instead of
-  inventing a path, so a run never writes outside the sandbox.
-- `tm report <name> --save [--task <id>]` writes a worker's output under
-  `reports/` and prints the path. It prefers the clean markdown the worker
-  wrote to `.teammate-report.md` in its project root and falls back to the
-  captured terminal pane only when that file is absent.
-- `tm session start` / `end` mark the primary's session; tasks created while a
-  session is open are tagged with it, so `tm task list` shows the current
-  session and recovery can ignore history. `--all` shows every session.
-- `tm task prune` archives closed tasks (moved to `archive/`) so the live ledger
-  stops accumulating stale work; scope it with `--session <id>` or `--all`.
+Legacy state that lived directly under `~/.teammate/` is migrated into the
+per-project directories on the next run (`tm` calls the idempotent migration
+automatically); anything that cannot be attributed to a project stays at the
+root and is reported.
+
+- `tm brief <name> [--task <id>] [--project <name>]` reads a brief from stdin,
+  writes it under the project's `briefs/`, and prints the path to pass to
+  `tm send`. The project is `--project`, else the task's, else the registered
+  project containing the current directory. Use it instead of inventing a path,
+  so a run never writes outside the sandbox.
+- `tm report <name> --save [--task <id>] [--project <name>]` writes a worker's
+  output under the project's `reports/` and prints the path. It prefers the
+  clean markdown the worker wrote to `.teammate-report.md` in its project root
+  and falls back to the captured terminal pane only when that file is absent.
+- `tm session start` / `status` / `end` / `summary` act on one project
+  (`--project`, else the registered project containing the current directory);
+  tasks created while a session is open are tagged with it, so `tm task list`
+  shows the current session and recovery can ignore history. `--all` shows
+  every session.
+- `tm task list` spans every project by default; pass `--project <name>` to
+  scope it. `tm task prune` archives closed tasks (moved to the project's
+  `archive/`) so the live ledger stops accumulating stale work; scope it with
+  `--project`, `--session <id>`, or `--all`.
 
 
 ## Skill distribution

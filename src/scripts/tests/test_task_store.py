@@ -32,7 +32,9 @@ class TaskStoreTest(unittest.TestCase):
         self.assertEqual(task["status"], "planned")
         self.assertEqual(task["iteration"], 0)
         self.assertEqual(task["acceptance"], ["subtract(5, 3) == 2"])
-        path = os.path.join(self.state, "tasks", f"{task['id']}.json")
+        path = os.path.join(
+            task_store.tasks_dir(self.state, "acme"), f"{task['id']}.json"
+        )
         self.assertTrue(os.path.isfile(path))
 
     def test_create_defaults_to_a_build_task(self):
@@ -48,7 +50,7 @@ class TaskStoreTest(unittest.TestCase):
     def test_create_appends_a_timeline_event(self):
         task = self.make()
 
-        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+        with open(task_store.timeline_path(self.state, "acme")) as fh:
             events = [json.loads(line) for line in fh]
         self.assertEqual(events[-1]["kind"], "task.created")
         self.assertEqual(events[-1]["task"], task["id"])
@@ -79,7 +81,7 @@ class TaskStoreTest(unittest.TestCase):
         task_store.update(self.state, second["id"], status="working")
 
         ids = {task["id"] for task in task_store.list_tasks(self.state)}
-        working = task_store.list_tasks(self.state, "working")
+        working = task_store.list_tasks(self.state, status="working")
 
         self.assertEqual(ids, {first["id"], second["id"]})
         self.assertEqual([task["id"] for task in working], [second["id"]])
@@ -113,13 +115,113 @@ class TaskStoreTest(unittest.TestCase):
         )
 
     def test_append_event_writes_jsonl(self):
-        task_store.append_event(self.state, "tsk_x", "worker.spawned", "acme-1")
+        task_store.append_event(self.state, "acme", "tsk_x", "worker.spawned", "acme-1")
 
-        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+        with open(task_store.timeline_path(self.state, "acme")) as fh:
             event = json.loads(fh.readline())
         self.assertEqual(event["kind"], "worker.spawned")
         self.assertEqual(event["task"], "tsk_x")
         self.assertEqual(event["summary"], "acme-1")
+
+
+class SlugTest(unittest.TestCase):
+    def test_lowercases_and_collapses_disallowed_runs(self):
+        self.assertEqual(task_store.slug("My  Project!!"), "my-project")
+
+    def test_keeps_the_allowed_punctuation(self):
+        self.assertEqual(task_store.slug("a_b.c-d"), "a_b.c-d")
+
+    def test_trims_leading_and_trailing_separators(self):
+        self.assertEqual(task_store.slug("  Acme!!  "), "acme")
+
+    def test_a_name_with_no_slug_characters_falls_back(self):
+        self.assertEqual(task_store.slug("!!!"), "project")
+        self.assertEqual(task_store.slug(""), "project")
+
+
+class ProjectPathsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_every_path_is_scoped_to_the_slug(self):
+        base = os.path.join(self.state, "my-project")
+
+        self.assertEqual(task_store.project_dir(self.state, "My Project"), base)
+        self.assertEqual(
+            task_store.tasks_dir(self.state, "My Project"),
+            os.path.join(base, "tasks"),
+        )
+        self.assertEqual(
+            task_store.archive_dir(self.state, "My Project"),
+            os.path.join(base, "archive"),
+        )
+        self.assertEqual(
+            task_store.briefs_dir(self.state, "My Project"),
+            os.path.join(base, "briefs"),
+        )
+        self.assertEqual(
+            task_store.reports_dir(self.state, "My Project"),
+            os.path.join(base, "reports"),
+        )
+        self.assertEqual(
+            task_store.session_path(self.state, "My Project"),
+            os.path.join(base, "session.json"),
+        )
+        self.assertEqual(
+            task_store.timeline_path(self.state, "My Project"),
+            os.path.join(base, "timeline.jsonl"),
+        )
+
+
+class CrossProjectTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def test_list_tasks_spans_projects_and_can_filter_to_one(self):
+        acme = task_store.create(self.state, "acme", "a", "g", ["c"])
+        beta = task_store.create(self.state, "Beta Project", "b", "g", ["c"])
+
+        everywhere = {task["id"] for task in task_store.list_tasks(self.state)}
+
+        self.assertEqual(everywhere, {acme["id"], beta["id"]})
+        self.assertEqual(
+            [task["id"] for task in task_store.list_tasks(self.state, "acme")],
+            [acme["id"]],
+        )
+        self.assertEqual(
+            [task["id"] for task in task_store.list_tasks(self.state, "Beta Project")],
+            [beta["id"]],
+        )
+
+    def test_load_finds_a_task_in_any_project(self):
+        acme = task_store.create(self.state, "acme", "a", "g", ["c"])
+        beta = task_store.create(self.state, "beta", "b", "g", ["c"])
+
+        self.assertEqual(task_store.load(self.state, acme["id"])["project"], "acme")
+        self.assertEqual(task_store.load(self.state, beta["id"])["project"], "beta")
+
+    def test_load_falls_back_to_a_legacy_root_task(self):
+        legacy = os.path.join(self.state, "tasks")
+        os.makedirs(legacy)
+        task = {"id": "tsk_legacy", "project": "acme", "status": "planned"}
+        with open(os.path.join(legacy, "tsk_legacy.json"), "w") as fh:
+            json.dump(task, fh)
+
+        self.assertEqual(task_store.load(self.state, "tsk_legacy")["project"], "acme")
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state, "acme")],
+            ["tsk_legacy"],
+        )
+
+    def test_open_sessions_spans_projects(self):
+        first = task_store.new_session(self.state, "acme")
+        second = task_store.new_session(self.state, "beta")
+
+        self.assertEqual(task_store.open_sessions(self.state), {first, second})
 
 
 class SessionTest(unittest.TestCase):
@@ -129,25 +231,32 @@ class SessionTest(unittest.TestCase):
         self.state = self.tmp.name
 
     def test_new_session_is_open_until_ended(self):
-        session = task_store.new_session(self.state)
+        session = task_store.new_session(self.state, "acme")
 
         self.assertTrue(session.startswith("sess_"))
-        self.assertEqual(task_store.current_session(self.state), session)
-        self.assertEqual(task_store.end_session(self.state), session)
-        self.assertIsNone(task_store.current_session(self.state))
+        self.assertEqual(task_store.current_session(self.state, "acme"), session)
+        self.assertEqual(task_store.end_session(self.state, "acme"), session)
+        self.assertIsNone(task_store.current_session(self.state, "acme"))
+
+    def test_sessions_are_isolated_per_project(self):
+        acme = task_store.new_session(self.state, "acme")
+        beta = task_store.new_session(self.state, "beta")
+
+        self.assertEqual(task_store.current_session(self.state, "acme"), acme)
+        self.assertEqual(task_store.current_session(self.state, "beta"), beta)
 
     def test_created_tasks_are_tagged_with_the_open_session(self):
-        session = task_store.new_session(self.state)
+        session = task_store.new_session(self.state, "acme")
 
         task = task_store.create(self.state, "acme", "t", "g", ["c"])
 
         self.assertEqual(task["session"], session)
 
     def test_list_filters_by_session(self):
-        first = task_store.new_session(self.state)
+        first = task_store.new_session(self.state, "acme")
         a = task_store.create(self.state, "acme", "a", "g", ["c"])
-        task_store.end_session(self.state)
-        second = task_store.new_session(self.state)
+        task_store.end_session(self.state, "acme")
+        second = task_store.new_session(self.state, "acme")
         b = task_store.create(self.state, "acme", "b", "g", ["c"])
 
         self.assertEqual(
@@ -159,12 +268,14 @@ class SessionTest(unittest.TestCase):
             [b["id"]],
         )
 
-    def test_briefs_and_reports_dirs_are_under_state_dir(self):
+    def test_briefs_and_reports_dirs_are_under_the_project(self):
         self.assertEqual(
-            task_store.briefs_dir(self.state), os.path.join(self.state, "briefs")
+            task_store.briefs_dir(self.state, "acme"),
+            os.path.join(self.state, "acme", "briefs"),
         )
         self.assertEqual(
-            task_store.reports_dir(self.state), os.path.join(self.state, "reports")
+            task_store.reports_dir(self.state, "acme"),
+            os.path.join(self.state, "acme", "reports"),
         )
 
 
@@ -187,16 +298,18 @@ class PruneTest(unittest.TestCase):
         )
         self.assertTrue(
             os.path.isfile(
-                os.path.join(task_store.archive_dir(self.state), f"{done['id']}.json")
+                os.path.join(
+                    task_store.archive_dir(self.state, "acme"), f"{done['id']}.json"
+                )
             )
         )
 
     def test_prune_can_scope_to_a_session(self):
-        first = task_store.new_session(self.state)
+        first = task_store.new_session(self.state, "acme")
         a = task_store.create(self.state, "acme", "a", "g", ["c"])
         task_store.update(self.state, a["id"], status="approved")
-        task_store.end_session(self.state)
-        task_store.new_session(self.state)
+        task_store.end_session(self.state, "acme")
+        task_store.new_session(self.state, "acme")
         b = task_store.create(self.state, "acme", "b", "g", ["c"])
         task_store.update(self.state, b["id"], status="approved")
 
@@ -205,6 +318,19 @@ class PruneTest(unittest.TestCase):
         self.assertEqual(moved, [a["id"]])
         self.assertEqual(
             [t["id"] for t in task_store.list_tasks(self.state)], [b["id"]]
+        )
+
+    def test_prune_can_scope_to_a_project(self):
+        acme = task_store.create(self.state, "acme", "a", "g", ["c"])
+        beta = task_store.create(self.state, "beta", "b", "g", ["c"])
+        task_store.update(self.state, acme["id"], status="approved")
+        task_store.update(self.state, beta["id"], status="approved")
+
+        moved = task_store.prune(self.state, project="acme")
+
+        self.assertEqual(moved, [acme["id"]])
+        self.assertEqual(
+            [t["id"] for t in task_store.list_tasks(self.state)], [beta["id"]]
         )
 
 
@@ -347,6 +473,141 @@ class ProjectRegistryTest(unittest.TestCase):
     def test_an_empty_name_is_rejected(self):
         with self.assertRaises(ValueError):
             task_store.register_project(self.state, "", self.tmp.name)
+
+
+class MigrationTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+        self.seed()
+
+    def write(self, relative, data):
+        path = os.path.join(self.state, relative)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write(data)
+
+    def write_task(self, folder, task_id, project, session=None):
+        task = {
+            "id": task_id,
+            "project": project,
+            "session": session,
+            "status": "planned",
+            "created_at": 0,
+            "updated_at": 0,
+        }
+        self.write(os.path.join(folder, f"{task_id}.json"), json.dumps(task) + "\n")
+
+    def seed(self):
+        self.write_task("tasks", "tsk_a", "acme", "sess_one")
+        self.write_task("tasks", "tsk_b", "acme", "sess_one")
+        self.write_task("archive", "tsk_c", "Beta Project")
+        self.write("briefs/tsk_a-developer-alpha.md", "brief a\n")
+        self.write("briefs/worker-only.md", "orphan\n")
+        self.write("reports/tsk_b-developer-beta-123.md", "report b\n")
+        self.write("session.json", json.dumps({"id": "sess_one"}) + "\n")
+        events = [
+            {"at": 1, "task": "tsk_a", "kind": "task.created", "summary": "a"},
+            {"at": 2, "task": "sess_one", "kind": "session.started", "summary": "s"},
+            {"at": 3, "task": "tsk_unknown", "kind": "task.created", "summary": "u"},
+        ]
+        self.write(
+            "timeline.jsonl",
+            "\n".join(json.dumps(e, sort_keys=True) for e in events) + "\n",
+        )
+
+    def snapshot(self):
+        files = {}
+        for dirpath, _, names in os.walk(self.state):
+            for name in names:
+                path = os.path.join(dirpath, name)
+                with open(path) as fh:
+                    files[os.path.relpath(path, self.state)] = fh.read()
+        return files
+
+    def test_migrates_into_project_directories(self):
+        report = task_store.migrate(self.state)
+
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.state, "acme", "tasks", "tsk_a.json"))
+        )
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.state, "acme", "tasks", "tsk_b.json"))
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(self.state, "beta-project", "archive", "tsk_c.json")
+            )
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(self.state, "acme", "briefs", "tsk_a-developer-alpha.md")
+            )
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    self.state, "acme", "reports", "tsk_b-developer-beta-123.md"
+                )
+            )
+        )
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.state, "acme", "session.json"))
+        )
+        self.assertFalse(os.path.exists(os.path.join(self.state, "tasks")))
+        self.assertFalse(os.path.exists(os.path.join(self.state, "session.json")))
+        self.assertIn(
+            os.path.join(self.state, "briefs", "worker-only.md"), report["left"]
+        )
+
+    def test_timeline_is_split_and_unattributable_events_stay(self):
+        task_store.migrate(self.state)
+
+        with open(os.path.join(self.state, "acme", "timeline.jsonl")) as fh:
+            moved = [json.loads(line) for line in fh if line.strip()]
+        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+            left = [json.loads(line) for line in fh if line.strip()]
+
+        self.assertEqual([event["task"] for event in moved], ["tsk_a", "sess_one"])
+        self.assertEqual([event["task"] for event in left], ["tsk_unknown"])
+
+    def test_second_run_is_a_noop(self):
+        task_store.migrate(self.state)
+        before = self.snapshot()
+
+        report = task_store.migrate(self.state)
+
+        self.assertEqual(report["moved"], [])
+        self.assertEqual(self.snapshot(), before)
+
+    def test_a_task_without_a_project_stays_at_the_root(self):
+        self.write_task("tasks", "tsk_np", None)
+
+        report = task_store.migrate(self.state)
+
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.state, "tasks", "tsk_np.json"))
+        )
+        self.assertIn(os.path.join(self.state, "tasks", "tsk_np.json"), report["left"])
+
+    def test_a_session_spanning_projects_stays_at_the_root(self):
+        self.write_task("tasks", "tsk_x", "acme", "sess_two")
+        self.write_task("tasks", "tsk_y", "Beta Project", "sess_two")
+        self.write("session.json", json.dumps({"id": "sess_two"}) + "\n")
+
+        report = task_store.migrate(self.state)
+
+        self.assertTrue(os.path.isfile(os.path.join(self.state, "session.json")))
+        self.assertIn(os.path.join(self.state, "session.json"), report["left"])
+
+    def test_nothing_to_migrate_is_cheap_and_empty(self):
+        clean = tempfile.TemporaryDirectory()
+        self.addCleanup(clean.cleanup)
+
+        report = task_store.migrate(clean.name)
+
+        self.assertEqual(report, {"moved": [], "left": []})
 
 
 if __name__ == "__main__":

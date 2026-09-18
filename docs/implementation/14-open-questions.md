@@ -65,9 +65,10 @@ different runs, not one.
 
 ## 3. How much state should persist, and what should happen on restart?
 
-**Current.** `<state_dir>/` holds `tasks/` (the ledger), `archive/`, `briefs/`,
-`reports/`, `timeline.jsonl`, and `session.json`. The ledger explicitly survives
-the primary ending (`task_store.py`). Agent tabs are the ephemeral part.
+**Current.** `<state_dir>/` holds the shared `projects.json` plus one directory
+per project, each with `tasks/` (the ledger), `archive/`, `briefs/`, `reports/`,
+`timeline.jsonl`, and `session.json`. The ledger explicitly survives the primary
+ending (`task_store.py`). Agent tabs are the ephemeral part.
 
 **Decision.** The ledger is the source of truth; agent tabs are disposable. On
 a restart the primary reads the open session (`tm session status`), the live

@@ -358,7 +358,7 @@ def cmd_spawn(args):
         raise HerdrError(f"could not start {name} in {cwd}")
 
     if args.task:
-        task_store.update(
+        task = task_store.update(
             args.state_dir,
             args.task,
             worker=name,
@@ -367,7 +367,11 @@ def cmd_spawn(args):
             workspace=workspace,
         )
         task_store.append_event(
-            args.state_dir, args.task, "worker.spawned", f"{name} in {project}"
+            args.state_dir,
+            task["project"],
+            args.task,
+            "worker.spawned",
+            f"{name} in {project}",
         )
 
     print(f"{name}\t{started.get('agent_status', '?')}\t{project}\t{workspace}\t{tab}")
@@ -464,7 +468,8 @@ def cmd_report(args):
     if not args.save:
         sys.stdout.write(text)
         return
-    directory = task_store.reports_dir(args.state_dir)
+    project = _resolve_project(args)
+    directory = task_store.reports_dir(args.state_dir, project)
     os.makedirs(directory, exist_ok=True)
     stem = f"{args.task}-{args.name}" if args.task else args.name
     path = os.path.join(directory, f"{stem}-{int(time.time() * 1000)}.md")
@@ -477,7 +482,8 @@ def cmd_brief(args):
     text = sys.stdin.read()
     if not text.strip():
         raise ValueError("empty brief")
-    directory = task_store.briefs_dir(args.state_dir)
+    project = _resolve_project(args)
+    directory = task_store.briefs_dir(args.state_dir, project)
     os.makedirs(directory, exist_ok=True)
     stem = f"{args.task}-{args.name}" if args.task else args.name
     path = os.path.join(directory, f"{stem}.md")
@@ -487,25 +493,27 @@ def cmd_brief(args):
 
 
 def cmd_session_start(args):
-    print(task_store.new_session(args.state_dir))
+    print(task_store.new_session(args.state_dir, _resolve_project(args)))
 
 
 def cmd_session_status(args):
-    print(task_store.current_session(args.state_dir) or "none")
+    project = _resolve_project(args)
+    print(task_store.current_session(args.state_dir, project) or "none")
 
 
 def cmd_session_end(args):
-    print(task_store.end_session(args.state_dir) or "none")
+    print(task_store.end_session(args.state_dir, _resolve_project(args)) or "none")
 
 
 def cmd_session_summary(args):
+    project = _resolve_project(args)
     if args.all:
         session = None
     else:
-        session = _resolve_session(args.state_dir, args.session)
+        session = _resolve_session(args.state_dir, project, args.session)
         if session is None:
-            session = task_store.current_session(args.state_dir)
-    tasks = task_store.list_tasks(args.state_dir, session=session)
+            session = task_store.current_session(args.state_dir, project)
+    tasks = task_store.list_tasks(args.state_dir, project, session=session)
     if not tasks:
         print("no tasks")
         return
@@ -675,7 +683,7 @@ def cmd_task_new(args):
         max_iterations = config.get("max_iterations", 3)
     task = task_store.create(
         args.state_dir,
-        args.project,
+        _resolve_project(args),
         args.title,
         args.goal,
         args.acceptance,
@@ -687,20 +695,56 @@ def cmd_task_new(args):
     print(task["id"])
 
 
-def _resolve_session(state_dir, session):
+def _within(root, path):
+    root = os.path.abspath(root)
+    path = os.path.abspath(path)
+    return path == root or path.startswith(root + os.sep)
+
+
+def _resolve_project(args):
+    """The project a command acts on.
+
+    ``--project`` wins; otherwise the ``--task`` task's project; otherwise the
+    registered project whose root contains the current directory. Raises a
+    clear error naming ``--project`` when none applies.
+    """
+    if getattr(args, "project", None):
+        return args.project
+    task_id = getattr(args, "task", None)
+    if task_id:
+        return task_store.load(args.state_dir, task_id)["project"]
+    cwd = os.getcwd()
+    projects = task_store.list_projects(args.state_dir)
+    matches = [name for name, root in projects.items() if _within(root, cwd)]
+    if matches:
+        return max(matches, key=lambda name: len(projects[name]))
+    raise ValueError(
+        "no project could be resolved: pass --project <name>, link --task, "
+        "or register the current directory with `tm project add`"
+    )
+
+
+def _resolve_session(state_dir, project, session):
     if session == "current":
-        return task_store.current_session(state_dir)
+        if project:
+            return task_store.current_session(state_dir, project)
+        return task_store.open_sessions(state_dir)
     return session
 
 
 def cmd_task_list(args):
+    project = args.project
     if args.all:
         session = None
+    elif args.session:
+        session = _resolve_session(args.state_dir, project, args.session)
+    elif project:
+        session = task_store.current_session(args.state_dir, project)
     else:
-        session = _resolve_session(args.state_dir, args.session)
-        if session is None:
-            session = task_store.current_session(args.state_dir)
-    tasks = task_store.list_tasks(args.state_dir, args.status, session)
+        # Cross-project: show the tasks of every open session. With none open,
+        # fall back to the whole ledger, as a single project used to.
+        session = task_store.open_sessions(args.state_dir) or None
+    tasks = task_store.list_tasks(args.state_dir, project, args.status, session)
     if not tasks:
         print("no tasks")
         return
@@ -714,16 +758,23 @@ def cmd_task_list(args):
 
 
 def cmd_task_prune(args):
+    project = args.project
     if args.all:
         session = None
     elif args.session:
-        session = _resolve_session(args.state_dir, args.session)
+        session = _resolve_session(args.state_dir, project, args.session)
     else:
-        session = task_store.current_session(args.state_dir)
+        if project:
+            session = task_store.current_session(args.state_dir, project)
+        else:
+            session = task_store.open_sessions(args.state_dir) or None
         if session is None:
             raise ValueError("no open session; pass --session <id> or --all")
-    moved = task_store.prune(args.state_dir, session=session)
-    print(f"archived\t{len(moved)}\t{task_store.archive_dir(args.state_dir)}")
+    moved = task_store.prune(args.state_dir, project=project, session=session)
+    location = (
+        task_store.archive_dir(args.state_dir, project) if project else args.state_dir
+    )
+    print(f"archived\t{len(moved)}\t{location}")
 
 
 def cmd_task_show(args):
@@ -797,10 +848,14 @@ def cmd_task_update(args):
         kind, summary = "review.verdict", "pass"
     elif task["status"] == "rework":
         kind, summary = "review.verdict", "fail"
-    task_store.append_event(args.state_dir, task["id"], kind, summary)
+    task_store.append_event(args.state_dir, task["project"], task["id"], kind, summary)
     if verdict == "inconclusive":
         task_store.append_event(
-            args.state_dir, task["id"], "review.verdict", "inconclusive"
+            args.state_dir,
+            task["project"],
+            task["id"],
+            "review.verdict",
+            "inconclusive",
         )
     print(f"{task['id']}\t{task['status']}")
 
@@ -815,7 +870,11 @@ def cmd_task_findings(args):
         payload = [payload]
     task = task_store.record_findings(args.state_dir, args.id, payload)
     task_store.append_event(
-        args.state_dir, task["id"], "review.findings", f"{len(payload)} finding(s)"
+        args.state_dir,
+        task["project"],
+        task["id"],
+        "review.findings",
+        f"{len(payload)} finding(s)",
     )
     print(f"{task['id']}\t{len(task['findings'])}\t{task_store.verdict(task)}")
 
@@ -829,7 +888,11 @@ def cmd_task_resolve(args):
     indexes = None if args.all else [i - 1 for i in args.finding]
     task = task_store.resolve_findings(args.state_dir, args.id, indexes, status)
     task_store.append_event(
-        args.state_dir, task["id"], "review.findings", f"findings -> {status}"
+        args.state_dir,
+        task["project"],
+        task["id"],
+        "review.findings",
+        f"findings -> {status}",
     )
     print(f"{task['id']}\t{task_store.verdict(task)}")
 
@@ -847,7 +910,11 @@ def cmd_task_decide(args):
         fields["note"] = args.note
     task = task_store.update(args.state_dir, args.id, **fields)
     task_store.append_event(
-        args.state_dir, task["id"], "task.decision", f"{args.decision} -> {status}"
+        args.state_dir,
+        task["project"],
+        task["id"],
+        "task.decision",
+        f"{args.decision} -> {status}",
     )
     print(f"{task['id']}\t{args.decision}\t{status}")
 
@@ -910,16 +977,16 @@ def build_parser():
     p.add_argument(
         "--save",
         action="store_true",
-        help="write the output under state_dir/reports and print the path",
+        help="write the output under <state_dir>/<project>/reports and print the path",
     )
     p.add_argument("--task", help="task id, used to name a saved report")
+    p.add_argument("--project", help="project name (default: the task's, else cwd)")
     p.set_defaults(func=cmd_report)
 
-    p = sub.add_parser(
-        "brief", help="write a brief under state_dir/briefs and print the path"
-    )
+    p = sub.add_parser("brief", help="write a brief under <state_dir>/<project>/briefs")
     p.add_argument("name")
     p.add_argument("--task", help="task id, used to name the brief")
+    p.add_argument("--project", help="project name (default: the task's, else cwd)")
     p.set_defaults(func=cmd_brief)
 
     p = sub.add_parser("stop", help="interrupt a worker and close its tab")
@@ -941,12 +1008,16 @@ def build_parser():
     p = sub.add_parser("session", help="mark the primary's session in the ledger")
     actions = p.add_subparsers(dest="action", required=True)
     a = actions.add_parser("start", help="open a session and print its id")
+    a.add_argument("--project", help="project name (default: the cwd's project)")
     a.set_defaults(func=cmd_session_start)
     a = actions.add_parser("status", help="print the open session id")
+    a.add_argument("--project", help="project name (default: the cwd's project)")
     a.set_defaults(func=cmd_session_status)
     a = actions.add_parser("end", help="close the open session")
+    a.add_argument("--project", help="project name (default: the cwd's project)")
     a.set_defaults(func=cmd_session_end)
     a = actions.add_parser("summary", help="roll up the open session's tasks")
+    a.add_argument("--project", help="project name (default: the cwd's project)")
     a.add_argument("--session", help="session id, or 'current'")
     a.add_argument(
         "--all",
@@ -992,7 +1063,10 @@ def build_parser():
     actions = p.add_subparsers(dest="action", required=True)
 
     a = actions.add_parser("new", help="record a task before delegating")
-    a.add_argument("--project", required=True)
+    a.add_argument(
+        "--project",
+        help="project name (default: the cwd's registered project)",
+    )
     a.add_argument("--title", required=True)
     a.add_argument("--goal", required=True)
     a.add_argument("--acceptance", action="append", required=True)
@@ -1013,6 +1087,7 @@ def build_parser():
     a.set_defaults(func=cmd_task_new)
 
     a = actions.add_parser("list", help="list tasks")
+    a.add_argument("--project", help="only this project (default: every project)")
     a.add_argument("--status", choices=list(task_store.STATUSES))
     a.add_argument(
         "--session",
@@ -1058,6 +1133,7 @@ def build_parser():
     a.set_defaults(func=cmd_task_decide)
 
     a = actions.add_parser("prune", help="archive closed tasks out of the live ledger")
+    a.add_argument("--project", help="only this project (default: every project)")
     a.add_argument("--session", help="session id, or 'current'")
     a.add_argument(
         "--all", action="store_true", help="archive closed tasks from every session"
@@ -1090,6 +1166,12 @@ def main(argv=None):
         args.state_dir or config.get("state_dir", "~/.teammate")
     )
     try:
+        report = task_store.migrate(args.state_dir)
+        if report["moved"] or report["left"]:
+            print(
+                f"migration\t{len(report['moved'])} moved\t{len(report['left'])} left",
+                file=sys.stderr,
+            )
         args.func(args)
     except (HerdrError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)

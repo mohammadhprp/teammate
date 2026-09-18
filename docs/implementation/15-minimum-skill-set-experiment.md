@@ -37,7 +37,7 @@ Everything else is a coordinator concern or a specialization.
 
 ```bash
 # 1. A session, and the task up front.
-python3 scripts/tm.py session start
+python3 scripts/tm.py session start --project exp-min
 python3 scripts/tm.py task new --project exp-min --title "Add slugify and a test" \
   --goal "Add slugify(text) to the project and cover it with a test." \
   --acceptance "slugify('A B') == 'a-b'" --acceptance "the project's tests pass"

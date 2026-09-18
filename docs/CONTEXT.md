@@ -30,6 +30,31 @@ Each target project can provide its own:
 Agents should load and respect the target project's context in addition to the
 shared Team Mate capabilities.
 
+## State layout
+
+Coordination state lives under `state_dir` (default `~/.teammate/`), one
+directory per project named after the project's slug (`slug()` in
+`src/scripts/task_store.py`: lowercase, every run of characters outside
+`[a-z0-9._-]` collapsed to `-`, edges trimmed):
+
+```text
+~/.teammate/
+  projects.json          # shared: project name -> absolute root
+  <project-slug>/
+    tasks/<id>.json      # the live ledger
+    archive/<id>.json    # pruned tasks (moved, never deleted)
+    briefs/              # briefs the primary sends workers
+    reports/             # captured worker output
+    timeline.jsonl       # append-only events
+    session.json         # the open session marker
+```
+
+`projects.json` is the only shared file. `tm` resolves a command's project from
+`--project`, else the `--task` task's project, else the registered project that
+contains the current directory, and otherwise fails with a clear error. Legacy
+root-level state is migrated into the per-project directories on the next run
+(idempotent); anything unattributable stays at the root and is reported.
+
 ## Key files
 
 - `README.md` — project overview.

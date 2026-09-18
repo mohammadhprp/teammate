@@ -12,11 +12,13 @@ lives there from before its worker is spawned to its final status — which only
 works if the record is written first and updated as the work moves.
 
 The ledger lives under `state_dir` (default `~/.teammate/`, from
-`team-mate.toml`): one JSON file per task at `<state_dir>/tasks/<id>.json` plus
-an append-only `<state_dir>/timeline.jsonl`. That is what makes `task list`,
-`task find`, and `task show` answer after a restart. Briefs live in
-`<state_dir>/briefs/` and captured reports in `<state_dir>/reports/`; both are
-inside the sandbox, unlike a temp dir.
+`team-mate.toml`), one directory per project named after the project slug: one
+JSON file per task at `<state_dir>/<project>/tasks/<id>.json` plus an
+append-only `<state_dir>/<project>/timeline.jsonl`. `projects.json` is the only
+shared file. That is what makes `task list`, `task find`, and `task show` answer
+after a restart. Briefs live in `<state_dir>/<project>/briefs/` and captured
+reports in `<state_dir>/<project>/reports/`; both are inside the sandbox, unlike
+a temp dir.
 
 ## When to use
 
@@ -71,23 +73,26 @@ review itself must be tracked.
 
 The ledger is shared across runs, so tag each run and keep it clean.
 
-- **Open a session when a run starts.** `python3 scripts/tm.py session start`
-  prints the id and writes `<state_dir>/session.json`; every task created while
-  it is open records that `session`. `tm session end` closes it.
+- **Open a session when a run starts.** `python3 scripts/tm.py session start
+  --project <name>` prints the id and writes `<state_dir>/<project>/session.json`;
+  every task created while it is open records that `session`. `tm session end
+  --project <name>` closes it; the project is `--project`, else the registered
+  project containing the current directory.
 - **`task list` shows the open session by default**, so a new run does not
-  inherit stale work. Pass `--all` for every session, or `--session <id>`.
-  `recover-run` reconciles only the open session.
-- **Read the run at a glance.** `python3 scripts/tm.py session summary` rolls up
-  the open session's tasks by status, its distinct workers, the elapsed span,
-  and recorded cost/tokens when present — the numbers to weigh cost, latency,
-  and agent count.
+  inherit stale work. Pass `--all` for every session, `--session <id>` for one,
+  or `--project <name>` to scope to a project. `recover-run` reconciles only the
+  open session.
+- **Read the run at a glance.** `python3 scripts/tm.py session summary
+  --project <name>` rolls up the open session's tasks by status, its distinct
+  workers, the elapsed span, and recorded cost/tokens when present — the numbers
+  to weigh cost, latency, and agent count.
 - **Archive closed tasks.** `python3 scripts/tm.py task prune` moves closed
-  tasks to `<state_dir>/archive/`; it archives, never deletes. Scope with
-  `--session <id>` or `--all`.
+  tasks to `<state_dir>/<project>/archive/`; it archives, never deletes. Scope
+  with `--project <name>`, `--session <id>`, or `--all`.
 - **Briefs and reports are ledger state too.** `tm brief` writes to
-  `<state_dir>/briefs/` and `tm report --save` to `<state_dir>/reports/`; use
-  those commands rather than inventing a path, because this tree is what the
-  sandbox allows.
+  `<state_dir>/<project>/briefs/` and `tm report --save` to
+  `<state_dir>/<project>/reports/`; use those commands rather than inventing a
+  path, because this tree is what the sandbox allows.
 
 ## Procedure
 

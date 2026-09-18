@@ -15,10 +15,11 @@ worker_kind = "opencode"
 # Advisory: not read by `tm`; agent-enforced.
 primary_workspace = "teammate"
 
-# Directory for the persistent task ledger. Shared across projects and
-# survives the primary session ending. Briefs live in <state_dir>/briefs,
-# captured reports in <state_dir>/reports, and the open session marker in
-# <state_dir>/session.json.
+# Directory for the persistent task ledger. It survives the primary session
+# ending and holds one directory per project, named after the project slug:
+# <state_dir>/<slug>/tasks, /briefs, /reports, /timeline.jsonl, /session.json.
+# Only the shared project registry (<state_dir>/projects.json) lives at the
+# root. Legacy root-level state is migrated automatically on the next run.
 state_dir = "~/.teammate"
 
 # Maximum worker agents running at once. Advisory: not read by `tm`;

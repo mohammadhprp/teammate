@@ -62,8 +62,8 @@ told, and `handoff-report` owns what the report must contain.
 
    ```bash
    python3 <skill-dir>/scripts/render_report.py report.json \
-     --out "<state_dir>/reports/<task>-visual.html"
-   open "<state_dir>/reports/<task>-visual.html"   # xdg-open on Linux
+     --out "<state_dir>/<project>/reports/<task>-visual.html"
+   open "<state_dir>/<project>/reports/<task>-visual.html"   # xdg-open on Linux
    ```
 
    Record the path in the report and the ledger

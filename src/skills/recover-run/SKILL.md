@@ -69,7 +69,7 @@ delivery never landed.
    open session by default, so reconcile only that session — an earlier run's
    tasks are history, not this run's orphans. If the live ledger is cluttered,
    `python3 scripts/tm.py task prune` archives closed tasks (it moves them to
-   `<state_dir>/archive/`, never deletes).
+   `<state_dir>/<project>/archive/`, never deletes).
 
 2. **List live agents** and pair each with its ledger task:
 

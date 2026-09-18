@@ -57,13 +57,14 @@ control to the loop. Use `python3 scripts/tm.py` so output stays concise.
 
 3. **Write and submit the brief.** Put it in the documented location so a run
    never writes outside the sandbox; `tm brief` writes under
-   `state_dir/briefs/` and prints the path.
+   `state_dir/<project>/briefs/` (the project comes from `--task`) and prints
+   the path.
 
    ```bash
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
    <brief>
    EOF
-   # <state_dir>/briefs/<id>-<name>.md
+   # <state_dir>/<project>/briefs/<id>-<name>.md
    python3 scripts/tm.py send "<name>" --brief "<printed-path>"
    ```
 

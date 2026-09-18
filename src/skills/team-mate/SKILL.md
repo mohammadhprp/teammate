@@ -34,11 +34,12 @@ See `examples.md` for a complete walkthrough.
 
 ## Task ledger
 
-Persist every task under `state_dir` (default `~/.teammate/`) so it survives the
-primary session ending or compacting. Follow `task-ledger` to create, link,
-advance, and recover tasks, and `recover-run` after a restart or a lost worker.
-Open a session when a run starts (`python3 scripts/tm.py session start`) so the
-run's tasks are tagged and `task list` does not inherit stale work.
+Persist every task under `state_dir` (default `~/.teammate/`), one directory per
+project, so it survives the primary session ending or compacting. Follow
+`task-ledger` to create, link, advance, and recover tasks, and `recover-run`
+after a restart or a lost worker. Open a session when a run starts
+(`python3 scripts/tm.py session start --project <name>`) so the run's tasks are
+tagged and `task list` does not inherit stale work.
 
 ## Procedure
 

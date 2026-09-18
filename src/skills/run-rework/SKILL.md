@@ -53,7 +53,8 @@ disagreement from quietly consuming the developer's time.
 3. **Write and send it to the same worker.** It still holds the project
    context and the diff, so a new worker would only re-derive what this one
    already knows. Write the brief with `tm brief` so it lands in
-   `state_dir/briefs/`, then send that path.
+   `state_dir/<project>/briefs/` (the project comes from `--task`), then send
+   that path.
 
    ```bash
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'

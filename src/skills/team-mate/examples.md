@@ -20,7 +20,7 @@ python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-al
 python3 scripts/tm.py brief developer-alpha --task tsk_1a2b3c4d <<'EOF'
 <brief built from templates/worker-brief.md>
 EOF
-# ~/.teammate/briefs/tsk_1a2b3c4d-developer-alpha.md
+# ~/.teammate/acme/briefs/tsk_1a2b3c4d-developer-alpha.md
 python3 scripts/tm.py send developer-alpha --brief "<printed-path>"
 # developer-alpha  working
 

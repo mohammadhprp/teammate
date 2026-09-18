@@ -64,6 +64,37 @@ class ParserTest(unittest.TestCase):
         self.assertIs(args.func, tm.cmd_session_summary)
         self.assertFalse(args.all)
 
+    def test_task_new_project_is_optional(self):
+        args = tm.build_parser().parse_args(
+            ["task", "new", "--title", "t", "--goal", "g", "--acceptance", "c"]
+        )
+
+        self.assertIsNone(args.project)
+
+    def test_session_start_accepts_a_project(self):
+        args = tm.build_parser().parse_args(["session", "start", "--project", "acme"])
+
+        self.assertEqual(args.project, "acme")
+
+    def test_brief_accepts_a_project(self):
+        args = tm.build_parser().parse_args(
+            ["brief", "developer-alpha", "--project", "acme"]
+        )
+
+        self.assertEqual(args.project, "acme")
+
+    def test_report_accepts_a_project(self):
+        args = tm.build_parser().parse_args(
+            ["report", "developer-alpha", "--project", "acme"]
+        )
+
+        self.assertEqual(args.project, "acme")
+
+    def test_task_list_has_a_project_filter(self):
+        args = tm.build_parser().parse_args(["task", "list", "--project", "acme"])
+
+        self.assertEqual(args.project, "acme")
+
 
 class SpawnTest(unittest.TestCase):
     def setUp(self):
@@ -135,7 +166,7 @@ class SpawnTest(unittest.TestCase):
         started = [c for c in calls if c[:2] == ("agent", "start")][0]
         self.assertEqual(started[2], "developer-alpha")
         self.assertIn("developer-alpha", buf.getvalue())
-        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+        with open(task_store.timeline_path(self.state, "project")) as fh:
             self.assertIn("developer-alpha in project", fh.read())
 
 
@@ -360,7 +391,7 @@ class TaskCommandsTest(unittest.TestCase):
         self.task = task_store.create(self.state, "acme", "t", "g", ["criterion holds"])
 
     def events(self):
-        with open(os.path.join(self.state, "timeline.jsonl")) as fh:
+        with open(task_store.timeline_path(self.state, "acme")) as fh:
             return [line for line in fh]
 
     def test_findings_command_records_and_reports_verdict(self):
@@ -700,9 +731,9 @@ class BriefAndReportTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.state = self.tmp.name
 
-    def test_brief_writes_under_state_dir_and_prints_the_path(self):
+    def test_brief_writes_under_the_project_and_prints_the_path(self):
         args = types.SimpleNamespace(
-            state_dir=self.state, name="developer-alpha", task="tsk_1"
+            state_dir=self.state, name="developer-alpha", task="tsk_1", project="acme"
         )
         original = sys.stdin
         sys.stdin = io.StringIO("Goal: add subtract\n")
@@ -715,10 +746,31 @@ class BriefAndReportTest(unittest.TestCase):
 
         path = buf.getvalue().strip()
         self.assertEqual(
-            path, os.path.join(self.state, "briefs", "tsk_1-developer-alpha.md")
+            path,
+            os.path.join(self.state, "acme", "briefs", "tsk_1-developer-alpha.md"),
         )
         with open(path) as fh:
             self.assertIn("add subtract", fh.read())
+
+    def test_brief_resolves_the_project_from_the_task(self):
+        task = task_store.create(self.state, "acme", "t", "g", ["c"])
+        args = types.SimpleNamespace(
+            state_dir=self.state, name="developer-alpha", task=task["id"], project=None
+        )
+        original = sys.stdin
+        sys.stdin = io.StringIO("Goal: add subtract\n")
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                tm.cmd_brief(args)
+        finally:
+            sys.stdin = original
+
+        self.assertTrue(
+            buf.getvalue()
+            .strip()
+            .startswith(os.path.join(self.state, "acme", "briefs"))
+        )
 
     def test_report_save_writes_under_state_dir_and_prints_the_path(self):
         calls = {}
@@ -738,6 +790,7 @@ class BriefAndReportTest(unittest.TestCase):
                 lines=300,
                 save=True,
                 task="tsk_1",
+                project="acme",
             )
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -748,7 +801,7 @@ class BriefAndReportTest(unittest.TestCase):
         path = buf.getvalue().strip()
         self.assertTrue(
             path.startswith(
-                os.path.join(self.state, "reports", "tsk_1-developer-alpha-")
+                os.path.join(self.state, "acme", "reports", "tsk_1-developer-alpha-")
             )
         )
         with open(path) as fh:
@@ -767,6 +820,7 @@ class BriefAndReportTest(unittest.TestCase):
                 lines=300,
                 save=False,
                 task=None,
+                project=None,
             )
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -790,6 +844,7 @@ class BriefAndReportTest(unittest.TestCase):
                     lines=300,
                     save=True,
                     task=None,
+                    project="acme",
                 )
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
@@ -821,6 +876,7 @@ class BriefAndReportTest(unittest.TestCase):
                 lines=300,
                 save=True,
                 task="tsk_1",
+                project="acme",
             )
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -868,22 +924,27 @@ class SessionCommandTest(unittest.TestCase):
         self.state = self.tmp.name
 
     def test_start_status_end_round_trip(self):
+        args = types.SimpleNamespace(state_dir=self.state, project="acme")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            tm.cmd_session_start(types.SimpleNamespace(state_dir=self.state))
+            tm.cmd_session_start(args)
         session = out.getvalue().strip()
         self.assertTrue(session.startswith("sess_"))
 
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            tm.cmd_session_status(types.SimpleNamespace(state_dir=self.state))
+            tm.cmd_session_status(
+                types.SimpleNamespace(state_dir=self.state, project="acme")
+            )
         self.assertEqual(out.getvalue().strip(), session)
 
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            tm.cmd_session_end(types.SimpleNamespace(state_dir=self.state))
+            tm.cmd_session_end(
+                types.SimpleNamespace(state_dir=self.state, project="acme")
+            )
         self.assertEqual(out.getvalue().strip(), session)
-        self.assertIsNone(task_store.current_session(self.state))
+        self.assertIsNone(task_store.current_session(self.state, "acme"))
 
 
 class TaskListAndPruneTest(unittest.TestCase):
@@ -894,7 +955,7 @@ class TaskListAndPruneTest(unittest.TestCase):
 
     def list_ids(self, **overrides):
         args = types.SimpleNamespace(
-            state_dir=self.state, status=None, session=None, all=False
+            state_dir=self.state, project=None, status=None, session=None, all=False
         )
         args.__dict__.update(overrides)
         buf = io.StringIO()
@@ -903,10 +964,10 @@ class TaskListAndPruneTest(unittest.TestCase):
         return buf.getvalue()
 
     def test_list_defaults_to_the_open_session(self):
-        old = task_store.new_session(self.state)
+        old = task_store.new_session(self.state, "acme")
         old_task = task_store.create(self.state, "acme", "old", "g", ["c"])
-        task_store.end_session(self.state)
-        task_store.new_session(self.state)
+        task_store.end_session(self.state, "acme")
+        task_store.new_session(self.state, "acme")
         new_task = task_store.create(self.state, "acme", "new", "g", ["c"])
 
         default = self.list_ids()
@@ -916,15 +977,26 @@ class TaskListAndPruneTest(unittest.TestCase):
         self.assertNotIn(old_task["id"], default)
         self.assertIn(old_task["id"], every)
 
+    def test_list_can_filter_to_one_project(self):
+        acme = task_store.create(self.state, "acme", "a", "g", ["c"])
+        beta = task_store.create(self.state, "beta", "b", "g", ["c"])
+
+        only_acme = self.list_ids(project="acme", all=True)
+
+        self.assertIn(acme["id"], only_acme)
+        self.assertNotIn(beta["id"], only_acme)
+
     def test_prune_archives_closed_tasks_in_the_open_session(self):
-        task_store.new_session(self.state)
+        task_store.new_session(self.state, "acme")
         done = task_store.create(self.state, "acme", "done", "g", ["c"])
         task_store.update(self.state, done["id"], status="approved")
 
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             tm.cmd_task_prune(
-                types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+                types.SimpleNamespace(
+                    state_dir=self.state, project=None, session=None, all=False
+                )
             )
 
         self.assertIn("archived\t1", buf.getvalue())
@@ -933,7 +1005,9 @@ class TaskListAndPruneTest(unittest.TestCase):
     def test_prune_without_a_session_requires_a_scope(self):
         with self.assertRaises(ValueError):
             tm.cmd_task_prune(
-                types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+                types.SimpleNamespace(
+                    state_dir=self.state, project=None, session=None, all=False
+                )
             )
 
 
@@ -989,7 +1063,9 @@ class SessionSummaryTest(unittest.TestCase):
         self.state = self.tmp.name
 
     def summary(self, **overrides):
-        args = types.SimpleNamespace(state_dir=self.state, session=None, all=False)
+        args = types.SimpleNamespace(
+            state_dir=self.state, project="acme", session=None, all=False
+        )
         args.__dict__.update(overrides)
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -997,7 +1073,7 @@ class SessionSummaryTest(unittest.TestCase):
         return buf.getvalue()
 
     def test_counts_tasks_by_status_and_distinct_workers(self):
-        task_store.new_session(self.state)
+        task_store.new_session(self.state, "acme")
         first = task_store.create(self.state, "acme", "a", "g", ["c"], worker="w1")
         task_store.create(self.state, "acme", "b", "g", ["c"], worker="w1")
         task_store.create(self.state, "acme", "c", "g", ["c"], worker="w2")
@@ -1027,7 +1103,9 @@ class SessionSummaryTest(unittest.TestCase):
 
     def test_span_covers_earliest_created_to_latest_updated(self):
         task = task_store.create(self.state, "acme", "a", "g", ["c"])
-        path = os.path.join(self.state, "tasks", f"{task['id']}.json")
+        path = os.path.join(
+            task_store.tasks_dir(self.state, "acme"), f"{task['id']}.json"
+        )
         with open(path) as fh:
             stored = json.load(fh)
         stored["created_at"] = 0
@@ -1038,10 +1116,10 @@ class SessionSummaryTest(unittest.TestCase):
         self.assertIn("span\t3m 12s", self.summary())
 
     def test_defaults_to_the_open_session(self):
-        task_store.new_session(self.state)
+        task_store.new_session(self.state, "acme")
         task_store.create(self.state, "acme", "old", "g", ["c"])
-        task_store.end_session(self.state)
-        task_store.new_session(self.state)
+        task_store.end_session(self.state, "acme")
+        task_store.new_session(self.state, "acme")
         task_store.create(self.state, "acme", "new", "g", ["c"])
 
         self.assertIn("tasks\t1\t", self.summary())
@@ -1093,6 +1171,62 @@ class PermissionsTest(unittest.TestCase):
         actions = {r["action"] for r in data["permissions"]}
         self.assertIn("shell", actions)
         self.assertIn("external_directory", actions)
+
+
+class ProjectResolutionTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = os.path.join(self.tmp.name, "state")
+        self.root = os.path.join(self.tmp.name, "acme")
+        os.makedirs(self.root)
+
+    def with_cwd(self, cwd, func):
+        original = os.getcwd
+        os.getcwd = lambda: cwd
+        try:
+            return func()
+        finally:
+            os.getcwd = original
+
+    def test_explicit_project_wins_over_task_and_cwd(self):
+        task = task_store.create(self.state, "beta", "t", "g", ["c"])
+        task_store.register_project(self.state, "acme", self.root)
+        args = types.SimpleNamespace(
+            state_dir=self.state, project="acme", task=task["id"]
+        )
+
+        self.assertEqual(tm._resolve_project(args), "acme")
+
+    def test_the_tasks_project_is_used(self):
+        task = task_store.create(self.state, "acme", "t", "g", ["c"])
+        args = types.SimpleNamespace(
+            state_dir=self.state, project=None, task=task["id"]
+        )
+
+        self.assertEqual(tm._resolve_project(args), "acme")
+
+    def test_the_cwd_project_is_inferred(self):
+        task_store.register_project(self.state, "acme", self.root)
+        args = types.SimpleNamespace(state_dir=self.state, project=None, task=None)
+
+        resolved = self.with_cwd(
+            os.path.join(self.root, "src"), lambda: tm._resolve_project(args)
+        )
+
+        self.assertEqual(resolved, "acme")
+
+    def test_a_missing_project_names_the_flag(self):
+        args = types.SimpleNamespace(state_dir=self.state, project=None, task=None)
+
+        def resolve():
+            with self.assertRaises(ValueError) as ctx:
+                tm._resolve_project(args)
+            return str(ctx.exception)
+
+        message = self.with_cwd(self.tmp.name, resolve)
+
+        self.assertIn("--project", message)
 
 
 if __name__ == "__main__":
