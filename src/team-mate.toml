@@ -5,6 +5,12 @@
 # no merge across the primary's and a target project's file. Task-level flags
 # override it (for example `--kind`, `--max-iterations`).
 
+# Worker runtime: "herdr" (default) or "claude". `tm` selects it in this order:
+# the `--runtime` flag, then the TM_RUNTIME env var, then this key, then
+# autodetect (herdr when HERDR_ENV=1 and its binary is on PATH, else claude when
+# its binary is on PATH). TM_HERDR and TM_CLAUDE override the binary paths.
+runtime = "herdr"
+
 # Worker coding agent. Any kind supported by `herdr agent start --kind`
 # (for example: omp, pi, claude, codex, opencode, gemini, cursor, droid, amp,
 # grok). Run `herdr agent` for the live list. Per-task override wins.

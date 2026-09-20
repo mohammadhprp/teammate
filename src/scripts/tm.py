@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Team Mate CLI: a thin, low-noise wrapper over Herdr.
+"""Team Mate CLI: a thin, low-noise wrapper over the worker runtime.
 
-Team Mate skills call this instead of raw ``herdr`` so the developer sees one
-concise line per action instead of JSON. Every worker runs in its own tab.
+Team Mate skills call this instead of a runtime's raw CLI so the developer sees
+one concise line per action instead of JSON. Herdr is the default runtime;
+``runtimes.py`` adds a headless Claude backend. The argument surface and the
+one-line output do not depend on which runtime ran.
 """
 
 from __future__ import annotations
@@ -16,62 +18,11 @@ import subprocess
 import sys
 import time
 
+import runtimes
 import task_store
+from runtimes import HerdrError, PromptStalled, REPORT_FILE
 
-HERDR = os.environ.get("TM_HERDR", "herdr")
 NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
-
-
-class HerdrError(RuntimeError):
-    def __init__(self, message, code=None):
-        super().__init__(message)
-        self.code = code
-
-
-def _error(stderr, args):
-    text = stderr.strip()
-    if not text:
-        return HerdrError(f"herdr {' '.join(args)} failed")
-    try:
-        payload = json.loads(text)
-    except json.JSONDecodeError:
-        return HerdrError(text)
-    error = payload.get("error") if isinstance(payload, dict) else None
-    if isinstance(error, dict):
-        return HerdrError(error.get("message") or text, error.get("code"))
-    return HerdrError(text)
-
-
-def _run(args):
-    proc = subprocess.run([HERDR, *args], capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise _error(proc.stderr, args)
-    return proc.stdout
-
-
-def herdr(*args):
-    out = _run(args).strip()
-    if not out:
-        return {}
-    try:
-        return json.loads(out)
-    except json.JSONDecodeError as exc:
-        raise HerdrError(f"unexpected output from herdr: {out[:200]}") from exc
-
-
-def herdr_text(*args):
-    return _run(args)
-
-
-def result(payload):
-    return payload.get("result", payload) if isinstance(payload, dict) else {}
-
-
-def get_agent(name):
-    data = result(herdr("agent", "get", name)).get("agent")
-    if not data:
-        raise HerdrError(f"no agent named {name}")
-    return data
 
 
 def load_config(path):
@@ -85,22 +36,6 @@ def load_config(path):
         return tomllib.load(fh)
 
 
-def next_name():
-    used = {a.get("name") for a in result(herdr("agent", "list")).get("agents", [])}
-    n = 1
-    while f"w{n}" in used:
-        n += 1
-    return f"w{n}"
-
-
-def find_workspace(label):
-    workspaces = result(herdr("workspace", "list")).get("workspaces", [])
-    for workspace in workspaces:
-        if workspace.get("label") == label:
-            return workspace["workspace_id"]
-    return None
-
-
 # Decision handling, from docs/implementation/07-review-and-approval.md.
 DECISIONS = {
     "approve": "approved",
@@ -111,7 +46,6 @@ DECISIONS = {
 
 SKILLS_SUBDIR = os.path.join(".agents", "skills")
 MANAGED_MARKER = ".teammate-managed.json"
-REPORT_FILE = ".teammate-report.md"
 REPORT_PREVIEW_LINES = 5
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
 EXCLUDE_END = "# end Team Mate distributed skills"
@@ -277,10 +211,22 @@ def sync_skills(config, root, names=None):
     return installed, skipped, target
 
 
+def _get_runtime(args):
+    """The backend the command acts through, resolved from the CLI and config."""
+    name = runtimes.resolve_runtime(
+        getattr(args, "config_data", None),
+        flag=getattr(args, "runtime", None),
+    )
+    if name == runtimes.RUNTIME_CLAUDE:
+        return runtimes.ClaudeRuntime(args.state_dir)
+    return runtimes.HerdrRuntime()
+
+
 def cmd_spawn(args):
     config = load_config(args.config)
+    runtime = _get_runtime(args)
     kind = args.kind or config.get("worker_kind", "opencode")
-    name = args.name or next_name()
+    name = args.name or runtime.next_name()
     if not NAME_RE.match(name):
         raise HerdrError(f"invalid worker name: {name}")
     cwd = os.path.abspath(args.cwd)
@@ -300,63 +246,8 @@ def cmd_spawn(args):
                 file=sys.stderr,
             )
 
-    workspace = find_workspace(project)
-    if workspace:
-        created = result(
-            herdr(
-                "tab",
-                "create",
-                "--workspace",
-                workspace,
-                "--cwd",
-                cwd,
-                "--label",
-                args.label or name,
-                "--no-focus",
-            )
-        )
-    else:
-        created = result(
-            herdr(
-                "workspace",
-                "create",
-                "--cwd",
-                cwd,
-                "--label",
-                project,
-                "--no-focus",
-            )
-        )
-        workspace = created["workspace"]["workspace_id"]
-    pane = created["root_pane"]["pane_id"]
-    tab = created["tab"]["tab_id"]
-
-    started = None
-    for _ in range(3):
-        try:
-            started = result(
-                herdr(
-                    "agent",
-                    "start",
-                    name,
-                    "--kind",
-                    kind,
-                    "--pane",
-                    pane,
-                    "--timeout",
-                    "60000",
-                )
-            ).get("agent")
-            break
-        except HerdrError:
-            time.sleep(1)
-    if not started:
-        try:
-            herdr("tab", "close", tab)
-        except HerdrError:
-            pass
-        raise HerdrError(f"could not start {name} in {cwd}")
-
+    spawned = runtime.spawn(name, kind, cwd, project, label=args.label)
+    workspace = spawned.get("workspace")
     if args.task:
         task = task_store.update(
             args.state_dir,
@@ -374,7 +265,10 @@ def cmd_spawn(args):
             f"{name} in {project}",
         )
 
-    print(f"{name}\t{started.get('agent_status', '?')}\t{project}\t{workspace}\t{tab}")
+    print(
+        f"{name}\t{spawned.get('status', '?')}\t{project}\t"
+        f"{workspace}\t{spawned.get('tab', '')}"
+    )
 
 
 def cmd_send(args):
@@ -383,88 +277,49 @@ def cmd_send(args):
     else:
         with open(args.brief) as fh:
             text = fh.read()
-    call = ["agent", "prompt", args.name, text]
-    if args.wait:
-        call.append("--wait")
-    if args.timeout:
-        call += ["--timeout", str(args.timeout)]
+    runtime = _get_runtime(args)
     try:
-        payload = result(herdr(*call))
-    except HerdrError as exc:
-        if args.wait and exc.code == "agent_prompt_stalled":
-            print(
-                "prompt delivered but the agent reported no working state; "
-                "install its Herdr integration or poll with `tm status`",
-                file=sys.stderr,
-            )
-            print(f"{args.name}\tunconfirmed")
-            return
-        raise
-    state = payload.get("agent", {}).get("agent_status", "sent")
+        state = runtime.send(args.name, text, wait=args.wait, timeout=args.timeout)
+    except PromptStalled:
+        print(
+            "prompt delivered but the agent reported no working state; "
+            "install its Herdr integration or poll with `tm status`",
+            file=sys.stderr,
+        )
+        print(f"{args.name}\tunconfirmed")
+        return
     print(f"{args.name}\t{state}")
 
 
 def cmd_status(args):
-    if args.name:
-        rows = [get_agent(args.name)]
-    else:
-        rows = result(herdr("agent", "list")).get("agents", [])
+    runtime = _get_runtime(args)
+    rows = runtime.status(args.name)
     if not rows:
         print("no workers")
         return
     for a in rows:
         print(
-            f"{a.get('name', '?')}\t{a.get('agent_status', '?')}\t"
-            f"{a.get('workspace_id', '')}\t{a.get('cwd', '')}"
+            f"{a.get('name', '?')}\t{a.get('status', '?')}\t"
+            f"{a.get('workspace', '')}\t{a.get('cwd', '')}"
         )
 
 
 def cmd_wait(args):
-    call = ["agent", "wait", args.name]
-    if args.timeout:
-        call += ["--timeout", str(args.timeout)]
-    payload = result(herdr(*call))
-    state = payload.get("agent", {}).get("agent_status", "settled")
+    runtime = _get_runtime(args)
+    state = runtime.wait(args.name, timeout=args.timeout)
     print(f"{args.name}\t{state}")
 
 
-def worker_report_file(name):
-    """The clean report file a worker left in its project, or ``None``.
-
-    ``report-result`` has the worker write its final report to
-    ``.teammate-report.md`` in the project root, which is the agent's ``cwd``,
-    so the primary collects markdown instead of a rendered terminal pane. Only
-    used for the default ``recent-unwrapped`` source: an explicit pane source
-    (for example ``visible`` when inspecting a blocked dialog) must read the
-    pane, not a stale report file.
-    """
-    try:
-        cwd = get_agent(name).get("cwd")
-    except (HerdrError, OSError):
-        return None
-    if not cwd:
-        return None
-    path = os.path.join(cwd, REPORT_FILE)
-    return path if os.path.isfile(path) else None
-
-
 def cmd_report(args):
+    runtime = _get_runtime(args)
     source_file = None
     if args.source == "recent-unwrapped":
-        source_file = worker_report_file(args.name)
+        source_file = runtime.report_file(args.name)
     if source_file:
         with open(source_file) as fh:
             text = fh.read()
     else:
-        text = herdr_text(
-            "agent",
-            "read",
-            args.name,
-            "--source",
-            args.source,
-            "--lines",
-            str(args.lines),
-        )
+        text = runtime.report(args.name, args.source, args.lines)
     if not args.save:
         sys.stdout.write(text)
         return
@@ -539,10 +394,8 @@ def cmd_session_summary(args):
 
 
 def cmd_stop(args):
-    info = get_agent(args.name)
-    herdr("agent", "send-keys", args.name, "ctrl+c")
-    if not args.keep_tab and info.get("tab_id"):
-        herdr("tab", "close", info["tab_id"])
+    runtime = _get_runtime(args)
+    runtime.stop(args.name, keep_tab=args.keep_tab)
     print(f"{args.name}\tstopped")
 
 
@@ -586,12 +439,8 @@ def cmd_project_list(args):
 
 
 def cmd_notify(args):
-    call = ["notification", "show", args.title]
-    if args.body:
-        call += ["--body", args.body]
-    if args.sound:
-        call += ["--sound", args.sound]
-    herdr(*call)
+    runtime = _get_runtime(args)
+    runtime.notify(args.title, body=args.body, sound=args.sound)
     print("notified")
 
 
@@ -932,6 +781,12 @@ def build_parser():
         "--state-dir",
         default=None,
         help="task ledger directory (default: state_dir from config, else ~/.teammate)",
+    )
+    parser.add_argument(
+        "--runtime",
+        choices=list(runtimes.RUNTIMES),
+        default=None,
+        help="worker runtime (default: TM_RUNTIME, the config's runtime, else autodetect)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

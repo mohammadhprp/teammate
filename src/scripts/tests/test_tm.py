@@ -11,6 +11,7 @@ import time
 import types
 import unittest
 
+import runtimes
 import task_store
 import tm
 
@@ -137,12 +138,13 @@ class SpawnTest(unittest.TestCase):
             return {}
 
         task = task_store.create(self.state, "project", "t", "g", ["c"])
-        original_config, original_herdr = tm.load_config, tm.herdr
+        original_config, original_herdr = tm.load_config, runtimes.herdr
         tm.load_config = lambda path: config
-        tm.herdr = fake_herdr
+        runtimes.herdr = fake_herdr
         try:
             args = types.SimpleNamespace(
                 config="ignored",
+                runtime="herdr",
                 kind=None,
                 name="developer-alpha",
                 cwd=self.project,
@@ -159,7 +161,7 @@ class SpawnTest(unittest.TestCase):
             ):
                 tm.cmd_spawn(args)
         finally:
-            tm.load_config, tm.herdr = original_config, original_herdr
+            tm.load_config, runtimes.herdr = original_config, original_herdr
 
         saved = task_store.load(self.state, task["id"])
         self.assertEqual(saved["worker"], "developer-alpha")
@@ -779,13 +781,14 @@ class BriefAndReportTest(unittest.TestCase):
             calls["cmd"] = cmd
             return "worker output\n"
 
-        original_text, original_agent = tm.herdr_text, tm.get_agent
-        tm.herdr_text = fake_read
-        tm.get_agent = lambda name: {"cwd": self.tmp.name}
+        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
+        runtimes.herdr_text = fake_read
+        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
                 name="developer-alpha",
+                runtime="herdr",
                 source="recent-unwrapped",
                 lines=300,
                 save=True,
@@ -796,7 +799,7 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text, tm.get_agent = original_text, original_agent
+            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
 
         path = buf.getvalue().strip()
         self.assertTrue(
@@ -809,13 +812,14 @@ class BriefAndReportTest(unittest.TestCase):
         self.assertEqual(calls["cmd"][0], "agent")
 
     def test_report_without_save_prints_the_output(self):
-        original_text, original_agent = tm.herdr_text, tm.get_agent
-        tm.herdr_text = lambda *cmd: "shown\n"
-        tm.get_agent = lambda name: {"cwd": self.tmp.name}
+        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
+        runtimes.herdr_text = lambda *cmd: "shown\n"
+        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
                 name="developer-alpha",
+                runtime="herdr",
                 source="recent-unwrapped",
                 lines=300,
                 save=False,
@@ -826,20 +830,21 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text, tm.get_agent = original_text, original_agent
+            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
 
         self.assertEqual(buf.getvalue(), "shown\n")
 
     def test_two_saves_in_the_same_second_do_not_collide(self):
-        original_text, original_agent = tm.herdr_text, tm.get_agent
-        tm.herdr_text = lambda *cmd: "worker output\n"
-        tm.get_agent = lambda name: {"cwd": self.tmp.name}
+        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
+        runtimes.herdr_text = lambda *cmd: "worker output\n"
+        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
         paths = []
         try:
             for _ in range(2):
                 args = types.SimpleNamespace(
                     state_dir=self.state,
                     name="developer-alpha",
+                    runtime="herdr",
                     source="recent-unwrapped",
                     lines=300,
                     save=True,
@@ -852,7 +857,7 @@ class BriefAndReportTest(unittest.TestCase):
                 paths.append(buf.getvalue().strip())
                 time.sleep(0.002)
         finally:
-            tm.herdr_text, tm.get_agent = original_text, original_agent
+            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
 
         self.assertNotEqual(paths[0], paths[1])
 
@@ -865,13 +870,14 @@ class BriefAndReportTest(unittest.TestCase):
         def fail_pane(*cmd):
             raise AssertionError("the terminal pane should not be captured")
 
-        original_text, original_agent = tm.herdr_text, tm.get_agent
-        tm.herdr_text = fail_pane
-        tm.get_agent = lambda name: {"cwd": project}
+        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
+        runtimes.herdr_text = fail_pane
+        runtimes.get_agent = lambda name: {"cwd": project}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
                 name="developer-alpha",
+                runtime="herdr",
                 source="recent-unwrapped",
                 lines=300,
                 save=True,
@@ -882,7 +888,7 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text, tm.get_agent = original_text, original_agent
+            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
 
         path = buf.getvalue().strip()
         with open(path) as fh:
@@ -896,13 +902,14 @@ class BriefAndReportTest(unittest.TestCase):
         with open(os.path.join(project, tm.REPORT_FILE), "w") as fh:
             fh.write("stale report\n")
 
-        original_text, original_agent = tm.herdr_text, tm.get_agent
-        tm.herdr_text = lambda *cmd: "blocked dialog\n"
-        tm.get_agent = lambda name: {"cwd": project}
+        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
+        runtimes.herdr_text = lambda *cmd: "blocked dialog\n"
+        runtimes.get_agent = lambda name: {"cwd": project}
         try:
             args = types.SimpleNamespace(
                 state_dir=self.state,
                 name="developer-alpha",
+                runtime="herdr",
                 source="visible",
                 lines=80,
                 save=False,
@@ -912,7 +919,7 @@ class BriefAndReportTest(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 tm.cmd_report(args)
         finally:
-            tm.herdr_text, tm.get_agent = original_text, original_agent
+            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
 
         self.assertEqual(buf.getvalue(), "blocked dialog\n")
 
