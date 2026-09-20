@@ -17,7 +17,7 @@ src/                           # plugin root
   .claude-plugin/plugin.json   # plugin manifest (name, description, version, repository)
   agents/                      # developer, reviewer, tester, investigator subagents
   skills/                      # Team Mate skills, namespaced /teammate:<skill>
-  scripts/                     # tm.py, task_store.py (and runtimes.py when present)
+  scripts/                     # tm.py, task_store.py, runtimes.py
   templates/                   # worker brief, developer report, project AGENTS
   team-mate.toml               # default Team Mate config
   bin/tm                       # POSIX sh wrapper over scripts/tm.py, on the Bash PATH
