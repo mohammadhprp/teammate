@@ -196,6 +196,9 @@ if [ "$PLUGIN" -eq 1 ]; then
   plugin_dest="$DEST/.claude/plugins/teammate"
   rm -rf "$plugin_dest"
   copy_tree "$src" "$plugin_dest"
+  # The overlay README documents the source tree, not the plugin; keep it out
+  # of the installed plugin.
+  rm -f "$plugin_dest/README.md"
   info "installed Claude plugin -> ${plugin_dest#"$DEST"/}"
   printf '\nDone. Load the plugin in Claude Code or Cowork with:\n  claude --plugin-dir "%s"\n' "$plugin_dest"
   exit 0
