@@ -30,6 +30,26 @@ curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/instal
 `claude`, or `omp`).
   - `--force` (overwrite, keeping a `.bak`)
   - `--no-launch` (set up only).
+  - `--plugin` (install the Claude plugin from `src/`, then stop; no Herdr).
+
+After installing, run `/reload-plugins` (or restart Claude Code). You get the
+Team Mate skills as `/teammate:<skill>`, four worker subagents (`developer`,
+`reviewer`, `tester`, `investigator`), the `tm` CLI on the Bash `PATH`, and
+best-effort session and report hooks.
+
+In **Cowork**, enable the plugin for your claude.ai account; Claude Code
+downloads it into the session, which has no Herdr.
+
+To delegate workers to headless Claude instead of Herdr, select the `claude`
+runtime:
+
+```bash
+tm --runtime claude spawn --cwd <project> --name developer-alpha
+```
+
+Or set it persistently with `runtime = "claude"` in `team-mate.toml`, or
+`TM_RUNTIME=claude`. Herdr stays the default. The `--runtime` flag must come
+before the subcommand.
 
 ## Overview
 
