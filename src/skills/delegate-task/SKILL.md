@@ -8,6 +8,11 @@ description: "Spawn one worker agent in its own project workspace tab and hand i
 Create one worker in its own tab, give it everything it needs, and return
 control to the loop. Use `python3 scripts/tm.py` so output stays concise.
 
+`tm` selects the runtime per spawn: the `--runtime` flag, then `TM_RUNTIME`,
+then the `runtime` key in `team-mate.toml`, then autodetection. **Herdr is the
+default**; `claude` is a headless backend with no workspace or tab. The flag
+precedes the subcommand: `tm --runtime claude spawn ...`.
+
 ## When to use
 
 - A ledger task exists and needs a worker.
@@ -25,17 +30,19 @@ control to the loop. Use `python3 scripts/tm.py` so output stays concise.
 - Project root (`--cwd`) and project name (`--project`), resolved with
   `multi-project-context`.
 - Ledger task id (`--task`).
-- Worker kind: `worker_kind` from `team-mate.toml`, or `--kind`. Any kind
-  accepted by `herdr agent start --kind` is supported; the CLI does not restrict
-  the list.
+- Worker kind: `worker_kind` from `team-mate.toml`, or `--kind`. Under the
+  default Herdr runtime any kind accepted by `herdr agent start --kind` is
+  supported (the CLI does not restrict the list); the headless Claude backend
+  records the kind with the worker.
 - Worker name: unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`.
 
 ## Procedure
 
-1. **Spawn the worker.** This reuses (or creates) the Herdr workspace named
-   after the project, distributes the common and worker skills into the project
-   (`tm skills sync`), and starts the agent in a new tab there, without changing
-   the developer's focus.
+1. **Spawn the worker.** Under the default Herdr runtime this reuses (or
+   creates) the project's workspace, distributes the common and worker skills
+   into the project (`tm skills sync`), and starts the agent in a new tab
+   there, without changing the developer's focus. The headless Claude backend
+   has no workspace or tab.
 
    ```bash
    python3 scripts/tm.py spawn --cwd "<project-root>" --project "<project>" --name "<name>" --task "<id>"

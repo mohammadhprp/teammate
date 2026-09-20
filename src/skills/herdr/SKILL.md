@@ -7,6 +7,12 @@ description: "Control Herdr, a terminal multiplexer for coding agents. Use only 
 
 Herdr organizes terminals into workspaces, tabs, and panes, recognizes coding agents running inside panes, and exposes the current session through the `herdr` CLI.
 
+Herdr is the **default** worker runtime, not the only one: `tm` selects the
+runtime from `--runtime`, then `TM_RUNTIME`, then the `runtime` key in
+`team-mate.toml`, then autodetection. This skill drives Herdr directly and
+applies only when the Herdr runtime is selected, or when the user explicitly
+asks for Herdr; the headless Claude backend has no panes to control.
+
 Before issuing any control command, verify that this agent is running inside a Herdr-managed pane:
 
 ```bash

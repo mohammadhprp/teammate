@@ -4,13 +4,15 @@
 agents across multiple software projects.**
 
 The developer talks to one Team Mate session through a coding agent such as
-OpenCode, Codex, or Pi. Team Mate understands its role from `AGENTS.md`, uses
-shared Team Mate capabilities, and uses Herdr as the agent orchestration
-runtime.
+OpenCode, Codex, Pi, or Claude Code. Team Mate understands its role from
+`AGENTS.md`, uses shared Team Mate capabilities, and runs workers on a
+pluggable runtime: Herdr by default, or a headless Claude backend.
 
-Team Mate is not itself an OpenCode plugin. The repository is a collection of
-skills, scripts, workflows, prompts, and documentation that make the Team Mate
-operating model reusable across coding-agent environments.
+Team Mate is not itself an OpenCode plugin, and it is not an agent runtime. It
+is a portable coordination overlay — skills, scripts, workflows, prompts, and
+documentation that make the Team Mate operating model reusable across
+coding-agent environments. It also ships as a Claude plugin, so the same model
+runs in Claude Code and Cowork.
 
 ## Core idea
 
@@ -129,11 +131,13 @@ Developer opens OpenCode / Codex / Pi
 There is no requirement for the developer to manually create every worker
 session.
 
-## Herdr as the runtime
+## The worker runtime
 
-Herdr provides the runtime capabilities Team Mate needs to coordinate agents.
-Team Mate should build on those capabilities rather than reimplementing an
-agent runtime or creating an OpenCode-specific plugin.
+Team Mate runs workers on a **pluggable runtime**. Herdr is the default: it
+provides the live capabilities Team Mate needs to coordinate agents, and Team
+Mate should build on those capabilities rather than reimplementing an agent
+runtime. A headless Claude backend is also available, and the overlay ships as
+a Claude plugin so the same model runs where Herdr is absent, such as Cowork.
 
 The Team Mate repository should therefore focus on the **coordination layer**:
 
@@ -146,8 +150,8 @@ The Team Mate repository should therefore focus on the **coordination layer**:
 - monitoring and reporting patterns;
 - experiments and research.
 
-Herdr is an implementation dependency of the coordination model, not the
-product itself.
+Herdr is the default implementation dependency of the coordination model, not
+the product itself.
 
 ## Shared and project-specific capabilities
 
@@ -335,8 +339,8 @@ and later:
 > "Now investigate the bug in project B and have two agents look at it."
 
 Team Mate should understand the active project context, create the appropriate
-agents, coordinate them through Herdr, use the shared Team Mate capabilities,
-and report the outcome.
+agents, coordinate them through the worker runtime, use the shared Team Mate
+capabilities, and report the outcome.
 
 The developer should think about **what needs to happen**, not about manually
 operating a collection of agent sessions.

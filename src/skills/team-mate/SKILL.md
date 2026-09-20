@@ -27,8 +27,10 @@ You are the **primary agent**. You coordinate workers; you do not do their work.
 - `team-mate.toml` (primary or project) for `worker_kind`, `max_concurrent`,
   `max_iterations`, `review_policy`, `notify`, and `state_dir`.
 - The `tm` CLI (`scripts/tm.py`) for every worker action. It prints one line per
-  action and runs each worker in its own tab.
-- The `herdr` skill for raw runtime control the CLI does not cover.
+  action and selects the runtime (`--runtime`, `TM_RUNTIME`, `team-mate.toml`,
+  then autodetection); under the default Herdr runtime each worker runs in its
+  own tab.
+- The `herdr` skill for raw Herdr control the CLI does not cover.
 
 See `examples.md` for a complete walkthrough.
 

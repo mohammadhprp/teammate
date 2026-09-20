@@ -6,10 +6,11 @@ description: "Keep coordination state in the durable task ledger so it survives 
 # Task ledger
 
 The runtime is ephemeral; the ledger is durable. A Herdr worker disappears when
-its tab closes, and your context is lost when the session compacts, so the task
-record under `state_dir` is what lets coordination resume. Every delegated task
-lives there from before its worker is spawned to its final status — which only
-works if the record is written first and updated as the work moves.
+its tab closes — a headless Claude worker when its process ends — and your
+context is lost when the session compacts, so the task record under `state_dir`
+is what lets coordination resume. Every delegated task lives there from before
+its worker is spawned to its final status — which only works if the record is
+written first and updated as the work moves.
 
 The ledger lives under `state_dir` (default `~/.teammate/`, from
 `team-mate.toml`), one directory per project named after the project slug: one

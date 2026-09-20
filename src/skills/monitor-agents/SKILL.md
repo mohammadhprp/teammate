@@ -8,6 +8,12 @@ description: "Track worker lifecycle and collect evidence until it settles: inte
 Track each worker until it settles, and collect the state needed to review it.
 Use the `tm` CLI; it prints one line per check.
 
+`tm` selects the runtime (`--runtime`, then `TM_RUNTIME`, then the `runtime` key
+in `team-mate.toml`, then autodetection); the commands below are the same
+either way, but the states differ. **Herdr is the default**; the headless
+Claude backend has no `blocked` detection and reports
+`working`/`idle`/`failed`/`unknown`.
+
 ## When to use
 
 - After delegating a task, to wait for the worker.
@@ -29,10 +35,10 @@ Use the `tm` CLI; it prints one line per check.
 
 ## Agents without an integration
 
-Herdr classifies an agent from screen detection plus an optional integration.
-When a worker kind has no integration installed (`herdr integration status`),
-Herdr may report `idle` while the agent is actually working, so `wait` can
-return too early.
+Under the default Herdr runtime, Herdr classifies an agent from screen detection
+plus an optional integration. When a worker kind has no integration installed
+(`herdr integration status`), Herdr may report `idle` while the agent is
+actually working, so `wait` can return too early.
 
 - Install it when practical: `herdr integration install <kind>`.
 - Otherwise do not trust `idle` alone. Confirm completion from evidence —

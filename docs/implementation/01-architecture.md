@@ -1,8 +1,9 @@
 # Architecture
 
-Team Mate is the primary agent. It is not a plugin and it is not a fixed
-orchestration service. It is a reusable operating model built from skills,
-scripts, instructions, and workflows that the primary agent can use with Herdr.
+Team Mate is the primary agent. It is not an OpenCode plugin, and it is not a
+fixed orchestration service — nor an agent runtime. It is a reusable operating
+model built from skills, scripts, instructions, and workflows that the primary
+agent runs on a pluggable worker runtime.
 
 ## Components
 
@@ -14,7 +15,8 @@ scripts, instructions, and workflows that the primary agent can use with Herdr.
 | Team Mate skills | Shared capabilities for coordination and engineering workflows. |
 | Project skills | Capabilities specific to the target project. |
 | Project context | `AGENTS.md`, `CONTEXT.md`, docs, commands, and conventions. |
-| Herdr | Runtime for creating, operating, monitoring, and coordinating agents. |
+| Worker runtime | `tm` selects the backend (`--runtime`, `TM_RUNTIME`, `team-mate.toml`, then autodetect): Herdr by default, or a headless Claude backend. |
+| Claude plugin | The overlay packaged for Claude Code and Cowork: skills, worker subagents, a `bin/tm` wrapper, and best-effort hooks. |
 
 ## Control flow
 
@@ -29,7 +31,7 @@ Team Mate
    ├── Plan / delegate
    │
    ▼
-Herdr
+Runtime (Herdr default)
    │
    ├── Agent A ── implementation
    ├── Agent B ── review
@@ -94,8 +96,9 @@ type.
 
 ## Responsibility boundary
 
-Team Mate owns **judgment and coordination**. Herdr owns the **agent runtime**.
-Project repositories own **project-specific knowledge and execution rules**.
+Team Mate owns **judgment and coordination**. The worker runtime owns the
+**agent runtime** (Herdr by default, or the headless Claude backend). Project
+repositories own **project-specific knowledge and execution rules**.
 
 This boundary should prevent Team Mate from growing into another general agent
 runtime.

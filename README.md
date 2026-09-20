@@ -8,9 +8,10 @@ Team Mate is a **primary AI engineering agent** that coordinates other coding
 agents across multiple projects.
 
 The developer talks to Team Mate through any supported coding agent such as
-OpenCode, Codex, or Pi. Team Mate understands its role from the project's
-`AGENTS.md` and uses [Herdr](https://herdr.dev) to create, manage, monitor, and coordinate other
-agents.
+OpenCode, Codex, Pi, or Claude Code. Team Mate understands its role from the
+project's `AGENTS.md` and runs workers on a pluggable runtime:
+[Herdr](https://herdr.dev) by default, or a headless Claude backend. The overlay
+also ships as a Claude plugin for Claude Code and Cowork.
 
 Each project keeps its own context, `AGENTS.md`, skills, scripts, and other
 project-specific resources. Team Mate supplies shared capabilities on top of

@@ -37,6 +37,9 @@ sees exactly one project's context.
 
 ## Workspace and tab model
 
+This model applies under the default Herdr runtime; the headless Claude backend
+has no workspaces or tabs.
+
 - The primary Team Mate agent runs in the `teammate` workspace
   (`primary_workspace` in `team-mate.toml`).
 - Each target project has its own Herdr workspace named after the project; its

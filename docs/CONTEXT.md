@@ -8,8 +8,10 @@ Team Mate is a research and tooling project for building a reusable operating
 model for a primary AI engineering agent.
 
 The primary agent can run in a coding-agent environment such as OpenCode, Codex,
-or Pi. It uses Herdr as the current agent orchestration runtime and can create
-and manage multiple agents across multiple software projects.
+Pi, or Claude Code. It runs workers on a pluggable runtime — Herdr by default,
+or a headless Claude backend — and can create and manage multiple agents across
+multiple software projects. The overlay also ships as a Claude plugin for
+Claude Code and Cowork.
 
 The repository focuses on shared skills, scripts, workflows, agent instructions,
 conventions, and research.
@@ -88,8 +90,8 @@ Do not confuse the two: the root set is not the product.
 - Read `docs/VISION.md` before changing the product model.
 - Read the relevant `docs/implementation/` pages before making architectural
   decisions.
-- Keep the documentation consistent with the Herdr capabilities that Team Mate
-  depends on.
+- Keep the documentation consistent with the runtime capabilities Team Mate
+  depends on (Herdr by default).
 - Treat implementation details as research until they are validated in a real
   environment.
 - Prefer simple, reusable skills and scripts over application-specific
@@ -97,9 +99,12 @@ Do not confuse the two: the root set is not the product.
 
 ## Herdr
 
-Herdr is the current orchestration runtime used by Team Mate. Do not duplicate
-Herdr's agent-runtime responsibilities inside this repository unless research
-shows a clear need.
+Herdr is the **default** worker runtime used by Team Mate. `tm` selects the
+runtime from `--runtime`, then `TM_RUNTIME`, then the `runtime` key in
+`team-mate.toml`, then autodetection; a headless **Claude** backend also exists,
+and the overlay ships as a **Claude plugin** rooted at `src/` for Claude Code and
+Cowork. Do not duplicate the runtime's agent-runtime responsibilities inside
+this repository unless research shows a clear need.
 
 When documenting Herdr-dependent behavior, distinguish between:
 
@@ -135,7 +140,7 @@ explore:
 - the best skill structure;
 - how Team Mate discovers and loads shared skills;
 - how project-local skills compose with Team Mate skills;
-- reliable Herdr agent lifecycle management;
+- reliable agent lifecycle management across runtimes;
 - multi-project context isolation;
 - progress and log collection;
 - review and feedback workflows;

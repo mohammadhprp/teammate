@@ -3,9 +3,11 @@
 This directory contains the long-term R&D for Team Mate.
 
 Team Mate is a primary AI engineering agent that coordinates dynamically
-created agents across multiple projects. Herdr is the current runtime used for
-agent orchestration. The Team Mate repository provides reusable skills, scripts,
-workflows, instructions, and conventions rather than an OpenCode plugin.
+created agents across multiple projects. It runs them on a pluggable worker
+runtime — Herdr by default, or a headless Claude backend — and also ships as a
+Claude plugin for Claude Code and Cowork. The Team Mate repository provides
+reusable skills, scripts, workflows, instructions, and conventions rather than
+an OpenCode plugin.
 
 The implementation is intentionally **research-driven**. We should validate the
 operating model with real agents before committing to a large framework.
@@ -62,13 +64,14 @@ Team Mate
 Shared Team Mate skills/scripts
             │
             ▼
-         Herdr
-      agent runtime
+      Worker runtime
+      (Herdr default)
 ```
 
-Team Mate decides what work needs to happen and which agents are useful. Herdr
-provides the runtime mechanisms for operating those agents. Project-local
-context defines how work should be performed in each project.
+Team Mate decides what work needs to happen and which agents are useful. The
+selected worker runtime provides the runtime mechanisms for operating those
+agents. Project-local context defines how work should be performed in each
+project.
 
 ## Responsibility boundaries
 
@@ -88,10 +91,10 @@ Execute specialized assignments. They can be implementation agents, reviewers,
 debuggers, testers, investigators, planners, documentation agents, or any
 other role Team Mate determines is useful.
 
-### Herdr
+### Worker runtime
 
-Provides the agent orchestration runtime. Team Mate should use Herdr rather
-than implementing another agent-session runtime.
+Provides the agent orchestration runtime. Team Mate uses the selected backend
+rather than implementing another agent-session runtime; Herdr is the default.
 
 ### Target project
 
@@ -119,7 +122,8 @@ knowledge.
 
 At this stage, avoid turning Team Mate into:
 
-- an OpenCode plugin;
+- an OpenCode-only plugin — the overlay is portable and also ships as a
+  Claude plugin;
 - a replacement for Herdr;
 - a mandatory application or daemon;
 - a fixed collection of predefined agents;
