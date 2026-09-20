@@ -22,6 +22,7 @@ DEST="teammate"
 KIND=""
 FORCE=0
 LAUNCH=1
+PLUGIN=0
 
 info() { printf '  %s\n' "$1"; }
 warn() { printf 'warning: %s\n' "$1" >&2; }
@@ -48,9 +49,14 @@ Options:
   -k, --kind KIND  set the default worker_kind (for example: opencode, omp)
   -f, --force      overwrite existing files (keeps a .bak copy)
       --no-launch  set up only; do not launch Herdr
+      --plugin     install the Claude plugin from src/, then stop (no Herdr)
   -h, --help       show this help
 
 Existing files are not overwritten unless --force is given.
+
+With --plugin the installer installs the Claude plugin from the overlay source
+directory src/ into <dir>/.claude/plugins/teammate, then prints the command that
+loads it in Claude Code or Cowork. Herdr is not required for that path.
 EOF
 }
 
@@ -72,6 +78,10 @@ while [ $# -gt 0 ]; do
       ;;
     --no-launch)
       LAUNCH=0
+      shift
+      ;;
+    --plugin)
+      PLUGIN=1
       shift
       ;;
     -h|--help)
@@ -176,6 +186,19 @@ fi
 # A git repository makes the directory a project root for skill discovery.
 if [ ! -d "$DEST/.git" ] && command -v git >/dev/null 2>&1; then
   git -C "$DEST" init -q && info "initialized git repository"
+fi
+
+# Install the Claude plugin when requested. The plugin root is the overlay
+# source directory src/ itself — no build step and no copied tree — so install
+# it after the overlay; it runs inside Claude Code and Cowork and needs no Herdr.
+if [ "$PLUGIN" -eq 1 ]; then
+  [ -f "$src/.claude-plugin/plugin.json" ] || die "the plugin source is missing from this checkout"
+  plugin_dest="$DEST/.claude/plugins/teammate"
+  rm -rf "$plugin_dest"
+  copy_tree "$src" "$plugin_dest"
+  info "installed Claude plugin -> ${plugin_dest#"$DEST"/}"
+  printf '\nDone. Load the plugin in Claude Code or Cowork with:\n  claude --plugin-dir "%s"\n' "$plugin_dest"
+  exit 0
 fi
 
 # Check for Herdr before launching, offering to install it when missing.

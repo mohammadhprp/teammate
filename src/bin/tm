@@ -1,0 +1,16 @@
+#!/bin/sh
+# Team Mate CLI wrapper for the Claude plugin.
+#
+# Runs the bundled `scripts/tm.py` and forwards every argument. `bin/` is added
+# to the Bash tool PATH while the plugin is enabled, so a session can call `tm`
+# directly. Falls back to the wrapper's own location when CLAUDE_PLUGIN_ROOT is
+# unset (for example when the plugin is run from a checkout).
+
+set -eu
+
+root=${CLAUDE_PLUGIN_ROOT:-}
+if [ -z "$root" ] || [ ! -f "$root/scripts/tm.py" ]; then
+  root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+fi
+
+exec python3 "$root/scripts/tm.py" "$@"
