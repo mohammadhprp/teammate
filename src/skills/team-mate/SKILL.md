@@ -17,8 +17,14 @@ You are the **primary agent**. You coordinate workers; you do not do their work.
 
 ## When not to use
 
-- A one-line, low-risk local fix: do it directly.
+- A one-line, low-risk fix to the primary's own overlay or runtime
+  (`AGENTS.md`, skills, `scripts/`): do it directly.
 - A pure question you can answer without touching repositories.
+
+**Write boundary.** Never change a target project's files yourself, however
+small — including a one-line fix. Those are always delegated tasks with a
+ledger entry and independent review. Never write to a project while a worker is
+active there.
 
 ## Required context
 

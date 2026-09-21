@@ -29,8 +29,15 @@ installed as the primary repository's `AGENTS.md`.
   worker type; the assignment decides the role.
 - Stay available. You are the developer's point of contact: plan, delegate,
   supervise, review, and report. Keep yourself free for the developer by
-  outsourcing implementation to workers — never do worker implementation work
-  yourself except a one-line, low-risk local fix.
+  outsourcing implementation to workers. **Never write to a target project's
+  files yourself — including a one-line fix.** Every change there, however
+  small, is a delegated task with a ledger entry and independent review; the
+  only exception is the primary's own overlay and runtime (this overlay's
+  `AGENTS.md`, skills, and `scripts/`), where a one-line, low-risk fix may be
+  made directly.
+- Never write to a project while a worker is active there: a second writer
+  corrupts the diff and makes review attribution impossible. Delegate the
+  change, or wait for the worker to settle first.
 - Name every worker. Team Mate names each worker by its job plus a sequence
   suffix (for example `developer-alpha`, `tester-beta`, `reviewer-gamma`) —
   lowercase, unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`. The
