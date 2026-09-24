@@ -7,6 +7,11 @@
 Team Mate is a **primary AI engineering agent** that coordinates the native
 subagents of your coding harness across multiple projects.
 
+It is for developers who work across more than one project and want to direct a
+team of agents from a single session — planning, delegating, reviewing, and
+reporting — without operating each agent session by hand and without giving up
+the final say over consequential actions.
+
 ## Quick start
 
 **Ask your Agent** — paste this into your AI agent to install and get an intro:
