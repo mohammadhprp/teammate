@@ -214,12 +214,90 @@ class RenderAgentTest(unittest.TestCase):
                 "# Developer\n\nDo the work.\n"
             )
 
-    def test_a_markdown_harness_keeps_the_original_text(self):
+    def test_claude_and_pi_keep_the_original_text(self):
+        with open(self.path) as fh:
+            original = fh.read()
+        for harness in ("claude", "pi"):
+            with self.subTest(harness=harness):
+                filename, content = harnesses.render_agent(harness, self.path)
+
+                self.assertEqual(filename, "developer.md")
+                self.assertEqual(content, original)
+
+    def test_opencode_renders_a_v2_subagent(self):
         filename, content = harnesses.render_agent("opencode", self.path)
 
         self.assertEqual(filename, "developer.md")
-        with open(self.path) as fh:
-            self.assertEqual(content, fh.read())
+        self.assertIn("mode: subagent", content)
+        # A ``name`` field makes opencode read the legacy schema and drop the
+        # V2 ``permissions`` block, and the legacy ``tools``/``model`` fields
+        # make it drop the agent entirely, so none may be rendered.
+        self.assertNotIn("name:", content)
+        self.assertNotIn("tools:", content)
+        self.assertNotIn("model:", content)
+        self.assertIn("permissions:", content)
+        self.assertIn("- action: edit", content)
+        self.assertIn("- action: skill", content)
+        # The body is preserved as the system prompt.
+        self.assertIn("Do the work.", content)
+
+    def test_opencode_permissions_follow_the_tools_allow_list(self):
+        path = os.path.join(self.tmp.name, "reviewer.md")
+        with open(path, "w") as fh:
+            fh.write(
+                "---\n"
+                "name: reviewer\n"
+                'description: "Review the change"\n'
+                "tools: Read, Bash, Grep, Glob\n"
+                "model: opus\n"
+                "---\n\n"
+                "# Reviewer\n\nReview.\n"
+            )
+
+        _, content = harnesses.render_agent("opencode", path)
+
+        self.assertIn("- action: read", content)
+        self.assertIn("- action: shell", content)
+        self.assertNotIn("- action: edit", content)
+
+    def test_opencode_allows_the_skill_permission_for_every_worker(self):
+        agents_dir = os.path.join(_REPO_ROOT, "src", "agents")
+        for name in ("developer", "reviewer", "tester", "investigator"):
+            with self.subTest(agent=name):
+                _, content = harnesses.render_agent(
+                    "opencode", os.path.join(agents_dir, f"{name}.md")
+                )
+
+                self.assertIn("- action: skill", content)
+
+    def test_omp_renders_a_yaml_tools_list_and_a_model_role(self):
+        filename, content = harnesses.render_agent("omp", self.path)
+
+        self.assertEqual(filename, "developer.md")
+        self.assertIn("name: developer", content)
+        self.assertIn(
+            "tools:\n  - read\n  - write",
+            content,
+        )
+        self.assertIn('model:\n  - "@task"', content)
+
+    def test_omp_maps_the_opus_alias_to_the_slow_role(self):
+        path = os.path.join(self.tmp.name, "investigator.md")
+        with open(path, "w") as fh:
+            fh.write(
+                "---\n"
+                "name: investigator\n"
+                'description: "Investigate"\n'
+                "tools: Read, Bash, Grep, Glob\n"
+                "model: opus\n"
+                "---\n\n"
+                "# Investigator\n\nInvestigate.\n"
+            )
+
+        _, content = harnesses.render_agent("omp", path)
+
+        self.assertIn("tools:\n  - read\n  - bash\n  - grep\n  - glob", content)
+        self.assertIn('model:\n  - "@slow"', content)
 
     def test_codex_renders_toml_with_the_body_as_instructions(self):
         filename, content = harnesses.render_agent("codex", self.path)

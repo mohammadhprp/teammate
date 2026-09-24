@@ -46,9 +46,11 @@ the `tm` wrapper) and writes `CLAUDE.md` at the root, instead of copying into
 - **install skills** (`tm skills sync --cwd <project>`) into a target project's
   harness skills directory — not the primary, whose skills the installer copies
   directly (a `tm skills sync` self-copy would be a no-op);
-- **render agent definitions** (`tm agents sync --cwd <project>`): the canonical
-  `src/agents/*.md` files are copied as-is for the markdown harnesses, and
-  converted to TOML (`name`, `description`, `developer_instructions`) for codex;
+- **render agent definitions** (`tm agents sync --cwd <project>`): each
+  canonical `src/agents/*.md` file is rendered into the harness's own schema —
+  copied as-is for claude and pi, converted to TOML (`name`, `description`,
+  `developer_instructions`) for codex, an opencode V2 subagent definition, or an
+  omp definition with a YAML `tools` list and a model role;
 - **resolve instruction and config paths** when the installer places files and
   when skills/scripts refer to them.
 
@@ -60,16 +62,12 @@ not a second hand-maintained copy.
 
 Whether that rendering is **sufficient** depends on the harness (see each
 section): it is complete for codex (the three required TOML fields), claude,
-and the pi example extension; for opencode V2 it is not, because the copied
-frontmatter sets no `mode` (an omitted `mode` defaults to `primary`, so the
-worker is not a subagent) and uses the legacy `tools` field instead of the V2
-`permissions` list; for omp the comma-separated `tools` string and the `sonnet`
-/ `opus` model aliases are not the omp schema. Fixing opencode/omp rendering is
-tracked below, not done here.
+and the pi example extension, and `tm agents sync` now renders the opencode V2
+and omp schemas directly.
 
 ## opencode
 
-Verified against opencode v2.0.10 (`opencode --version`) and the V2 docs
+Verified against opencode v2.0.16 (`opencode --version`) and the V2 docs
 (<https://opencode.ai/v2/docs/agents/>, <https://opencode.ai/v2/docs/tools/>,
 <https://opencode.ai/v2/docs/config/>); the tool id is also confirmed in the
 installed binary.
@@ -93,12 +91,21 @@ installed binary.
   controls which agents a parent may launch. V1 used `permission` with
   `bash`/`task` action names. `tm permissions init`/`allow` merge the
   state-dir and project-root rules into this file.
-- **Rendering.** `tm agents sync` copies the canonical markdown unchanged. The
-  result is **not V2-sufficient**: an omitted `mode` defaults a new custom
-  agent to `primary`, and `subagent` only launches subagent-mode agents, so a
-  synced worker must add `mode: subagent` (and should use V2 `permissions`
-  rather than the legacy `tools`, and a `provider/model` id rather than the
-  Claude `sonnet`/`opus` aliases).
+- **Rendering.** `tm agents sync` writes a V2 subagent definition:
+  `description`, `mode: subagent`, and a `permissions` allow-list — a deny-all
+  rule followed by an `allow` per canonical tool, then one explicit `allow` for
+  `skill` (the same shape the built-in `explore` agent uses). `skill` is not a
+  canonical tool, but opencode V2 checks the `skill` permission when loading a
+  skill, so without it the deny-all rule would leave a launched worker unable to
+  load any Team Mate skill. It omits `name`, the legacy `tools` string, and
+  `model`: an omitted `mode` defaults a new custom agent to `primary` (so
+  `subagent` cannot launch it), a `name` field makes opencode read the legacy
+  schema and ignore `permissions`, and a legacy `tools` string or a bare
+  `sonnet`/`opus` alias makes opencode **drop the agent entirely** (so
+  `subagent` reports `Unknown agent: <name>`). A subagent with no `model`
+  inherits the parent session's model. Verified live against opencode v2.0.16:
+  `opencode debug agents` lists all four synced workers with `mode: subagent`
+  and the expected permissions.
 - **Skills.** `.opencode/skills`.
 - **Instructions.** `AGENTS.md`.
 - **Headless.** `opencode run`.
@@ -244,11 +251,13 @@ Pi" is a Pi fork.
   `task.agentIdleTtlMs`, `task.softRequestBudget`, `task.maxEffort`,
   `task.eager`, `task.isolation.*`, `async.enabled`, `async.maxJobs`,
   `tier.subagent`, and `skills.enableAgentsUser`/`skills.enableAgentsProject`.
-- **Rendering.** `tm agents sync` copies the canonical markdown unchanged; omp
-  expects `tools` as a YAML list and `model` as a role or model id, so the
-  canonical comma-separated `tools` string and the Claude `sonnet`/`opus`
-  aliases are **not** the omp schema. The rendering is **not yet
-  omp-sufficient**.
+- **Rendering.** `tm agents sync` writes `tools` as a YAML list of omp tool ids
+  (the canonical names lowercased) and maps each canonical model alias to an omp
+  role: `sonnet` → `@task` (the general worker role the bundled `task` agent
+  uses) and `opus` → `@slow` (the thorough role the bundled `reviewer` uses).
+  omp's parser also accepts the canonical comma-separated `tools` string and a
+  scalar `model`, but its own bundled agents use the list form, so the renderer
+  emits that.
 - **Skills.** `.omp/skills`.
 - **Instructions.** `.omp/AGENTS.md`; omp loads `AGENTS.md` from `.omp/`
   directories (it also reads `.agent`/`.agents`, `~/.config/opencode/`, and
@@ -271,7 +280,7 @@ page.
   v2), so confirm the installed Codex's tool list.
 - **OpenCode V1 and V2 differ.** V2 names the tool `subagent` and uses the
   `agents` key and a `permissions` array; V1 called the tool `task` and used
-  `agent`/`permission`. This page names the V2 (installed v2.0.10) shapes, so a
+  `agent`/`permission`. This page names the V2 (installed v2.0.16) shapes, so a
   V1 session will not match the `subagent` name.
 - **Pi requires an extension.** There is no native subagent tool; the
   `subagent` tool and the `.pi/agents` directory are the conventions of the
@@ -283,10 +292,13 @@ page.
   are read from `omp` v18.2.5 and may differ by version. `omp` writes its user
   config to `<agent-dir>/config.yml` (default `~/.omp/agent/config.yml`), not
   `.omp/config.yml`, which is the project-level file.
-- **Agent-definition rendering is incomplete for opencode and omp.** `tm agents
-  sync` copies the canonical frontmatter unchanged; it lacks `mode: subagent`
-  for opencode V2 and uses formats omp does not read. Fixing the rendering is
-  out of scope here and is a remaining concern.
+- **opencode and omp agent rendering is verified at the listing/schema level,
+  not a full live launch.** `tm agents sync` now emits each harness's schema,
+  and `opencode debug agents` (v2.0.16) confirms all four synced workers
+  register as `mode: subagent` with the expected permissions; omp's schema is
+  read from the parser bundled in the installed binary (v18.2.5). A true
+  end-to-end launch of a synced worker (a model call through the harness's
+  subagent tool) was not exercised here.
 - **Claude's instruction file is `CLAUDE.md`, not `AGENTS.md`.** A reader who
   assumes one instruction filename across harnesses will be wrong for claude.
 - **Detection is best-effort and unverified.** The environment markers above

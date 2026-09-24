@@ -32,6 +32,11 @@ get to work. Onboard once; a forced tour is worse than none.
   | `pi` | `subagent` from a Pi extension/package (no native subagent) | `.pi/agents/*.md` | `.pi/skills` | `AGENTS.md` | extension-dependent |
   | `omp` | `task` (batch `tasks[]` or flat; background by default) | `.omp/agents/*.md` | `.omp/skills` | `.omp/AGENTS.md` | yes |
 
+- `tm agents sync --cwd <project>` renders the canonical worker definitions into
+  the harness's own agent schema — an OpenCode V2 subagent (`mode: subagent`), an
+  omp definition (a YAML `tools` list and a model role), codex TOML, or the
+  canonical markdown unchanged for claude/pi — so a synced worker is launchable
+  by that harness's subagent tool.
 - `tm` (`scripts/tm.py`) is the **ledger-only CLI**, not a worker runtime. Its
   surface is `session`, `project`, `task` (including `update --worker`),
   `brief`, `report`, `diff`, `skills sync --cwd`, `agents sync --cwd`,

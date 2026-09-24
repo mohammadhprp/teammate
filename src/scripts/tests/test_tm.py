@@ -1354,14 +1354,23 @@ class AgentsSyncTest(unittest.TestCase):
         os.makedirs(self.target)
 
     def test_a_markdown_harness_installs_the_original_text(self):
-        installed, target = tm.sync_agents("opencode", self.target, source=self.source)
+        installed, target = tm.sync_agents("claude", self.target, source=self.source)
 
         self.assertEqual(installed, ["developer.md"])
-        self.assertEqual(target, os.path.join(self.target, ".opencode", "agents"))
+        self.assertEqual(target, os.path.join(self.target, ".claude", "agents"))
         with open(os.path.join(target, "developer.md")) as fh:
             text = fh.read()
         self.assertIn("# Developer", text)
         self.assertIn("name: developer", text)
+
+    def test_opencode_renders_a_subagent_definition(self):
+        installed, target = tm.sync_agents("opencode", self.target, source=self.source)
+
+        self.assertEqual(installed, ["developer.md"])
+        with open(os.path.join(target, "developer.md")) as fh:
+            text = fh.read()
+        self.assertIn("mode: subagent", text)
+        self.assertNotIn("tools:", text)
 
     def test_codex_renders_a_toml_definition(self):
         installed, target = tm.sync_agents("codex", self.target, source=self.source)

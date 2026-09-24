@@ -201,8 +201,94 @@ def _parse_agent(path):
 
 
 def _toml_string(value):
-    """A TOML basic string; JSON escaping is a subset TOML accepts."""
+    """A double-quoted scalar; JSON escaping is valid TOML and YAML."""
     return json.dumps(value, ensure_ascii=False)
+
+
+def _split_tools(value):
+    """The canonical comma-separated ``tools`` value as a list of names."""
+    return [name.strip() for name in value.split(",") if name.strip()]
+
+
+# The canonical tool names (Claude's spellings) mapped to opencode V2
+# permission actions. ``Write`` and ``Edit`` both map to ``edit``; ``Bash`` is
+# ``shell``.
+_OPENCODE_TOOL_ACTIONS = {
+    "read": "read",
+    "write": "edit",
+    "edit": "edit",
+    "bash": "shell",
+    "grep": "grep",
+    "glob": "glob",
+}
+
+# The canonical model aliases mapped to omp's provider-agnostic model roles:
+# a general worker for the sonnet-class builders, the thorough role for the
+# opus-class reviewers.
+_OMP_MODEL_ROLES = {"sonnet": "@task", "opus": "@slow"}
+
+
+def _opencode_agent(fields, body):
+    """An opencode V2 agent definition.
+
+    opencode V2 silently drops any custom agent whose frontmatter uses the
+    legacy ``tools`` string or a bare model alias, so the canonical fields are
+    rendered into the V2 shape: ``mode: subagent`` (the default is ``primary``,
+    which the ``subagent`` tool cannot launch), a ``permissions`` allow-list
+    (the canonical tools plus ``skill``), and no ``name`` (a ``name`` field
+    makes opencode read the legacy schema and ignore ``permissions``; the file
+    name supplies the agent id). ``model`` is omitted so the subagent inherits
+    the parent session's model.
+    """
+    actions = []
+    for tool in _split_tools(fields.get("tools", "")):
+        action = _OPENCODE_TOOL_ACTIONS.get(tool.lower())
+        if action and action not in actions:
+            actions.append(action)
+    # ``skill`` is not a canonical tool, so it is not derived from ``tools``,
+    # but opencode V2 checks the ``skill`` permission when loading a skill.
+    # Without it, the deny-all rule above would leave a launched worker unable
+    # to load any Team Mate skill.
+    actions.append("skill")
+    lines = [
+        "---",
+        f"description: {_toml_string(fields.get('description', ''))}",
+        "mode: subagent",
+    ]
+    if actions:
+        lines += [
+            "permissions:",
+            '  - action: "*"',
+            '    resource: "*"',
+            "    effect: deny",
+        ]
+        for action in actions:
+            lines += [
+                f"  - action: {action}",
+                '    resource: "*"',
+                "    effect: allow",
+            ]
+    lines.append("---")
+    return "\n".join(lines) + "\n\n" + body + "\n"
+
+
+def _omp_agent(fields, body):
+    """An omp agent definition: a YAML ``tools`` list and an ``@role`` model."""
+    lines = [
+        "---",
+        f"name: {fields['name']}",
+        f"description: {_toml_string(fields.get('description', ''))}",
+    ]
+    tools = [tool.lower() for tool in _split_tools(fields.get("tools", ""))]
+    if tools:
+        lines.append("tools:")
+        lines += [f"  - {tool}" for tool in tools]
+    model = fields.get("model", "")
+    if model:
+        lines.append("model:")
+        lines.append(f'  - "{_OMP_MODEL_ROLES.get(model, model)}"')
+    lines.append("---")
+    return "\n".join(lines) + "\n\n" + body + "\n"
 
 
 def _toml_agent(fields, body):
@@ -218,13 +304,19 @@ def _toml_agent(fields, body):
 def render_agent(harness, path):
     """Render a canonical agent definition for ``harness``.
 
-    Returns ``(filename, content)``: markdown harnesses keep the original text,
-    while codex gets a TOML file with ``name``, ``description``, and
-    ``developer_instructions`` (the body).
+    Returns ``(filename, content)``. A harness whose agent-definition schema
+    differs from the canonical markdown gets a rendered form: codex gets a TOML
+    file with ``name``, ``description``, and ``developer_instructions`` (the
+    body); opencode gets a V2 subagent definition; omp gets a YAML ``tools``
+    list and a model role. Every other markdown harness keeps the original text.
     """
     fields, body = _parse_agent(path)
     name = fields["name"]
     if HARNESS_DESCRIPTORS[harness].agent_def_format == "toml":
         return f"{name}.toml", _toml_agent(fields, body) + "\n"
+    if harness == HARNESS_OPENCODE:
+        return f"{name}.md", _opencode_agent(fields, body)
+    if harness == HARNESS_OMP:
+        return f"{name}.md", _omp_agent(fields, body)
     with open(path, encoding="utf-8") as fh:
         return f"{name}.md", fh.read()
