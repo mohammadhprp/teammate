@@ -1,6 +1,6 @@
 ---
 name: escalate-decision
-description: "Interrupt the developer only when a decision is truly theirs, and make the interruption answerable in one step: lead with the situation and the exact question, add the smallest evidence that makes the call possible, and list the real options. Use when a worker is blocked or failed, acceptance criteria are ambiguous, an action is risky or consequential (commit, merge, push, publish, deploy, delete, or exposing secrets), a review is inconclusive or disputed, or the rework iteration limit is reached — not for routine progress."
+description: "Interrupt the developer only when a decision is truly theirs, and make the interruption answerable in one step: lead with the situation and the exact question, add the smallest evidence that makes the call possible, and list the real options. Use when a worker returns a question or fails, acceptance criteria are ambiguous, an action is risky or consequential (commit, merge, push, publish, deploy, delete, or exposing secrets), a review is inconclusive or disputed, or the rework iteration limit is reached — not for routine progress."
 ---
 
 # Escalate a decision
@@ -13,7 +13,7 @@ everything else you coordinate.
 
 ## When to use
 
-- A worker is `blocked` (waiting on a dialog) or has `failed`.
+- A worker returned a question (is blocked) or has failed.
 - Acceptance criteria are ambiguous or contradictory, and guessing would spend
   real work on the wrong target.
 - An action is risky or consequential — commit, merge, push, publish, deploy,
@@ -31,8 +31,8 @@ everything else you coordinate.
 ## Inputs
 
 - The state that needs a decision, and what you tried.
-- The smallest evidence that makes the decision possible — a blocker's dialog
-  text, review findings, a diff stat, command output.
+- The smallest evidence that makes the decision possible — a worker's question,
+  review findings, a diff stat, command output.
 - The options, with your recommendation.
 
 ## Procedure
@@ -49,20 +49,19 @@ everything else you coordinate.
    - **Options** — the real alternatives, one line each, with your
      recommendation.
 
-3. **For a blocked worker, do not answer its dialog.** Read it and forward the
-   question:
+3. **For a worker that returned a question, do not answer it.** Read its report
+   and forward the question:
 
    ```bash
-   python3 scripts/tm.py report "<name>" --source visible --lines 80
+   python3 scripts/tm.py report "<name>"
    ```
 
-   Herdr is waiting on the worker, not on you; answering on its behalf commits
-   the project to a decision the developer never saw.
+   The worker is waiting on the developer, not on you; answering on its behalf
+   commits the project to a decision the developer never saw.
 
 4. **Deliver it** with `report-progress`, which carries the shared
-   `handoff-report` shape and notifies when `notify` is enabled. Keep the
-   decision request at the top of that report; the developer should not have to
-   read past it to find the question.
+   `handoff-report` shape. Keep the decision request at the top of that report;
+   the developer should not have to read past it to find the question.
 
 5. **Act only as approved.** Record the decision on the ledger
    (`python3 scripts/tm.py task decide <id> approve|request-changes|reject|finalize`)

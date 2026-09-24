@@ -1,14 +1,15 @@
 ---
 name: recover-run
-description: "Reconcile the task ledger against live workers after a primary restart and recover unhealthy agents: classify each task as orphaned, stuck, blocked, or `unknown`, cancel what is unsafe, resume or re-delegate what was lost, and never resend a prompt that may already have been delivered. Use when the primary session restarted or compacted mid-run, when a worker is missing from the live worker list, stalled, or `unknown`, or when the developer asks what happened to work that was running."
+description: "Reconcile the durable ledger with the evidence a run left behind after a primary restart or a lost worker: `tm` cannot list live subagents, so classify each task from its brief, report, and diff, cancel what is unsafe, re-delegate what was lost, and never resend a brief that may already have landed. Use when the primary session restarted or compacted mid-run, when a worker is missing or stalled, or when the developer asks what happened to work that was running."
 ---
 
 # Recover a run
 
 A run breaks in two ways: the primary's context is lost (restart or compaction)
 while workers keep running, or a worker stops making progress. The ledger
-survives the primary; the live worker list shows what is actually alive. Recovery
-is reconciling the two without doing work twice.
+survives the primary; the subagent calls do not. Because `tm` is ledger-only it
+cannot list live subagents, so recovery reconciles the ledger against the
+evidence on disk — the brief, `.teammate-report.md`, and the diff.
 
 The dangerous mistake is re-sending a brief whose first delivery may already
 have taken effect. A worker that received it may already have edited files, and
@@ -18,7 +19,7 @@ question is cheaper than a duplicated change.
 ## When to use
 
 - The primary restarted or compacted while work was in flight.
-- A worker is orphaned, stuck, `blocked`, or `unknown`.
+- A worker is orphaned, stalled, or never returned.
 - The developer asks what happened to work that was running.
 
 ## When not to use
@@ -28,29 +29,29 @@ question is cheaper than a duplicated change.
 ## Inputs
 
 - The ledger (`state_dir`, default `~/.teammate/`).
-- Live worker state from `python3 scripts/tm.py status`.
-- The timeouts you set when delegating — they define what counts as stuck.
-- Each task's project root, worker, and brief.
+- The briefs under `<state_dir>/<project>/briefs/` and the reports under
+  `<state_dir>/<project>/reports/`, or the project's `.teammate-report.md`.
+- `python3 scripts/tm.py diff --cwd "<root>"` for what actually changed.
+- Each task's project root and linked worker.
 
 ## Classify before acting
 
-Reconcile one row per task: the ledger's `worker` and status fields against the
-live agent list. Then classify:
+`tm` cannot list live subagents, so classify from the ledger and the evidence:
 
 | Class | How you recognize it | Default action |
 | --- | --- | --- |
-| healthy | live, and state or output shows progress | keep monitoring (`monitor-agents`) |
-| orphaned | in the ledger, absent from the live agent list (`error: no agent named <name>`) | decide from evidence whether to re-delegate or escalate |
-| stuck | `working` past its timeout with no new output | inspect, then cancel or escalate |
-| blocked | Herdr reports a dialog waiting on input | pause and escalate the question; never answer it |
-| unknown | present but unclassified | treat as unresolved; inspect or escalate, never as success |
+| healthy | a report or a progressing diff exists, and no conflict | keep monitoring (`monitor-agents`) |
+| orphaned | a recorded worker with no report and no matching change | decide from evidence whether to re-delegate or escalate |
+| stalled | no report, no new change, past the expected run time | inspect, then re-delegate or escalate |
+| returned a question | the report or last result asks a question | pause and escalate; never answer it |
+| unresolved | the evidence is ambiguous | treat as unresolved; inspect or escalate, never as success |
 
 ## Never re-send blindly
 
-Before any resend, check whether the first brief took effect: read the worker's
-output and change with `python3 scripts/tm.py report` and
-`python3 scripts/tm.py diff`, and look for the task's files. If it did any of the
-work, do not send the same brief again — resume the worker from where it is, or
+Before any re-delegation, check whether the first brief took effect: read
+`.teammate-report.md` with `python3 scripts/tm.py report`, check the change with
+`python3 scripts/tm.py diff`, and look for the task's files. If it did any of
+the work, do not send the same brief again — resume from where it is, or
 escalate the partial state. Re-delegate only when you can show the original
 delivery never landed.
 
@@ -71,60 +72,51 @@ delivery never landed.
    `python3 scripts/tm.py task prune` archives closed tasks (it moves them to
    `<state_dir>/<project>/archive/`, never deletes).
 
-2. **List live agents** and pair each with its ledger task:
+2. **Read the evidence for each task.** There is no live-worker list; the report
+   and the diff are what tell resume from redo:
 
    ```bash
-   python3 scripts/tm.py status
-   ```
-
-   A recorded worker with no live agent is orphaned.
-
-3. **Classify each task** with the table above. Classify only after inspecting:
-   `idle` is not proof of success, and a `blocked` worker may hold useful output.
-
-4. **Inspect before deciding.** For a live worker, read its state and its change —
-   this is what tells resume from redo:
-
-   ```bash
-   python3 scripts/tm.py report "<name>" --lines 300
+   python3 scripts/tm.py report "<name>"
    python3 scripts/tm.py diff --cwd "<root>" --stat
    ```
 
-5. **Cancel what is unsafe.** Stop workers blocked on a decision you cannot make,
-   writing outside their scope, or racing another stream (see
-   `parallel-coordination`), and record the task `cancelled`:
+3. **Classify each task** with the table above. Classify only after inspecting:
+   a returned worker is not proof of success, and a report that asks a question
+   still holds useful output.
+
+4. **Cancel what is unsafe.** Cancel workers blocked on a decision you cannot
+   make, writing outside their scope, or racing another stream (see
+   `parallel-coordination`) through the harness's own control, then record the
+   task `cancelled`:
 
    ```bash
-   python3 scripts/tm.py stop "<name>"
    python3 scripts/tm.py task update "<id>" --status cancelled
    ```
 
-   Add `--keep-tab` when you need the worker's output before the tab closes.
-
-6. **Resume or re-delegate what was lost.**
-   - *Alive and its task is intact:* keep it, re-establish monitoring with
-     `monitor-agents`, and continue the loop.
+5. **Re-delegate what was lost.**
+   - *Still running and its task is intact:* keep it, re-establish monitoring
+     with `monitor-agents`, and continue the loop.
    - *Gone, or the task lost:* mark the old task `failed`, then re-delegate it
      to a new worker (`delegate-task`). If any of its writes may already be in
      the tree, brief the new worker to reconcile the existing state rather than
      redo it, or escalate first.
 
-7. **Re-verify recovered work.** A tree that survived an interruption has not
+6. **Re-verify recovered work.** A tree that survived an interruption has not
    been checked since it changed; run `verify-evidence` before `review-work`
-   treats it as settled.
+   treats it as recovered.
 
-8. **Escalate ambiguity.** When you cannot tell whether a brief was delivered, or
+7. **Escalate ambiguity.** When you cannot tell whether a brief was delivered, or
    what a dead worker changed, stop and ask the developer with the ledger row and
    the evidence. Duplicating work is worse than one question.
 
 ## Output
 
-A ledger and live-agent view that agree, with every task classified and the
+A ledger that matches the evidence on disk, with every task classified and the
 action taken recorded via `python3 scripts/tm.py task update`.
 
 ## Failure and escalation
 
 - Ambiguous recovery — escalate rather than duplicate work.
-- `blocked` always pauses for the developer.
-- `unknown` is unresolved and never success; do not mark it done to clear the
+- A worker that returned a question always pauses for the developer.
+- Unresolved evidence is never success; do not mark a task done to clear the
   ledger.

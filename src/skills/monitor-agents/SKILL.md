@@ -1,18 +1,13 @@
 ---
 name: monitor-agents
-description: "Track worker lifecycle and collect evidence until it settles: interpret idle/done/working/blocked/unknown and cancel safely, without blocking the primary — poll `status` or background a wait, never a long foreground `--wait`. Use after delegating work and before reviewing it, or whenever a worker seems stalled or the developer asks what an agent is doing; stuck and orphaned workers are `recover-run`'s."
+description: "Track each worker subagent until it returns and collect its evidence: a foreground subagent call returns its result, a background one notifies on completion, so there is no polling — read `.teammate-report.md` with `tm report` and record the settle. Use after delegating work and before reviewing it, or whenever a worker seems stalled or the developer asks what an agent is doing; a lost or orphaned worker is `recover-run`'s."
 ---
 
 # Monitor agents
 
-Track each worker until it settles, and collect the state needed to review it.
-Use the `tm` CLI; it prints one line per check.
-
-`tm` selects the runtime (`--runtime`, then `TM_RUNTIME`, then the `runtime` key
-in `team-mate.toml`, then autodetection); the commands below are the same
-either way, but the states differ. **Herdr is the default**; the headless
-Claude backend has no `blocked` detection and reports
-`working`/`idle`/`failed`/`unknown`.
+A native subagent has no runtime state to poll: a foreground call returns its
+result, and a background call notifies the session when it completes. Tracking a
+worker means waiting for that return, then reading the evidence it left behind.
 
 ## When to use
 
@@ -21,121 +16,82 @@ Claude backend has no `blocked` detection and reports
 
 ## When not to use
 
-- Once a worker has settled and you already have its report: move to
+- Once a worker has returned and you already have its report: move to
   `review-work`.
 
-## States
+## How a subagent settles
 
-| State | Meaning |
+| Outcome | Meaning |
 | --- | --- |
-| `working` | The agent is active. |
-| `idle` / `done` | Ready for input. **Not proof of success.** |
-| `blocked` | Herdr recognized an approval or question dialog waiting on input. |
-| `unknown` | Present but unclassified. **Unresolved, never success.** |
+| returned | The subagent tool call completed. **Ready, not correct.** |
+| returned a question | The worker is blocked on a decision; escalate. |
+| errored | The call failed; inspect, then re-delegate or escalate. |
+| no completion | A background subagent that never notifies, or an abandoned foreground call. Unresolved. |
 
-## Agents without an integration
-
-Under the default Herdr runtime, Herdr classifies an agent from screen detection
-plus an optional integration. When a worker kind has no integration installed
-(`herdr integration status`), Herdr may report `idle` while the agent is
-actually working, so `wait` can return too early.
-
-- Install it when practical: `herdr integration install <kind>`.
-- Otherwise do not trust `idle` alone. Confirm completion from evidence —
-  `python3 scripts/tm.py diff`, the project's tests, `python3 scripts/tm.py
-  report` — as `verify-evidence` requires.
+There is no `working`/`idle`/`done`/`blocked`/`unknown` state to poll: the
+harness reports completion by returning or notifying, and the worker's own
+`.teammate-report.md` is the evidence. A returned subagent is ready for review,
+not proof of success.
 
 ## Wait without going silent
 
-A long wait blocks the primary and leaves the developer without a point of
-contact, which defeats the reason Team Mate stays free. A worker run is minutes
-to tens of minutes, so never sit inside it.
+A long foreground call blocks the primary and leaves the developer without a
+point of contact, which defeats the reason Team Mate stays free. A worker run is
+minutes to tens of minutes, so never sit inside one.
 
-- **Deliver, then poll.** `tm send` without `--wait` returns as soon as the
-  brief is delivered; check `tm status` (non-blocking) between other work.
-- **Background a real wait.** When you need the completion, run it in a
-  background shell and keep working; the session is notified when it finishes.
-  In OpenCode, the shell tool's `background` flag does this; from the TUI,
-  ctrl+b backgrounds a running foreground command.
-- **Do not foreground a long `--wait`.** `tm send --wait` and `tm wait` hold the
-  whole turn. Keep a foreground wait short (a small `--timeout`) and re-check
-  rather than blocking for the full run.
+- **Let the harness wait.** A foreground subagent call returns when the worker
+  finishes; a background subagent notifies the session on completion. Prefer
+  the background path for anything but a quick task — do not poll.
+- **Stay available.** While a background worker runs, keep working on other
+  coordination; the session is notified when it finishes.
 - **Report a long run once.** Staying free is not the same as staying silent.
-  When a worker has run longer than about 15 minutes without settling, emit one
-  interim, developer-visible status — worker name, current state, and elapsed
-  time — then return to polling or the backgrounded wait. A long build that
-  reports nothing until review is a process failure: the developer should never
-  discover a 50-minute run only when it ends. The threshold is what turns
-  routine polling into a progress report; it does not license a blocking wait.
-
-If a foreground command does hang the primary, the developer can press ctrl+b in
-the primary's tab to move it to the background — an escape hatch, not the
-design.
+  When a worker has run longer than about 15 minutes without returning, emit one
+  interim, developer-visible status — worker name, what it is doing, and elapsed
+  time. A long build that reports nothing until review is a process failure.
 
 ## Procedure
 
-1. **Wait for settle (serial).**
+1. **Wait for the return.** The subagent tool call returns the worker's result
+   (foreground), or the session is notified when a background subagent
+   completes. Do not poll for a state that does not exist.
+
+2. **Read the report.**
 
    ```bash
-   python3 scripts/tm.py wait "<name>" --timeout <ms>
+   python3 scripts/tm.py report "<name>"
    ```
 
-   Output: `<name> <state>`. Background this wait, or keep it to a short
-   `--timeout` and re-check; `delegate-task` sends with no `--wait`.
+   That reads `.teammate-report.md` from the project root. If it is missing, the
+   worker did not finish its report — treat that as unresolved, not a pass.
 
-2. **Poll (parallel).**
+3. **Record the settle.**
 
    ```bash
-   python3 scripts/tm.py status          # all workers
-   python3 scripts/tm.py status "<name>" # one worker
+   python3 scripts/tm.py task update "<id>" --status awaiting_review
    ```
 
-   A worker has settled when it is `idle`, `done`, or `blocked`.
+4. **Handle a returned question.** A worker that returns a question instead of a
+   result is blocked. Carry the question to the developer with
+   `escalate-decision`; do not answer it for the worker.
 
-3. **Collect the report.**
+5. **Detect stuck or inactive.** A background worker that never notifies, or a
+   foreground call that errored, is unresolved: inspect with `tm report` and
+   `tm diff`, then escalate or re-delegate (`recover-run`). Do not resend a
+   brief that may already have landed.
 
-   ```bash
-   python3 scripts/tm.py report "<name>" --lines 300
-   ```
+6. **Cancel.** A worker that must stop is cancelled through the harness's own
+   control (for example codex `close_agent`); `tm` does not manage it.
 
-   Use a generous `--lines`; too few truncates the final report. Record the
-   settle with `python3 scripts/tm.py task update <id> --status awaiting_review`.
-
-4. **Handle `blocked`.** Read the dialog, then escalate to the developer with
-   the question. Do not answer it for the worker.
-
-   ```bash
-   python3 scripts/tm.py report "<name>" --source visible --lines 80
-   ```
-
-5. **Detect stuck or inactive.** If the worker stays `working` past the timeout
-   you set when waiting, with no new output, treat it as stuck and escalate. Do
-   not resend a prompt that may already be delivered.
-
-6. **Cancel.**
-
-   ```bash
-   python3 scripts/tm.py stop "<name>"
-   ```
-
-   Interrupts the worker and closes its tab. Use `--keep-tab` to keep the tab.
-
-7. **Orphans.** A worker recorded for a task but absent from
-   `python3 scripts/tm.py status` is orphaned; `python3 scripts/tm.py status
-   <name>` fails with an `error:` line (for example `error: no agent named
-   <name>`). Reconcile it with `recover-run` rather than failing the task
-   blindly.
-
-8. **Confirm nothing stray is left.** Before treating the work as ready for
+7. **Confirm nothing stray is left.** Before treating the work as ready for
    approval, check the report's recorded PIDs and ports and confirm no listener
    the worker started is still running. A live server from a finished task is an
    open finding, not harmless residue: stop it or escalate before review.
 
 ## Output
 
-Settled state, the worker's report, and any blocker text.
+The worker's returned result, its `.teammate-report.md`, and any blocker text.
 
 ## Failure
 
-Timeouts, repeated errors, unexpected scope changes, and lost workers all
-escalate. Never treat `unknown` or inactivity as completion.
+A missing report, a failed call, unexpected scope changes, and lost workers all
+escalate. Never treat a returned subagent or a missing report as completion.

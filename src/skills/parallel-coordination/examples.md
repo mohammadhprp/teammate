@@ -17,21 +17,22 @@ python3 scripts/tm.py task new --project acme --title "Fix README typo" \
   --acceptance "README install command matches install.sh"
 # tsk_2222
 
-# 2. Spawn both, write each brief under the state dir, then submit both without
-#    --wait. `tm brief` prints the path to pass to `send`.
-python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-alpha --task tsk_1111
-python3 scripts/tm.py spawn --cwd ~/code/acme --project acme --name developer-beta --task tsk_2222
+# 2. Persist each brief, start both as background subagents, and link each
+#    worker. The harness notifies as each finishes; do not block on the first.
 python3 scripts/tm.py brief developer-alpha --task tsk_1111 <<'EOF'
 <subtract brief>
 EOF
-python3 scripts/tm.py send developer-alpha --brief "<printed-path>"
 python3 scripts/tm.py brief developer-beta --task tsk_2222 <<'EOF'
 <README brief>
 EOF
-python3 scripts/tm.py send developer-beta --brief "<printed-path>"
+# claude: Agent(..., run_in_background=True); omp: task(tasks=[...]);
+# codex: spawn_agent then wait_agent.
+python3 scripts/tm.py task update tsk_1111 --worker developer-alpha --status working
+python3 scripts/tm.py task update tsk_2222 --worker developer-beta --status working
 
-# 3. Poll the batch; a worker has settled when it is idle, done, or blocked.
-python3 scripts/tm.py status
+# 3. Await completion, then read each report.
+python3 scripts/tm.py report developer-alpha
+python3 scripts/tm.py report developer-beta
 
 # 4. Land in the declared order, re-checking the combined tree each time.
 (cd ~/code/acme && python3 -m unittest discover -s tests -q)
@@ -69,6 +70,5 @@ mid-run" — it was rendering the other stream's page.
 A refactor of `parser.py` and a feature that also edits `parser.py` share a
 write set. Running them together means the second worker overwrites the first,
 and neither can see it. They are not independent, so run them serially — one
-worker at a time, waiting via `python3 scripts/tm.py wait` / `status` (or a
-backgrounded wait), not a flag — or make one stream own `parser.py` and rebase
-the other after it lands.
+worker at a time, letting the first return before starting the next — or make
+one stream own `parser.py` and rebase the other after it lands.

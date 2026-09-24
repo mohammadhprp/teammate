@@ -1,6 +1,6 @@
 ---
 name: independent-review
-description: "Prevent an implementer from being the only judge of its own work: once `review-work`'s gate warrants a separate reviewer, spawn and brief that reviewer with the objective, acceptance criteria, and evidence — never the implementer's conclusion — and collect findings only. Use when the change is important or risky — auth, money, user data, migrations, public interfaces, concurrency, or parallel writers — when a criterion is hard to self-check, or whenever the developer asks for a second opinion — even if the implementer already reported success."
+description: "Prevent an implementer from being the only judge of its own work: once `review-work`'s gate warrants a separate reviewer, delegate that reviewer through the harness's subagent tool with the objective, acceptance criteria, and evidence — never the implementer's conclusion — and collect findings only. Use when the change is important or risky — auth, money, user data, migrations, public interfaces, concurrency, or parallel writers — when a criterion is hard to self-check, or whenever the developer asks for a second opinion — even if the implementer already reported success."
 ---
 
 # Independent review
@@ -32,7 +32,7 @@ reviewer worker is warranted. This skill applies once that gate picks one.
   for a one-line config change.
 - The work is already independently reviewed and only rework remains: see
   `run-rework`.
-- Nothing has settled yet: wait with `monitor-agents` first.
+- Nothing has returned yet: wait with `monitor-agents` first.
 
 ## Inputs
 
@@ -46,7 +46,7 @@ reviewer worker is warranted. This skill applies once that gate picks one.
 
 1. **Take the gate's decision.** `review-work` decides whether to review
    (`review_policy`) and whether a separate reviewer worker is warranted; once
-   one is, this skill's job is to spawn and brief that reviewer, not to
+   one is, this skill's job is to delegate and brief that reviewer, not to
    re-decide. Name the reason in the brief — a review you cannot justify is cost
    without value.
 
@@ -55,18 +55,22 @@ reviewer worker is warranted. This skill applies once that gate picks one.
    commands that prove the criteria. Leave out the implementer's account of
    success: a reviewer anchored on "it works" tends to confirm it.
 
-3. **Spawn the reviewer** with `delegate-task`, in the same project, as a
+3. **Delegate the reviewer** with `delegate-task`, in the same project, as a
    worker distinct from the implementer. The ledger records one worker per
    task, so do not relink the task's worker field — `task find --worker` must
-   still resolve the implementer. Spawn without `--task` and pass the task id
-   inside the brief:
+   still resolve the implementer. Delegate without its own task and pass the
+   task id inside the brief. The harness's subagent tool call takes the brief
+   as its prompt:
 
    ```bash
-   python3 scripts/tm.py spawn --cwd "<root>" --project "<project>" --name "<reviewer>"
+   python3 scripts/tm.py brief "<reviewer>" --task "<id>" <<'EOF'
+   <review brief>
+   EOF
+   # call the harness subagent tool with the brief; do not link the task's worker
    ```
 
-   A reviewer is normally spawned without `--task` and owns no task. If the
-   review itself must be tracked, ledger it as a `--kind review` task
+   A reviewer is normally delegated without its own task and owns no task. If
+   the review itself must be tracked, ledger it as a `--kind review` task
    (`tm task new --kind review`); the findings and verdict still land on the
    **build** task, and the review task never enters the approval queue.
 
@@ -74,13 +78,13 @@ reviewer worker is warranted. This skill applies once that gate picks one.
    acceptance criterion, and the evidence paths. Tell it to apply `review-task`,
    judge the work rather than the summary, name the checks it runs, and return
    findings with a `pass`/`fail`/`inconclusive` verdict and no changes of its
-   own. Write the brief with `tm brief` and send it with `tm send`
+   own. Persist the brief with `tm brief` and pass it as the subagent prompt
    (`delegate-task` owns the mechanics). Inline every fact — the reviewer is
    sandboxed to the project and cannot read a path outside it.
 
-5. **Collect** with `monitor-agents`, then read the reviewer's output
-   (`python3 scripts/tm.py report "<reviewer>" --lines 300`). A verdict that
-   names no checks run is not a pass.
+5. **Collect** when the subagent returns (`monitor-agents`), then read the
+   reviewer's output (`python3 scripts/tm.py report "<reviewer>"`). A verdict
+   that names no checks run is not a pass.
 
 6. **Return to the loop.** Hand the findings and verdict to `review-work`,
    which records the outcome and routes a `fail` to `run-rework`; an
@@ -93,9 +97,8 @@ change.
 
 ## Failure and escalation
 
-- A reviewer that starts editing has left its role: stop it
-  (`python3 scripts/tm.py stop "<reviewer>"`), keep its findings as input, and
-  delegate the fix separately.
+- A reviewer that starts editing has left its role: cancel it through the
+  harness, keep its findings as input, and delegate the fix separately.
 - `inconclusive`, or a reviewer and implementer who disagree on a finding: do
   not arbitrate in silence. Put the disagreement and its evidence to the
   developer with `escalate-decision`.

@@ -68,8 +68,8 @@ The primary's `report-progress` renders this contract for the developer through
    is complete.
 5. Leave clean markdown, not a pane capture. When a worker writes a report for
    the primary to collect, save the full report to `.teammate-report.md` in the
-   project root and make it the final message as well; a rendered terminal pane
-   is only the fallback.
+   project root and make it the final message as well; the primary reads that
+   file with `tm report`.
 
 ## Output
 

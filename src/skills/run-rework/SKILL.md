@@ -50,18 +50,19 @@ disagreement from quietly consuming the developer's time.
    feedback is what keeps the next review about the fix rather than about
    discovering what else changed.
 
-3. **Write and send it to the same worker.** It still holds the project
-   context and the diff, so a new worker would only re-derive what this one
-   already knows. Write the brief with `tm brief` so it lands in
-   `state_dir/<project>/briefs/` (the project comes from `--task`), then send
-   that path.
+3. **Send it to the same worker.** Prefer continuing the worker that wrote the
+   change when the harness supports it (for example codex `send_input`); a fresh
+   subagent call carries no memory, so if you start a new one its brief must be
+   self-contained — the findings and the current state of the tree. Write the
+   brief with `tm brief` so it lands in `state_dir/<project>/briefs/` (the
+   project comes from `--task`), then pass it to the harness's subagent tool.
 
    ```bash
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
    <feedback brief>
    EOF
-   python3 scripts/tm.py send "<name>" --brief "<printed-path>"
-   # then poll `tm status` or background `tm wait` (`monitor-agents`)
+   # call the harness subagent tool with the brief (or resume the worker where
+   # the harness supports it); then wait for it to return (`monitor-agents`)
    ```
 
    Keep the feedback inside the worker's sandbox: inline every fact, and never
@@ -72,7 +73,7 @@ disagreement from quietly consuming the developer's time.
    `python3 scripts/tm.py task update <id> --status rework --iteration <n+1>`.
 
 5. **Monitor, then re-review.** Follow `monitor-agents` until the worker
-   settles, then `review-work`. Collect fresh evidence every round — a diff
+   returns, then `review-work`. Collect fresh evidence every round — a diff
    from a previous iteration proves nothing about the current tree.
 
 6. **Decide.** `pass` → `ready_for_approval`. `fail` → back to step 1 if the
@@ -91,6 +92,7 @@ Either a converged pass or a bounded escalation with the full iteration history.
   converge is the developer's call.
 - The worker disputes a finding, or its fix would break scope: do not overrule
   it silently; escalate the disagreement with the evidence.
-- The worker is blocked or failed: escalate; never impersonate it or answer its
-  dialog. If the original worker is gone, re-delegate the findings with
-  `delegate-task` only when its context can be recovered, otherwise escalate.
+- The worker returned a question or failed: escalate; never impersonate it or
+  answer its question. If the original worker is gone, re-delegate the findings
+  with `delegate-task` only when its context can be recovered, otherwise
+  escalate.

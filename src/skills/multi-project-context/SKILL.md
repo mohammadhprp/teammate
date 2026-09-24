@@ -1,6 +1,6 @@
 ---
 name: multi-project-context
-description: "Resolve a task to exactly one project root and keep each project's context isolated, covering the workspace-per-project model. Use before delegating whenever a request names a project, spans or touches multiple repositories, uses an informal or ambiguous project name, or could route a worker's context into the wrong project."
+description: "Resolve a task to exactly one project root and keep each project's context isolated, covering the one-project-per-worker model. Use before delegating whenever a request names a project, spans or touches multiple repositories, uses an informal or ambiguous project name, or could route a worker's context into the wrong project."
 ---
 
 # Multi-project context
@@ -21,39 +21,34 @@ sees exactly one project's context.
 
 ## Resolving a project
 
-- Map each project to its root directory and its workspace label. The label
-  defaults to the `--cwd` basename; pass `--project` to override it.
+- Map each project to its root directory and its registered name. The name
+  defaults to the `--root` basename; pass `--name` to override it.
 - Register the resolved project so its identity is durable, not re-typed:
   `python3 scripts/tm.py project add --name <name> --root <root>`. Use
   `python3 scripts/tm.py project list` to reuse a known root, and to catch a
   name that already points somewhere else — the registry refuses to rebind a
   name to a different root without `--force`.
-- Before delegating, prepare it: `bootstrap-project` writes its `AGENTS.md` and
-  installs the skills the work needs, so the worker starts with context.
+- Before delegating, prepare it: `bootstrap-project` writes its `AGENTS.md`,
+  syncs the harness's skills and agent definitions, and installs the skills the
+  work needs, so the worker starts with context.
 - When the developer uses an informal name, or two projects look similar,
   confirm the resolved root before delegating. Do not guess.
 - A task may touch several projects, but each worker still has one project
   scope. State explicitly which repository a cross-project worker may modify.
 
-## Workspace and tab model
+## One project per worker
 
-This model applies under the default Herdr runtime; the headless Claude backend
-has no workspaces or tabs.
-
-- The primary Team Mate agent runs in the `teammate` workspace
-  (`primary_workspace` in `team-mate.toml`).
-- Each target project has its own Herdr workspace named after the project; its
-  workers run in tabs there.
-- `python3 scripts/tm.py spawn --cwd <root> --project <name>` reuses the
-  workspace with that label or creates it, then starts the worker in a new tab.
-  Keep a project's workers out of other projects' workspaces and out of the
-  primary `teammate` workspace.
+- The primary Team Mate agent runs in the harness from its own repository.
+- Each worker is a native subagent scoped to one project root: the brief names
+  the root, and the worker may read and write only inside it.
+- `delegate-task` starts a worker for one project with the harness's subagent
+  tool; the project's root is what keeps one project's context out of another's.
 
 ## Context isolation
 
 - A worker receives only its own project's `AGENTS.md`, `CONTEXT.md`, skills,
-  scripts, and documentation. Its tab is created with `--cwd` set to the
-  project root, so do not reuse a tab for another project's work.
+  scripts, and documentation. Its brief names the project root, so do not point
+  a worker at another project's tree.
 - Never pass one project's files, secrets, or context into another project's
   worker.
 
@@ -65,8 +60,8 @@ instructions — is defined in `load-project-context`.
 
 ## Output
 
-Each task mapped to exactly one resolved project root and workspace label, with
-no context crossing a project boundary.
+Each task mapped to exactly one resolved project root and project name, with no
+context crossing a project boundary.
 
 ## Failure and escalation
 

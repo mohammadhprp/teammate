@@ -1,17 +1,17 @@
 ---
 name: delegate-task
-description: "Spawn one worker agent in its own project workspace tab and hand it a scoped, self-contained brief built from the task's goal and acceptance criteria. Use when starting one worker for one assignment, or when the assignment needs a specialized worker."
+description: "Delegate one worker by calling your harness's native subagent tool with a scoped, self-contained brief built from the task's goal and acceptance criteria, then link the worker to its ledger task. Use when starting one worker for one assignment, or when the assignment needs a specialized worker."
 ---
 
 # Delegate a task
 
-Create one worker in its own tab, give it everything it needs, and return
-control to the loop. Use `python3 scripts/tm.py` so output stays concise.
+Hand one assignment to one worker subagent, give it everything it needs, and
+return control to the loop. The brief *is* the prompt: the harness's subagent
+tool runs the worker, and `python3 scripts/tm.py` only persists the brief and
+records the link.
 
-`tm` selects the runtime per spawn: the `--runtime` flag, then `TM_RUNTIME`,
-then the `runtime` key in `team-mate.toml`, then autodetection. **Herdr is the
-default**; `claude` is a headless backend with no workspace or tab. The flag
-precedes the subcommand: `tm --runtime claude spawn ...`.
+Run `python3 scripts/tm.py harness` to see the resolved harness and its adapter
+fields; prefer that over hardcoding.
 
 ## When to use
 
@@ -22,33 +22,28 @@ precedes the subcommand: `tm --runtime claude spawn ...`.
 ## When not to use
 
 - The task is still ambiguous: clarify it first (see `plan-work`).
-- A suitable worker is already idle and linked to the same task: prompt it
-  instead of spawning a new one.
+- A suitable worker is already linked to the same task and still running: let
+  it return rather than delegating again.
 
 ## Inputs
 
-- Project root (`--cwd`) and project name (`--project`), resolved with
-  `multi-project-context`.
-- Ledger task id (`--task`).
-- Worker kind: `worker_kind` from `team-mate.toml`, or `--kind`. Under the
-  default Herdr runtime any kind accepted by `herdr agent start --kind` is
-  supported (the CLI does not restrict the list); the headless Claude backend
-  records the kind with the worker.
-- Worker name: unique among live agents, matching `[a-z][a-z0-9_-]{0,31}`.
+- Project root and project name, resolved with `multi-project-context`.
+- Ledger task id (`task-ledger`).
+- Worker role: the assignment decides it — `developer`, `reviewer`, `tester`,
+  or `investigator` — rendered from `src/agents/` by `tm agents sync`.
+- Worker name: unique among active workers, matching `[a-z][a-z0-9_-]{0,31}`.
+- The resolved harness (`tm harness`): which subagent tool to call, and whether
+  it supports background subagents.
 
 ## Procedure
 
-1. **Spawn the worker.** Under the default Herdr runtime this reuses (or
-   creates) the project's workspace, distributes the common and worker skills
-   into the project (`tm skills sync`), and starts the agent in a new tab
-   there, without changing the developer's focus. The headless Claude backend
-   has no workspace or tab.
+1. **Prepare the project's harness surface.** Render the skills and agent
+   definitions the worker's harness loads, once per project:
 
    ```bash
-   python3 scripts/tm.py spawn --cwd "<project-root>" --project "<project>" --name "<name>" --task "<id>"
+   python3 scripts/tm.py skills sync --cwd "<project-root>"
+   python3 scripts/tm.py agents sync --cwd "<project-root>"
    ```
-
-   Output is one line: `<name> <state> <project> <workspace> <tab>`.
 
 2. **Build a self-contained brief** from `templates/worker-brief.md`: project
    name and root; the instruction to read the project's `AGENTS.md` and
@@ -59,47 +54,59 @@ precedes the subcommand: `tm --runtime claude spawn ...`.
    dir, or `~/.teammate` — because the worker runs sandboxed to its project and
    will block on a permission dialog trying to read it. Close with the
    `handoff-report` shape — what changed, which files, the commands run and
-   their results, and anything unresolved — so the report is reviewable without
-   a follow-up.
+   their results, and anything unresolved — and tell it to write
+   `.teammate-report.md` in the project root.
 
-3. **Write and submit the brief.** Put it in the documented location so a run
-   never writes outside the sandbox; `tm brief` writes under
-   `state_dir/<project>/briefs/` (the project comes from `--task`) and prints
-   the path.
+3. **Persist the brief.** `tm brief` writes under `state_dir/<project>/briefs/`
+   (the project comes from `--task`) and prints the path, so the run never
+   writes outside the sandbox and a restart can recover it:
 
    ```bash
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
    <brief>
    EOF
    # <state_dir>/<project>/briefs/<id>-<name>.md
-   python3 scripts/tm.py send "<name>" --brief "<printed-path>"
    ```
 
-   Output is one line: `<name> <state>`.
+4. **Call the harness's subagent tool** with the brief as the prompt, using the
+   tool `tm harness` reports:
 
-   - Omit `--wait`: the send returns once the brief is delivered, and the
-     primary stays free. Track the worker with `monitor-agents`; do not hold the
-     turn for the whole run.
-   - Parallel work: also omit `--wait`, and respect `max_concurrent`
-     (`parallel-coordination`).
-   - If you need the completion, run the wait in a background shell rather than
-     a long foreground `--wait` (`monitor-agents`).
-   - If it prints `<name> unconfirmed`, the prompt was delivered but the agent
-     did not report a working state. Do not resend it. Poll with
-     `monitor-agents` and confirm completion from evidence. For reliable
-     lifecycle states, install the agent integration:
-     `herdr integration install <kind>`.
+   - `opencode`: `task` with `subagent_type` (the worker role), `prompt` (the
+     brief), and `description` (a short label). `background` is experimental.
+   - `codex`: `spawn_agent` with the brief, then `wait_agent` to collect,
+     `send_input` to follow up, and `close_agent` when done. It is
+     prompt-mediated, so ask explicitly for what you need.
+   - `claude`: `Agent` with `subagent_type`, `prompt`, `description`, and
+     `run_in_background` for parallel work.
+   - `pi`: the `subagent` tool from a Pi extension/package; there is no native
+     subagent, so this depends on the extension.
+   - `omp`: `task` with a batch `tasks[]` (or a flat call); background by
+     default.
+
+5. **Link the worker to its task.** The harness owns the worker; the ledger
+   records who owns the task:
+
+   ```bash
+   python3 scripts/tm.py task update "<id>" --worker "<name>" --status working
+   ```
+
+6. **For parallel work, use the harness's background support.** A foreground
+   subagent call returns its result; a background one notifies on completion.
+   Start every stream, then let the notifications arrive — do not block on the
+   first (`parallel-coordination`), and respect `max_concurrent`.
 
 ## Output
 
-The worker name, project, workspace, and settled state.
+The worker linked to its ledger task and, when the subagent returns, its result
+and `.teammate-report.md`.
 
 ## Failure
 
-`python3 scripts/tm.py` prints one `error:` line and exits non-zero. If spawn fails, it rolls back
-the tab it created; retry once, then escalate. If a worker is blocked during
-startup, inspect it with `monitor-agents` and escalate to the developer.
-
-A worker blocked on a permission dialog during a brief usually means the brief
-pointed outside the project. Do not answer the dialog: stop the worker, inline
-the missing fact, and resend (`run-rework` owns the re-brief).
+`python3 scripts/tm.py` prints one `error:` line and exits non-zero. If the
+harness's subagent tool fails to start the worker, retry once, then escalate. A
+worker that returns a question is blocked: carry it to the developer with
+`escalate-decision`; do not answer for it. Cancel a worker that must stop
+through the harness's own control (for example codex `close_agent`); `tm` does
+not manage it. A worker blocked on a permission dialog during a brief usually
+means the brief pointed outside the project; cancel it, inline the missing
+fact, and re-delegate (`run-rework` owns the re-brief).

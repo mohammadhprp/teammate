@@ -1,6 +1,6 @@
 ---
 name: review-task
-description: "Act as an independent reviewer for another worker's output: apply the shared `review-change` method to judge the work rather than the summary, name the checks you actually ran, and return findings with severity and category plus a pass/fail/inconclusive verdict while making no changes yourself. Use when a worker is spawned as a reviewer, or any agent is asked to independently check a change it did not write — insufficient evidence is `inconclusive`, never a pass."
+description: "Act as an independent reviewer for another worker's output: apply the shared `review-change` method to judge the work rather than the summary, name the checks you actually ran, and return findings with severity and category plus a pass/fail/inconclusive verdict while making no changes yourself. Use when a worker is delegated as a reviewer, or any agent is asked to independently check a change it did not write — insufficient evidence is `inconclusive`, never a pass."
 ---
 
 # Review task
@@ -16,8 +16,8 @@ being a reviewer worker.
 
 ## When to use
 
-- You are spawned as a reviewer worker, briefed to judge another worker's output
-  you did not write.
+- You are delegated as a reviewer subagent, briefed to judge another worker's
+  output you did not write.
 - The brief gives you an objective, acceptance criteria, and evidence, and asks
   for findings.
 

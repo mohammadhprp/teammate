@@ -17,7 +17,7 @@ target project's keeps one project's context from leaking into another's.
 
 ## When not to use
 
-- Continuing an already-loaded task in the same project and tab.
+- Continuing an already-loaded task in the same project.
 
 ## Inputs
 

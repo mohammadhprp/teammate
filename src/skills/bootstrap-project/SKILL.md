@@ -43,12 +43,22 @@ Fix that *before* delegating: give the project its context and its skills.
    python3 scripts/tm.py permissions allow --cwd "<project-root>"
    ```
 
-2. **Detect the work's domain and stack.** From the goal and the repository
+2. **Set up the harness surface.** Confirm the resolved harness and render its
+   adapter files into the project, so the worker's harness can load the agent
+   definitions and skills:
+
+   ```bash
+   python3 scripts/tm.py harness
+   python3 scripts/tm.py skills sync --cwd "<project-root>"
+   python3 scripts/tm.py agents sync --cwd "<project-root>"
+   ```
+
+3. **Detect the work's domain and stack.** From the goal and the repository
    (manifests, file types, existing config), name the stack and the capabilities
    the work needs. "A landing page" needs visual design and front-end skill; "a
    CLI" needs testing and packaging — be specific about the query.
 
-3. **Find skills with the Skills CLI.** Use the `find-skills` skill when it is
+4. **Find skills with the Skills CLI.** Use the `find-skills` skill when it is
    available — it is the guide to `npx skills` — and check the skills.sh
    leaderboard first. Then search:
 
@@ -59,7 +69,7 @@ Fix that *before* delegating: give the project its context and its skills.
    Verify before recommending: install count (prefer 1K+, be wary under 100),
    source reputation, and the source repository. Do not pick on keywords alone.
 
-4. **Install what the work needs, into the project.** Install project-scoped so
+5. **Install what the work needs, into the project.** Install project-scoped so
    the capability travels with the project and does not leak between projects;
    use global (`-g`) only for something broadly useful everywhere:
 
@@ -69,15 +79,17 @@ Fix that *before* delegating: give the project its context and its skills.
    ```
 
    Installing new skills is additive; if a candidate would replace an existing
-   project skill, stop and ask instead. Remember the project's `.agents/skills/`
-   holds two populations — Team Mate-managed skills (tracked in
-   `.teammate-managed.json`) and Skills-CLI-installed ones (tracked in
-   `skills-lock.json`). A Team Mate sync never overwrites a skill it does not
-   own, and a name collision between the two is `skills-lock.json`'s owner to
-   resolve, not something to silently replace. If nothing suitable exists, say
-   so and proceed with the common and worker skills — do not install noise.
+   project skill, stop and ask instead. Remember the project's harness skills
+   directory (from `tm harness`; for example `.claude/skills`, `.opencode/skills`,
+   or `.agents/skills` for codex) holds two populations — Team Mate-managed
+   skills (tracked in `.teammate-managed.json`) and Skills-CLI-installed ones
+   (tracked in `skills-lock.json`). A Team Mate sync never overwrites a skill it
+   does not own, and a name collision between the two is `skills-lock.json`'s
+   owner to resolve, not something to silently replace. If nothing suitable
+   exists, say so and proceed with the common and worker skills — do not install
+   noise.
 
-5. **Write or update `AGENTS.md`.** Fill `templates/project-AGENTS.md` with what
+6. **Write or update `AGENTS.md`.** Fill `templates/project-AGENTS.md` with what
    you learned: purpose, stack, the real commands (install, build, test, lint,
    run), the conventions, and the acceptance bar — including how a user-facing
    result is judged. Under **Checks**, name at least one validator that runs
@@ -86,20 +98,21 @@ Fix that *before* delegating: give the project its context and its skills.
    not only a screenshot; a validator the review cannot run is not a check. For
    a UI, also name the dev/preview port the app is served on and require a
    per-worker `agent-browser` session (`--session <stream>`), so a later
-   parallel run has a convention to follow instead of fighting over one tab.
+   parallel run has a convention to follow instead of fighting over one shared
+   browser tab.
    Keep any developer-authored sections; add what is missing.
 
-6. **Create `CONTEXT.md` if missing.** A short file naming the project's
+7. **Create `CONTEXT.md` if missing.** A short file naming the project's
    architecture, key files, and how to work in it. Leave an existing one alone.
 
-7. **Report.** State the skills installed, the files written or updated, and
+8. **Report.** State the skills installed, the files written or updated, and
    anything you could not determine — so the plan that follows is grounded.
 
 ## Output
 
-A project that can accept work: its `AGENTS.md` and `CONTEXT.md` in place, and
-the skills the job needs installed. Brief the worker with it and it will not
-have to guess.
+A project that can accept work: its `AGENTS.md` and `CONTEXT.md` in place, the
+harness's skills and agent definitions rendered into it, and the skills the job
+needs installed. Brief the worker with it and it will not have to guess.
 
 ## Failure and escalation
 

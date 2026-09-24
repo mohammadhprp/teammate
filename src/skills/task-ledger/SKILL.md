@@ -1,16 +1,16 @@
 ---
 name: task-ledger
-description: "Keep coordination state in the durable task ledger so it survives a restart or compaction: create a task before spawning its worker, link the worker that owns it, move the status at each transition, attach the report, and recover with task list / task find --worker / task show. Use whenever you create, update, or resume a delegated task — especially after the primary session restarts or compacts, or when a task's worker no longer appears in the live worker list."
+description: "Keep coordination state in the durable task ledger so it survives a restart or compaction: create a task before dispatching its worker, link the worker that owns it with task update --worker, move the status at each transition, attach the report, and recover with task list / task find --worker / task show. Use whenever you create, update, or resume a delegated task — especially after the primary session restarts or compacts, or when a task's worker left no report."
 ---
 
 # Task ledger
 
-The runtime is ephemeral; the ledger is durable. A Herdr worker disappears when
-its tab closes — a headless Claude worker when its process ends — and your
-context is lost when the session compacts, so the task record under `state_dir`
-is what lets coordination resume. Every delegated task lives there from before
-its worker is spawned to its final status — which only works if the record is
-written first and updated as the work moves.
+The subagent lifecycle is ephemeral; the ledger is durable. A native subagent
+disappears when its call returns, and your context is lost when the session
+compacts, so the task record under `state_dir` is what lets coordination resume.
+Every delegated task lives there from before its worker is dispatched to its
+final status — which only works if the record is written first and updated as
+the work moves.
 
 The ledger lives under `state_dir` (default `~/.teammate/`, from
 `team-mate.toml`), one directory per project named after the project slug: one
@@ -24,10 +24,11 @@ a temp dir.
 ## When to use
 
 - Before delegating: record the task first.
-- At each state change: spawned, settled, review verdict, rework iteration,
+- At each state change: dispatched, returned, review verdict, rework iteration,
   approval or rejection.
-- After a restart or compaction, to reconcile the ledger against live workers.
-- When a worker linked to a task is missing from `python3 scripts/tm.py status`.
+- After a restart or compaction, to reconcile the ledger against the evidence
+  on disk.
+- When a worker linked to a task never returned or left no report.
 
 ## When not to use
 
@@ -41,8 +42,8 @@ Keep to these; they are the whole vocabulary the CLI accepts.
 | Status | Meaning | Set by |
 | --- | --- | --- |
 | `planned` | Recorded, not yet delegated | `task new` (default) |
-| `working` | A worker owns it | `spawn --task` sets this automatically |
-| `awaiting_review` | Worker settled, result not yet judged | you, after collecting the report |
+| `working` | A worker owns it | `task update --worker` sets it |
+| `awaiting_review` | Worker returned, result not yet judged | you, after collecting the report |
 | `rework` | Blocking findings, being fixed | you, with the iteration |
 | `ready_for_approval` | A **build** task passed review, awaiting the developer | you, after a passing review |
 | `approved` / `rejected` | The developer's decision | you, on the decision |
@@ -66,9 +67,9 @@ python3 scripts/tm.py task new --kind review --project <name> --title <t> \
   --goal <g> --acceptance "<c>"
 ```
 
-Reviewers are normally spawned without `--task` and own no task (step 4), so
-most reviews need no ledger entry; create a `--kind review` task only when the
-review itself must be tracked.
+Reviewers are normally delegated without their own task and own no task (step
+4), so most reviews need no ledger entry; create a `--kind review` task only
+when the review itself must be tracked.
 
 ## Session and hygiene
 
@@ -97,7 +98,7 @@ The ledger is shared across runs, so tag each run and keep it clean.
 
 ## Procedure
 
-1. **Create before spawning.** The record must exist before the worker, or a
+1. **Create before dispatching.** The record must exist before the worker, or a
    crash leaves work no one can resume.
 
    ```bash
@@ -109,14 +110,14 @@ The ledger is shared across runs, so tag each run and keep it clean.
    `--acceptance` is required and repeatable; the command prints the new task
    id. Take the goal and criteria from `plan-work`, not from memory.
 
-2. **Link the worker when you spawn it.** Pass `--task <id>`; `spawn` records the
-   worker, root, and workspace and moves the status to `working` in one step:
+2. **Link the worker when you dispatch it.** After the harness's subagent tool
+   starts the worker, record it and move the status to `working` in one step:
 
    ```bash
-   python3 scripts/tm.py spawn --cwd "<root>" --project "<name>" --name "<worker>" --task "<id>"
+   python3 scripts/tm.py task update "<id>" --worker "<worker>" --status working
    ```
 
-   A task holds one `worker`. Spawning a second worker with the same `--task`
+   A task holds one `worker`. Linking a second worker to the same task
    overwrites the first link, so give parallel workers their own tasks; and
    reuse a worker name for one task at a time, because `task find --worker`
    resolves to an active task if any, otherwise the newest matching task — a
@@ -129,31 +130,30 @@ The ledger is shared across runs, so tag each run and keep it clean.
    python3 scripts/tm.py task update <id> --status <status> [--iteration <n>] [--report-file <f>]
    ```
 
-   Update at the transitions that matter — settled, verdict, decision — rather
+   Update at the transitions that matter — returned, verdict, decision — rather
    than on every event. The ledger is a resume point, not a log, and `task show`
    only renders the latest report.
 
-4. **Recover after a restart.** Reconcile the durable ledger with the live
-   runtime instead of trusting memory:
+4. **Recover after a restart.** Reconcile the durable ledger with the evidence
+   on disk instead of trusting memory — `tm` cannot list live subagents:
 
    ```bash
-   python3 scripts/tm.py status                 # live workers
    python3 scripts/tm.py task list              # every recorded task
    python3 scripts/tm.py task find --worker <name>
    python3 scripts/tm.py task show <id>
+   python3 scripts/tm.py report <name>          # the worker's .teammate-report.md
    ```
 
-   - A live worker with no ledger task is either a by-design reviewer or a lost
-     record. A reviewer is spawned without `--task` and owns no task, so take
-     no action and `recover-run` must not flag it as drift; any other
-     unledgered live worker means the record was lost — reconcile it with
-     `recover-run`.
-   - A task whose recorded worker is absent from `status`: orphaned (step 5).
+   - A report with no ledger task is either a by-design reviewer or a lost
+     record. A reviewer is delegated without its own task and owns none, so take
+     no action and `recover-run` must not flag it as drift; any other unledgered
+     worker means the record was lost — reconcile it with `recover-run`.
+   - A task whose recorded worker left no report: orphaned (step 5).
    - Otherwise resume from the recorded status, not from memory.
 
-5. **Detect an orphan.** A task that records a worker missing from
-   `python3 scripts/tm.py status` has lost its worker; `python3 scripts/tm.py
-   status <name>` fails with `error: no agent named <name>`.
+5. **Detect an orphan.** A task whose recorded worker never returned and left no
+   report has lost its worker. `tm report <name>` fails with an `error:` line
+   when neither `.teammate-report.md` nor a stored report exists.
 
    ```bash
    python3 scripts/tm.py task update <id> --status failed
@@ -161,7 +161,7 @@ The ledger is shared across runs, so tag each run and keep it clean.
 
    Mark it `failed` and escalate; deciding whether to re-delegate is
    `recover-run`'s job. Never treat a missing worker as done, and never resend a
-   prompt that may already have been delivered.
+   brief that may already have been delivered.
 
 ## Output
 
@@ -179,7 +179,7 @@ from.
 
 ## Related skills
 
-- `plan-work` supplies the goal and criteria; `delegate-task` spawns the linked
-  worker.
-- `monitor-agents` produces the settle that `awaiting_review` records.
+- `plan-work` supplies the goal and criteria; `delegate-task` dispatches the
+  linked worker.
+- `monitor-agents` produces the return that `awaiting_review` records.
 - `recover-run` reconciles the ledger after a restart.

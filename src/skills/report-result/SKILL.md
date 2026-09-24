@@ -19,7 +19,8 @@ shape, and make the report your final output so the primary can collect it.
 
 ## When not to use
 
-- Mid-task progress: the primary monitors the tab; do not narrate.
+- Mid-task progress: the primary waits for the subagent to return; do not
+  narrate.
 - Nothing has changed since the last report.
 
 ## Inputs
@@ -47,9 +48,9 @@ shape, and make the report your final output so the primary can collect it.
 3. **Write the clean report, then make it your final output.** Write the full
    report as clean markdown to `.teammate-report.md` in the project root — no
    terminal chrome, no duplicated wrapped lines, no token/cost sidebar. That
-   file is what the primary collects; the rendered terminal pane is only a
-   fallback. Emit the same report as your last message, too. Do not change the
-   task's status or mark it approved — that is the primary's call.
+   file is what the primary collects with `tm report`; also return the same
+   report as your final message. Do not change the task's status or mark it
+   approved — that is the primary's call.
 
 ## Output
 

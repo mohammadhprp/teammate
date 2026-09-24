@@ -59,4 +59,4 @@ Claim + command + result, ready to drop into a report's `Verified` section.
   decisive check; a transcript in the report is not a substitute for the run.
 
 The shared standard is applied by `review-change`, required by `commit-changes`,
-and used by the primary's `monitor-agents` before it trusts a settled worker.
+and used by the primary's `monitor-agents` before it trusts a returned worker.

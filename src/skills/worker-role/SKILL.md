@@ -5,7 +5,7 @@ description: "Adopt the worker role: stay inside the assigned project and scope,
 
 # Worker role
 
-A worker is one agent, in one tab, with one project and one brief. The primary
+A worker is one subagent, with one project and one brief. The primary
 coordinates; the worker executes inside the boundary it was given. Holding that
 boundary prevents the two most expensive worker failures: touching work outside
 the assignment, and guessing when a question was available.

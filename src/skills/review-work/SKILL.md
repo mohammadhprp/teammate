@@ -1,6 +1,6 @@
 ---
 name: review-work
-description: "Coordinate review of delegated work: decide who reviews a settled worker's result, obtain an independent review or apply the shared review-change method yourself, record the verdict, and route a fail to run-rework. Use when a worker settles and its result needs checking, or when a rework round came back for another pass."
+description: "Coordinate review of delegated work: decide who reviews a returned worker's result, obtain an independent review or apply the shared review-change method yourself, record the verdict, and route a fail to run-rework. Use when a worker returns and its result needs checking, or when a rework round came back for another pass."
 ---
 
 # Review work
@@ -13,8 +13,8 @@ instead of re-deriving it here.
 
 ## When to use
 
-- A worker has settled (`idle`/`done`) and its result must be checked against
-  the acceptance criteria.
+- A worker has returned and its result must be checked against the acceptance
+  criteria.
 - `review_policy` in `team-mate.toml` requires review, or the change is
   important or risky enough that the implementer should not judge it alone.
 - Rework came back and needs another pass.
@@ -27,7 +27,7 @@ instead of re-deriving it here.
 
 ## Inputs
 
-- The settled task from the ledger (`python3 scripts/tm.py task show <id>`): its
+- The returned task from the ledger (`python3 scripts/tm.py task show <id>`): its
   goal, acceptance criteria, and iteration.
 - The worker's fresh output — `report`, `diff`, and the project's own check
   commands (from `load-project-context`).
@@ -41,12 +41,12 @@ instead of re-deriving it here.
    then collect the worker's current output so the reviewer has fresh material:
 
    ```bash
-   python3 scripts/tm.py report "<name>" --lines 300
+   python3 scripts/tm.py report "<name>"
    python3 scripts/tm.py diff --cwd "<root>" --stat
    ```
 
 2. **Choose the reviewer.** Read `review_policy`: under `always`, review every
-   settled task; under `on-risk`, review important or risky changes; under
+   returned task; under `on-risk`, review important or risky changes; under
    `never`, review only what the developer asks. Apply `review-change` yourself,
    and follow `independent-review` to add a separate reviewer worker that
    applies `review-task` when it is warranted. The reviewer gets the objective,
@@ -87,10 +87,10 @@ instead of re-deriving it here.
    back and repeat monitor → review until it converges or `max_iterations` is
    reached.
 
-5. **Escalate.** On the iteration limit, an `inconclusive` verdict, a blocked or
-   failed worker, or a disputed finding that blocks progress, follow
-   `escalate-decision`: include the full report and one clear question — the
-   developer decides; you recommend.
+5. **Escalate.** On the iteration limit, an `inconclusive` verdict, a worker
+   that returned a question or failed, or a disputed finding that blocks
+   progress, follow `escalate-decision`: include the full report and one clear
+   question — the developer decides; you recommend.
 
 ## Output
 

@@ -70,12 +70,12 @@ would be slower.
 ```mermaid
 sequenceDiagram
     participant User
-    participant CLI
-    participant Runtime
-    User->>CLI: run task
-    CLI->>Runtime: spawn worker
-    Runtime-->>CLI: settled state
-    CLI-->>User: one-line report
+    participant Primary
+    participant Subagent
+    User->>Primary: run task
+    Primary->>Subagent: subagent tool (brief)
+    Subagent-->>Primary: result + .teammate-report.md
+    Primary-->>User: one-line report
 ```
 
 ## Show proof with command output

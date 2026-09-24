@@ -1,6 +1,6 @@
 ---
 name: plan-work
-description: "Turn an ambiguous goal into explicit, testable work before any agent is spawned: restate the outcome, derive acceptance criteria a reviewer could check, choose serial vs parallel, size the smallest useful team, and pick each worker's role. Use whenever a request is non-trivial, should be delegated, spans more than a trivial local edit, arrives vague ('make the app faster', 'add auth'), or reaches a point where it must become tasks — and use it to ask the developer up front instead of spending agents on the wrong work."
+description: "Turn an ambiguous goal into explicit, testable work before any worker is dispatched: restate the outcome, derive acceptance criteria a reviewer could check, choose serial vs parallel, size the smallest useful team, and pick each worker's role. Use whenever a request is non-trivial, should be delegated, spans more than a trivial local edit, arrives vague ('make the app faster', 'add auth'), or reaches a point where it must become tasks — and use it to ask the developer up front instead of spending agents on the wrong work."
 ---
 
 # Plan work
@@ -8,8 +8,8 @@ description: "Turn an ambiguous goal into explicit, testable work before any age
 Planning turns a request into work someone else can check. It is far cheaper to
 spend a minute here than to rework a worker's wrong guess, so the aim is the
 smallest plan that makes the goal, the criteria, and the team unambiguous.
-Planning produces the plan; `task-ledger` records it and `delegate-task` spawns
-it. Planning never spawns a worker itself.
+Planning produces the plan; `task-ledger` records it and `delegate-task`
+dispatches it. Planning never dispatches a worker itself.
 
 ## When to use
 
@@ -77,14 +77,14 @@ it. Planning never spawns a worker itself.
    (that is `review-task`).
 
 7. **Choose the review path.** `review_policy` (`always` | `on-risk` |
-   `never`) decides whether a settled task is reviewed; whether that review is a
+   `never`) decides whether a returned task is reviewed; whether that review is a
    separate reviewer worker is a per-change call (`review-work`,
    `independent-review`). Fold any reviewer into the team size chosen above;
    rework beyond the plan is `run-rework`.
 
 8. **Record the plan, then delegate.** Record each task with `task-ledger` so
-   the plan survives a restart, then spawn with `delegate-task`. Planning ends
-   before the first `spawn`.
+   the plan survives a restart, then dispatch with `delegate-task`. Planning
+   ends before the first dispatch.
 
 ## Output
 
@@ -108,7 +108,7 @@ A compact table is enough:
 
 ## Related skills
 
-- `task-ledger` records this plan; `delegate-task` spawns it.
+- `task-ledger` records this plan; `delegate-task` dispatches it.
 - `multi-project-context` resolves the projects; `escalate-decision` raises the
   blocking questions.
 - `independent-review` and `parallel-coordination` carry out the two choices

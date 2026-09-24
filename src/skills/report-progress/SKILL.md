@@ -1,13 +1,15 @@
 ---
 name: report-progress
-description: "Deliver the developer-facing report and request a decision: fill the shared handoff-report contract in templates/report.md, back every claim with evidence, and notify when notify is enabled. Use when work reaches a state the developer should see; whether that warrants an interrupt is `escalate-decision`'s call."
+description: "Deliver the developer-facing report and request a decision: fill the shared handoff-report contract in templates/report.md and back every claim with evidence. Use when work reaches a state the developer should see; whether that warrants an interrupt is `escalate-decision`'s call."
 ---
 
 # Report progress
 
 The developer should be able to tell what happened and what to decide without
-reading a worker session. This skill is the developer-facing wrapper over the
-shared `handoff-report` contract.
+reading a worker session. A worker returns through the harness's subagent tool
+and leaves its `.teammate-report.md` in the project root; this skill reads that
+report with `python3 scripts/tm.py report` and is the developer-facing wrapper
+over the shared `handoff-report` contract.
 
 ## When to use
 
@@ -16,22 +18,21 @@ shared `handoff-report` contract.
 - A consequential action — merge, push, publish, deploy, delete, or exposing
   secrets — needs the developer's approval.
 - A worker has run past the long-run threshold (about 15 minutes) without
-  settling: one interim status, per `monitor-agents`.
+  returning: one interim status, per `monitor-agents`.
 - Work completes or is cancelled.
 
 ## When not to use
 
-- Nothing important changed since the last report. Routine worker polling
-  belongs to `monitor-agents`, not a developer report; only crossing the
-  long-run threshold earns the one interim status above, not every poll.
+- Nothing important changed since the last report. Routine waiting belongs to
+  `monitor-agents`, not a developer report; only crossing the long-run threshold
+  earns the one interim status above.
 
 ## Inputs
 
 - The persisted task (`python3 scripts/tm.py task show <id>`): goal, criteria,
   iteration, verdict, and findings.
 - The shared `handoff-report` contract and `templates/report.md`.
-- `notify` from `team-mate.toml`, and the decision you are asking the developer
-  to make.
+- The decision you are asking the developer to make.
 
 ## Procedure
 
@@ -46,13 +47,7 @@ shared `handoff-report` contract.
    output example, render the report with `visual-report` and open the HTML for
    the developer. The text still carries the decision; the visual carries the
    evidence.
-3. **Notify** when `notify` is true in `team-mate.toml`:
-
-   ```bash
-   python3 scripts/tm.py notify "Team Mate: <title>" --body "<status>" --sound request
-   ```
-
-4. **Ask for a decision** — approve, request changes, reject, or finalize —
+3. **Ask for a decision** — approve, request changes, reject, or finalize —
    with one clear question, framed with `escalate-decision`, and record the
    answer with `python3 scripts/tm.py task decide <id> <decision>`. Do not
    commit, merge, or push without approval.

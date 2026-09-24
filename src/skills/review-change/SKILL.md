@@ -20,10 +20,10 @@ evidence.
 
 ## When not to use
 
-- The task is still running: the primary waits for it to settle
+- The task is still running: the primary waits for it to return
   (`monitor-agents`).
 - The assignment includes fixing the change: that is implementation, not review.
-- You are deciding whether to review, spawning a reviewer, or driving rework:
+- You are deciding whether to review, delegating a reviewer, or driving rework:
   that coordination is the primary's (`review-work`), not this method.
 
 ## Inputs
