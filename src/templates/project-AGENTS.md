@@ -35,6 +35,15 @@
 - <for a user-facing result: how it is judged — a rendered check, a screenshot,
   a real command and its output — beyond the source existing>
 
+## Commit discipline
+
+- Commit frequently, in small, atomic units: one logical change per commit.
+- Stage only the relevant files — never `git add -A` or `git add .`.
+- Keep unrelated and formatting-only changes out of the same commit.
+- Use a conventional message: `type(scope): description`, imperative, no
+  trailing period.
+- See the `commit-changes` skill for grouping, staging, and messages.
+
 ## Team Mate workers
 
 - Work only inside this project; do not commit, merge, push, publish, deploy, or

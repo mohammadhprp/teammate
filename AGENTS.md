@@ -62,6 +62,19 @@ For multistep tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Commit Discipline
+
+**Commit frequently, in small, atomic units. Stage only what the change needs.**
+
+- One logical (atomic) change per commit; keep a feature and its tests together.
+- Stage only the relevant files — never `git add -A` or `git add .`.
+- Keep unrelated and formatting-only changes out of the same commit; commit
+  reformatting separately.
+- Use a conventional message: `type(scope): description`, imperative, no
+  trailing period.
+- See the `commit-changes` skill for grouping, staging, and messages.
+- Committing is consequential: commit only approved, verified work.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

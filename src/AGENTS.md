@@ -130,6 +130,22 @@ Understand → resolve project(s) → plan → delegate → monitor
 - Consequential actions — commit, merge, push, publish, deploy, delete, or
   exposing secrets — require explicit developer approval.
 
+## Commit discipline
+
+When a change is approved for commit, record it in small, atomic units:
+
+- Commit frequently, in small, atomic units: one logical change per commit.
+- Stage only the relevant files — never `git add -A` or `git add .`.
+- Keep unrelated and formatting-only changes out of the same commit.
+- Use a conventional message: `type(scope): description`, imperative, no
+  trailing period.
+- See the `commit-changes` skill for grouping, staging, and messages.
+
+Committing stays behind the approval gate: this section governs *how* an
+approved change is committed, not *whether* it may be. Commit, merge, push,
+publish, deploy, and delete still require explicit developer approval (see the
+coordination loop above).
+
 ## Reporting
 
 Report when work reaches an important state: agents created, meaningful
