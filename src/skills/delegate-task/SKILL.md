@@ -71,7 +71,7 @@ fields; prefer that over hardcoding.
 4. **Call the harness's subagent tool** with the brief as the prompt, using the
    tool `tm harness` reports:
 
-   - `opencode`: `task` with `subagent_type` (the worker role), `prompt` (the
+   - `opencode`: `subagent` with `agent` (the worker role), `prompt` (the
      brief), `description` (a short label), and `background` for parallel work.
    - `codex`: `spawn_agent` with the brief, then `wait_agent` to collect,
      `send_input` to follow up, and `close_agent` when done. It is

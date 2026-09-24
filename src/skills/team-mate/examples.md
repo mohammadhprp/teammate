@@ -18,12 +18,12 @@ python3 scripts/tm.py skills sync --cwd ~/code/acme
 python3 scripts/tm.py agents sync --cwd ~/code/acme
 
 # 3. Persist the brief, then call the harness's subagent tool with it as the
-#    prompt (here opencode `task`), and link the worker to the task.
+#    prompt (here opencode `subagent`), and link the worker to the task.
 python3 scripts/tm.py brief developer-alpha --task tsk_1a2b3c4d <<'EOF'
 <brief built from templates/worker-brief.md>
 EOF
 # ~/.teammate/acme/briefs/tsk_1a2b3c4d-developer-alpha.md
-# task(subagent_type="developer", prompt=<brief>, description="Add subtract")
+# subagent(agent="developer", prompt=<brief>, description="Add subtract")
 python3 scripts/tm.py task update tsk_1a2b3c4d --worker developer-alpha --status working
 
 # 4. When the subagent returns, read the report it wrote.
