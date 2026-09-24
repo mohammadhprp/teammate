@@ -19,16 +19,15 @@ tm --harness codex harness
 
 | Harness | Subagent tool | Agent definitions | Skills directory | Instructions | Config | Headless | Background |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **opencode** | `task` (`subagent_type`, `prompt`, `description`; `background` experimental) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | `opencode.json` | `opencode run` | experimental |
+| **opencode** | `task` (`subagent_type`, `prompt`, `description`, `background`) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | `opencode.json` | `opencode run` | yes |
 | **codex** | `spawn_agent` + `wait_agent` / `send_input` / `close_agent` (prompt-mediated) | `.codex/agents/*.toml` | `.agents/skills` | `AGENTS.md` | `.codex/config.toml` | `codex exec` | yes |
 | **claude** | `Agent` tool (`subagent_type`, `prompt`, `run_in_background`) | `.claude/agents/*.md` | `.claude/skills` | `CLAUDE.md` | `.claude/settings.json` | `claude -p` | yes |
 | **pi** | `subagent` tool from a Pi extension/package (no native subagent) | `.pi/agents/*.md` | `.pi/skills` | `AGENTS.md` | `.pi/settings.json` | `pi -p` | extension-dependent |
 | **omp** ("Oh My Pi", a Pi fork) | `task` (batch `tasks[]` or flat; background by default) | `.omp/agents/*.md` | `.omp/skills` | `.omp/AGENTS.md` | `.omp/config.yml` | `omp -p` | yes |
 
 `tm harness` prints the `background` field as a boolean: `false` means the
-harness does not background a subagent by default (opencode's background support
-is experimental; pi's depends on the extension). Read the matrix's nuance, not
-the boolean alone, when it matters.
+harness does not background a subagent by default (pi's depends on the
+extension). Read the matrix's nuance, not the boolean alone, when it matters.
 
 These are each harness's **native read paths** — where the harness itself looks
 for skills, agents, and instructions. The installer follows them, with one
@@ -56,8 +55,8 @@ agent-definition schema gets a rendered form, not a second hand-maintained copy.
 
 ## opencode
 
-- **Subagent tool.** `task`, with `subagent_type`, `prompt`, and `description`.
-  Background execution exists but is marked experimental.
+- **Subagent tool.** `task`, with `subagent_type`, `prompt`, `description`, and
+  `background`.
 - **Agent definitions.** `.opencode/agents/*.md`; the canonical markdown is
   copied unchanged.
 - **Skills.** `.opencode/skills`.
@@ -65,6 +64,7 @@ agent-definition schema gets a rendered form, not a second hand-maintained copy.
 - **Config.** `opencode.json` (also where `tm permissions init`/`allow` merge
   the state-dir and project-root rules).
 - **Headless.** `opencode run`.
+- **Background.** Supported (`background`).
 - **Detection marker.** `OPENCODE`.
 
 ## codex

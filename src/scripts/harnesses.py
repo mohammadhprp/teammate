@@ -64,7 +64,7 @@ HARNESS_DESCRIPTORS = {
         instructions_file="AGENTS.md",
         config_file="opencode.json",
         headless_cmd="opencode run",
-        background=False,
+        background=True,
         detect_env=("OPENCODE",),
     ),
     HARNESS_CODEX: Harness(

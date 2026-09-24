@@ -72,7 +72,7 @@ fields; prefer that over hardcoding.
    tool `tm harness` reports:
 
    - `opencode`: `task` with `subagent_type` (the worker role), `prompt` (the
-     brief), and `description` (a short label). `background` is experimental.
+     brief), `description` (a short label), and `background` for parallel work.
    - `codex`: `spawn_agent` with the brief, then `wait_agent` to collect,
      `send_input` to follow up, and `close_agent` when done. It is
      prompt-mediated, so ask explicitly for what you need.

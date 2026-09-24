@@ -170,6 +170,10 @@ class DescribeTest(unittest.TestCase):
         self.assertEqual(fields["agent_defs_dir"], ".codex/agents")
         self.assertTrue(fields["background"])
 
+    def test_background_support_is_per_harness(self):
+        self.assertTrue(harnesses.describe("opencode")["background"])
+        self.assertFalse(harnesses.describe("pi")["background"])
+
 
 class RenderAgentTest(unittest.TestCase):
     def setUp(self):

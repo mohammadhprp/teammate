@@ -103,9 +103,8 @@ in the report.
 
    Start all of them, then let the harness notify you as each completes — do not
    block on the first, which turns the batch back into serial work. Where the
-   harness cannot background (opencode's `background` is experimental; `pi`
-   depends on the extension), run the streams serially instead, letting each
-   return before starting the next.
+   harness cannot background (`pi` depends on the extension), run the streams
+   serially instead, letting each return before starting the next.
 5. **Await completion.** A background subagent notifies when it finishes; a
    foreground one returns. Then read each report with `tm report`. A worker that
    never returns belongs to `recover-run`; a worker that returns a question
