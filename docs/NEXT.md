@@ -1,11 +1,13 @@
 # Next steps
 
-Current state: the Team Mate operating model is validated end to end on live
-Herdr sessions (opencode and `omp`), and the skill library, `tm` CLI, ledger,
-templates, and CI are in place — 34 skills under `src/skills/` with a 98-test
-suite. The hardening from the process review and **all** P0–P2 items of the
-audit-and-improvement plan are implemented. What remains is research, not
-unbuilt capability.
+Current state: the Team Mate operating model is validated end to end in earlier
+live runs (opencode and `omp`), and the skill library, `tm` ledger CLI,
+templates, and CI are in place. The product model has since moved to
+**harness-native subagents**: the primary runs inside one harness and workers
+are that harness's native subagents, while `tm` keeps only the ledger and the
+per-harness adapters. The hardening from the process review and **all** P0–P2
+items of the audit-and-improvement plan are implemented. What remains is
+research, not unbuilt capability.
 
 The history behind that state:
 
@@ -28,5 +30,5 @@ ours, an experiment with a gate where it needs a live run — in the
 - How much state should persist, and what should happen on restart?
 - How should dependencies between agents be coordinated?
 - How should cost, latency, and agent count influence delegation?
-- Should a worker kind's Herdr integration be installed by default for reliable
-  lifecycle states?
+- Which harness needs an extension to expose native subagents, and how should
+  lifecycle state be observed per harness?

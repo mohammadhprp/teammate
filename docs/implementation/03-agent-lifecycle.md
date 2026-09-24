@@ -1,7 +1,7 @@
 # Agent lifecycle
 
-Team Mate should treat agents as dynamic workers with a lifecycle managed
-through Herdr.
+Team Mate should treat agents as dynamic workers — the host harness's native
+subagents — with a lifecycle observed through the harness's subagent tool.
 
 ## Proposed lifecycle
 
@@ -63,7 +63,7 @@ repeatedly failing agents should not continue indefinitely.
 
 ## R&D questions
 
-- What Herdr signals are reliable for lifecycle state?
+- What harness signals are reliable for lifecycle state?
 - How should timeouts be chosen?
 - How should a blocked agent be distinguished from a slow agent?
 - What should happen when the primary Team Mate session disappears?

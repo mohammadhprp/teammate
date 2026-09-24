@@ -39,7 +39,7 @@ inspect.
 
 Potential categories include:
 
-- Herdr helpers;
+- harness adapter helpers;
 - project inspection;
 - status collection;
 - log collection;

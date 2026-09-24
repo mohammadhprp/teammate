@@ -1,18 +1,24 @@
 # src — Team Mate overlay
 
-`src/` is the portable Team Mate source overlay: the role, skills, scripts,
-config, and templates. The [install](#install) step places each file in the
-right location inside a **primary repository**, turning it into a Team Mate
-primary.
+`src/` is the portable Team Mate source overlay: the role, skills, agent
+definitions, scripts, config, and templates. The [install](#install) step places
+each file in the right location inside a **primary repository**, turning it into
+a Team Mate primary.
 
-Herdr is the agent runtime; Team Mate is the coordination layer on top of it.
+The coding harness is the agent runtime; Team Mate is the coordination layer on
+top of it. Workers are the harness's **native subagents** — `tm` records the
+ledger and renders the adapter files, but the primary spawns, waits on, and
+closes workers through the harness itself.
 
 ## Contents
 
 ```text
 src/
   AGENTS.md            # Team Mate role → installed as <primary>/AGENTS.md
-  team-mate.toml       # default limits and worker kind
+                       #   (or CLAUDE.md for the claude harness)
+  team-mate.toml       # default limits and harness
+  agents/              # canonical worker agent definitions (developer, reviewer,
+                       #   tester, investigator) → rendered per harness
   skills/              # Team Mate skills, by audience:
                        #   teammate: team-mate, onboard-developer,
                        #             bootstrap-project, plan-work,
@@ -31,40 +37,55 @@ src/
                        #             raise-blocker, report-result,
                        #             review-task, investigate-issue
   scripts/             # Python helpers:
-                       #   tm.py — low-noise Herdr wrapper (workers in tabs)
+                       #   tm.py — harness-aware ledger CLI (no process spawning)
                        #   task_store.py — file-backed task ledger (~/.teammate)
+                       #   harnesses.py — per-harness adapter descriptors
   templates/           # worker brief, developer report, and project AGENTS templates
 ```
 
 ## Install
 
 Run the installer from the repository root. It creates `./teammate`, installs
-the overlay, initializes a git repository, checks for Herdr, and launches
-Herdr:
+the overlay for the chosen harness, and initializes a git repository:
 
 ```bash
-./install.sh --kind opencode
+./install.sh
 ```
 
-Or without a local checkout:
+Or without a local checkout — one curl, harness auto-detected:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh \
-  | sh -s -- --kind opencode
+curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh | sh -s --
 ```
 
-Options: `--dir DIR` (default `./teammate`), `--kind KIND`, `--force`,
-`--no-launch`. Existing files are never overwritten unless `--force` is given.
+Options: `--dir DIR` (default `./teammate`), `--harness HARNESS`
+(`opencode`, `codex`, `claude`, `pi`, or `omp`; default: detected from the
+environment, else `opencode`), and `--force`. Identical files are skipped
+silently; a differing file is left alone and warned about unless `--force` is
+given, while a legacy install and a managed `team-mate.toml` are updated
+automatically with a `.bak` copy. A re-run is idempotent.
 
-The installer maps `src/` into the primary:
+The installer maps `src/` into the primary, choosing the instruction file, the
+skills directory, and the agent-definition format for the harness:
 
 ```text
-src/AGENTS.md       -> <primary>/AGENTS.md
+src/AGENTS.md       -> <primary>/AGENTS.md   (or CLAUDE.md for claude)
 src/team-mate.toml  -> <primary>/team-mate.toml
-src/skills/         -> <primary>/.agents/skills/
+src/skills/         -> <primary>/<harness skills dir>/   (e.g. .opencode/skills)
+src/agents/         -> <primary>/agents/     (canonical; synced to the harness agent dir)
 src/scripts/        -> <primary>/scripts/
 src/templates/      -> <primary>/templates/
 ```
+
+It copies the skills into place directly, then runs
+`tm --harness <harness> agents sync --cwd <primary>` so the installer and a
+later `tm agents sync` agree on the same adapter. It does not install or launch
+a runtime. For the `claude` harness it also installs Team Mate as a Claude
+plugin automatically (no separate flag). A legacy Herdr-era install in the
+target directory is replaced automatically — old runtime artifacts are removed,
+replaced files are kept as `.bak`, and your own files are left alone; see the
+[Install guide](../docs/INSTALL.md). Per-harness paths and formats are in
+[Harness adapters](../docs/implementation/16-harness-adapters.md).
 
 The installer also provisions permissions. `~/.teammate/**` and each target
 project root sit outside the primary's working directory, so OpenCode prompts
@@ -105,14 +126,14 @@ automatically); anything that cannot be attributed to a project stays at the
 root and is reported.
 
 - `tm brief <name> [--task <id>] [--project <name>]` reads a brief from stdin,
-  writes it under the project's `briefs/`, and prints the path to pass to
-  `tm send`. The project is `--project`, else the task's, else the registered
-  project containing the current directory. Use it instead of inventing a path,
-  so a run never writes outside the sandbox.
-- `tm report <name> --save [--task <id>] [--project <name>]` writes a worker's
-  output under the project's `reports/` and prints the path. It prefers the
-  clean markdown the worker wrote to `.teammate-report.md` in its project root
-  and falls back to the captured terminal pane only when that file is absent.
+  writes it under the project's `briefs/`, and prints the path to pass as the
+  subagent's prompt. The project is `--project`, else the task's, else the
+  registered project containing the current directory. Use it instead of
+  inventing a path, so a run never writes outside the sandbox.
+- `tm report <name> [--save] [--task <id>] [--project <name>]` reads the clean
+  markdown the worker wrote to `.teammate-report.md` in its project root,
+  falling back to the report stored on the task, and prints it. With `--save`
+  it writes the report under the project's `reports/` and prints the path.
 - `tm session start` / `status` / `end` / `summary` act on one project
   (`--project`, else the registered project containing the current directory);
   tasks created while a session is open are tagged with it, so `tm task list`
@@ -126,31 +147,32 @@ root and is reported.
 
 ## Skill distribution
 
-The overlay installs skills into the primary's `.agents/skills/`. A worker runs
-in a target project's tab with `--cwd <project>`, so it cannot see them.
-`tm spawn` copies the common and worker skills into `<project>/.agents/skills/`
-before starting the agent:
+The overlay installs skills into the primary's harness skills directory (for
+example `.opencode/skills` for opencode, `.agents/skills` for codex). A worker
+subagent runs in a target project's own harness context, so it cannot see them.
+`tm skills sync` copies the common and worker skills into the project's harness
+skills directory:
 
 ```bash
-python3 scripts/tm.py skills sync --cwd "<project-root>"
+python3 scripts/tm.py --harness codex skills sync --cwd "<project-root>"
 ```
 
 - `worker_skills` in `team-mate.toml` lists what is copied; `distribute_skills =
-  false` turns the spawn-time sync off.
-- The copy is idempotent and tracked in
-  `<project>/.agents/skills/.teammate-managed.json`. A skill the project already
-  owns is never overwritten.
+  false` turns the sync off.
+- The copy is idempotent and tracked in the project's
+  `<skills-dir>/.teammate-managed.json`. A skill the project already owns is
+  never overwritten.
 - Managed entries are added to the project's `.git/info/exclude` (local only),
   so they do not show as untracked.
 
 ### Two skill populations
 
-A project's `.agents/skills/` can hold skills from two sources, tracked
+A project's harness skills directory can hold skills from two sources, tracked
 separately:
 
 | Population | Installed by | Tracked in | On a name collision |
 | --- | --- | --- | --- |
-| Team Mate-managed | `tm spawn` / `tm skills sync` | `.teammate-managed.json` | The project's copy wins; the sync skips it. |
+| Team Mate-managed | `tm skills sync` | `.teammate-managed.json` | The project's copy wins; the sync skips it. |
 | Skills CLI | `npx skills add` (`bootstrap-project`) | `skills-lock.json` | `npx skills` owns it; a sync never overwrites it. |
 
 A sync writes only names listed in `worker_skills` and updates only names it
@@ -158,14 +180,19 @@ already manages, so it never clobbers a Skills-CLI-installed or
 developer-authored skill. If a desired name already belongs to the other
 population, resolve it explicitly rather than expecting a sync to replace it.
 
-## Workspaces
+## Harnesses
 
-- The primary runs in the `teammate` workspace.
-- Each target project gets its own Herdr workspace named after the project.
-  `python3 scripts/tm.py spawn --project "<name>"` reuses or creates it, then
-  starts the worker in a new **tab** there — never a split pane.
-- A project workspace is created on the first spawn and is removed when its
-  last worker tab closes. Keep a tab open if you want the workspace to persist.
+- The primary runs inside one harness. `tm --harness` selects it; the `harness`
+  key in `team-mate.toml` (or `TM_HARNESS`) sets it persistently.
+- `tm agents sync --cwd <project>` renders the canonical worker definitions
+  (`src/agents/*.md`) into the project's harness agent-definitions directory —
+  for example `.opencode/agents/*.md` for opencode, `.codex/agents/*.toml` for
+  codex, or `.claude/agents/*.md` for claude.
+- `tm harness` prints the resolved adapter: subagent tool, agent-definitions
+  directory and format, skills directory, instruction file, config file,
+  headless command, and background support.
+- The adapter matrix and the per-harness uncertainties are in
+  [Harness adapters](../docs/implementation/16-harness-adapters.md).
 
 ## Tests
 
@@ -177,13 +204,15 @@ python3 -m unittest discover -s src/scripts/tests -t src/scripts
 
 ## Status
 
-Validated end to end on live Herdr sessions with opencode and `omp`: skill
-distribution, the full loop, fail → rework → pass, parallel projects,
-cancellation, orphan reconciliation, blocked-worker escalation, and recovery of
-a running task after the primary loses its context. The hardening plan from the
-process review is implemented (brief/report locations, provisioned permissions,
-worker boundaries, session-scoped and prunable ledger, enforced evidence
-honesty, bootstrap validators). What remains is the parallel-run work named in
-`docs/NEXT.md` — per-stream ports and browser sessions (E2), keeping review
-tasks out of the approval queue (E4), a quiet `task show` (E5), and interim
-status on long builds (E6) — plus the open questions.
+The operating model was validated end to end in earlier runs (opencode and
+`omp`): skill distribution, the full loop, fail → rework → pass, parallel
+projects, cancellation, orphan reconciliation, blocked-worker escalation, and
+recovery of a running task after the primary loses its context. Those runtime
+mechanics now belong to the harness; `tm` keeps the ledger half (tasks, briefs,
+reports, findings, decisions) and the per-harness adapters. The hardening plan from the process review is implemented
+(brief/report locations, provisioned permissions, worker boundaries,
+session-scoped and prunable ledger, enforced evidence honesty, bootstrap
+validators). What remains is the parallel-run work named in `docs/NEXT.md` —
+per-stream ports and browser sessions (E2), keeping review tasks out of the
+approval queue (E4), a quiet `task show` (E5), and interim status on long
+builds (E6) — plus the open questions.

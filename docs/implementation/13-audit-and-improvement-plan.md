@@ -9,6 +9,11 @@ docs and config promise and what the thin layer enforces.
 Most parallel-run items (E1–E6) are correctly documented as unbuilt in
 [NEXT.md](../NEXT.md); a smaller set are silently broken or overclaimed as done.
 
+> **Historical note.** This audit was written while Team Mate ran workers on the
+> Herdr runtime and the `tm spawn` surface. Its findings and fixes are history;
+> the product model has since moved to harness-native subagents with a
+> ledger-only `tm`.
+
 Evidence: `path:line` citations throughout; `python3 -m unittest discover -s
 src/scripts/tests -t src/scripts` passes (98 tests).
 
@@ -27,8 +32,9 @@ All P0–P2 items in this plan are implemented; the suite is at 98 tests. What
 remains is the open research questions, not unbuilt capability.
 
 - **P0-1…P0-5** — done: the spawn name clobber; config honesty plus
-  `max_iterations`; `herdr` / `find-skills` shipped; clean `.teammate-report.md`
-  reports; workers stop what they start.
+  `max_iterations`; `find-skills` shipped (a `herdr` tool skill shipped too,
+  later removed with the Herdr runtime); clean `.teammate-report.md` reports;
+  workers stop what they start.
 - **P1-1…P1-4** — done: a review-task `kind` (E4), per-stream ports and browser
   sessions (E2), a quiet `task show` (E5), an interim status on long runs (E6).
 - **P1-5, P1-6, P1-7** — done: the `inconclusive` verdict, the skill-text
@@ -42,10 +48,11 @@ reports) and the shipped `agent-browser` tool skill.
 
 ## What is solid
 
-- **The skill library is internally consistent.** 34 skills — the 30 planned,
-  plus `visual-report` and the tool skills `herdr`, `find-skills`, and
-  `agent-browser` — with valid frontmatter, names matching directories; every
-  `tm` command and flag referenced in a skill resolves against `build_parser()`.
+- **The skill library is internally consistent.** The 30 planned skills, plus
+  `visual-report` and the tool skills `find-skills` and `agent-browser` (a
+  `herdr` tool skill was later removed with the Herdr runtime) — with valid
+  frontmatter, names matching directories; every `tm` command and flag
+  referenced in a skill resolves against `build_parser()`.
 - **The ledger model matches its design.** Findings as data, derived verdict,
   session tagging, and prune all line up with
   [07-review-and-approval.md](07-review-and-approval.md).
@@ -71,11 +78,13 @@ corrupts the agent name, the tab label, the printed output, and the ledger
 precedence "task > project > primary" (`src/team-mate.toml:3`,
 `src/AGENTS.md:40-41`) is not implemented — one file is loaded. `max_concurrent`,
 `review_policy`, `notify`, and `primary_workspace` are never read by code (agent
-prose only). `skills_source` *is* read by code (`tm.py:182`) but undocumented.
+prose only); `primary_workspace` was later removed with the Herdr runtime.
+`skills_source` *is* read by code (`tm.py:182`) but undocumented.
 
 ### 3. Install gap — the overlay depends on skills it does not ship
 
-`src/AGENTS.md:15,47` says load the `herdr` skill;
+`src/AGENTS.md:15,47` says load the `herdr` skill (since removed with the
+Herdr runtime);
 `src/skills/bootstrap-project/SKILL.md:51` and `src/skills/team-mate/SKILL.md:50`
 rely on `find-skills`. Neither is in `src/skills/`, and `install.sh:148` copies
 only `src/skills/`. A fresh install has a broken read-path on its own
@@ -136,8 +145,8 @@ implemented in `tm.py:240-298`).
 No CI at audit time (`.github/` had assets only and the 98 tests did not run
 automatically) — since resolved; see the implementation status above.
 Repo-root `.agents/skills/` is 129 tracked files / 24 skills (personal and
-external: `adhd`, `ponytail`, `arena`, `notion-cli`, `skill-creator`, `herdr`,
-`find-skills`) mixed into the product repo. `templates/worker-report.md` is still
+external: `adhd`, `ponytail`, `arena`, `notion-cli`, `skill-creator`, `herdr`
+(since removed), `find-skills`) mixed into the product repo. `templates/worker-report.md` is still
 "planned" (`10-skills-plan.md:629`) yet cited in its own sequencing gate.
 `report --save` filenames use whole seconds (`tm.py:440`), so same-second saves
 collide; `brief` has no timestamp while `report` does. There are no tests for

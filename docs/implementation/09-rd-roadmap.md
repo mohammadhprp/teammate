@@ -6,7 +6,7 @@ implementation.
 ## Phase 1 — Validate the operating model
 
 - Run Team Mate manually through OpenCode, Codex, and Pi where practical.
-- Use Herdr to create multiple agents.
+- Use the harness's native subagent tool to create multiple agents.
 - Test implementation, review, debugging, and investigation workflows.
 - Record what agents actually need to coordinate successfully.
 
@@ -53,4 +53,5 @@ other application components.
 - What should happen when Team Mate itself is restarted?
 - How should agents coordinate dependencies?
 - How should cost, latency, and agent count influence delegation?
-- How portable is the model across OpenCode, Codex, Pi, and future agents?
+- How portable is the model across OpenCode, Codex, Claude Code, Pi, omp, and
+  future harnesses?

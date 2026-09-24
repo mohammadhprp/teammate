@@ -5,6 +5,11 @@ task — *"a landing page for Team Mate itself in a new project; take it end to
 end; actually look good"* — then only observed. This is what happened, what
 worked, what broke, and what to improve.
 
+> **Historical note.** This run used the then-current Herdr runtime and the
+> `tm spawn` / `tm send` / `tm wait` surface. Team Mate now runs workers as the
+> host harness's native subagents and `tm` is ledger-only; the runtime mechanics
+> named below are history, while the process lessons still stand.
+
 Evidence: the site project `~/Developer/teammate-site` (three commits), the
 primary's ledger at `~/.teammate/` (`tasks/`, `timeline.jsonl`, `briefs/`,
 `reports/`), and the primary's own session output.

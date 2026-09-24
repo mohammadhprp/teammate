@@ -3,6 +3,11 @@
 **Status:** delivered. All 30 planned skills are built under `src/skills/`; this
 document is the plan they were built from.
 
+> **Historical note.** This plan was written while Team Mate ran workers on the
+> Herdr runtime, so the runtime and `tm spawn` references below are history. The
+> skill library it describes still stands; Team Mate now runs workers as the
+> host harness's native subagents and reaches them with `tm skills sync`.
+
 Team Mate is, above all, a library of skills. The role definition, the `tm` CLI,
 and the templates only matter once the primary agent and its workers know *how*
 to plan, delegate, build, verify, and report. This plan defines that library
@@ -14,7 +19,7 @@ The skills fall into three categories by **audience**:
 | --- | --- | --- |
 | **Common** | The primary **and** workers | Engineering work both sides must share: committing, reviewing, proving results, showing work to the developer. |
 | **Teammate** | The primary only | Coordination: turning a goal into tasks, delegating, monitoring, reviewing, reporting to the developer. |
-| **Worker** | Worker agents only | Execution inside a project tab: accepting an assignment, building, verifying, reporting back to the primary. |
+| **Worker** | Worker agents only | Execution inside a target project's harness context: accepting an assignment, building, verifying, reporting back to the primary. |
 
 Rule of thumb: if both the primary and a worker perform the activity, it is
 **common**; if only whoever coordinates does, it is **teammate**; if only
@@ -83,13 +88,14 @@ Out of scope:
 
 - writing the `SKILL.md` files themselves (a separate change, after review);
 - project-local skills, which each target project owns;
-- runtime, plugin, or `tm` CLI changes beyond what a skill needs.
+- harness, plugin, or `tm` CLI changes beyond what a skill needs.
 
 ## Current state
 
-All 30 planned skills are now built under `src/skills/`, plus four added later:
-the teammate `visual-report` and the tool skills `herdr`, `find-skills`, and
-`agent-browser` — 34 in total. It started from six primary (teammate) skills:
+All 30 planned skills are now built under `src/skills/`, plus the teammate
+`visual-report` and the tool skills `find-skills` and `agent-browser` (a
+`herdr` tool skill was later removed with the Herdr runtime). It started from
+six primary (teammate) skills:
 
 | Skill | Category | Notes |
 | --- | --- | --- |
@@ -112,9 +118,9 @@ The gaps this plan set out to close are addressed:
    coordinates, and `independent-review` / `review-task` / `run-rework` own
    independent review and rework.
 5. **Distribution to workers is resolved and implemented.** The overlay installs
-   skills into `<primary>/.agents/skills/`, but workers run in target projects;
-   `tm spawn` / `tm skills sync` copy the common and worker skills into
-   `<project>/.agents/skills/` (option B/C, below).
+   skills into the primary's harness skills directory, but workers run in target
+   projects; `tm skills sync` copies the common and worker skills into the
+   project's harness skills directory (option B/C, below).
 
 ## Skill contract
 
@@ -143,7 +149,7 @@ Conventions:
 
 - **Names are kebab-case and verb-led** (`review-change`, `raise-blocker`),
   matching `delegate-task`, `report-progress`, `review-work`.
-- **The description carries the trigger.** It is what the runtime matches on;
+- **The description carries the trigger.** It is what the harness matches on;
   it must say what the skill does *and* when to load it.
 - **One skill owns one trigger.** Two skills must not both claim "review a
   change"; the common method and the teammate/worker wrappers are layered, not
@@ -157,39 +163,39 @@ Conventions:
 | --- | --- |
 | `name` | kebab-case, unique, verb-led, matches the directory name. |
 | `description` | One sentence: capability + explicit "Use when …" triggers. |
-| Audience | Encoded by category, not a frontmatter field, until the runtime needs it. |
+| Audience | Encoded by category, not a frontmatter field, until the harness needs it. |
 | Status | Tracked in this plan (`existing`, `planned`), not in the skill file. |
 
-If the runtime later supports role scoping, a `roles: [primary, worker]` field
+If the harness later supports role scoping, a `roles: [primary, worker]` field
 can be added without renaming anything.
 
 ## Distribution: how a skill reaches its audience
 
-The installer maps `src/skills/` to `<primary>/.agents/skills/`. That reaches
-the primary but not workers, which run with `--cwd` set to a target project.
-This was the one question that fully blocked the worker category, resolved by
-the B/C choice below.
+The installer maps `src/skills/` to the primary's harness skills directory. That
+reaches the primary but not workers, which run in a target project's own harness
+context. This was the one question that fully blocked the worker category,
+resolved by the B/C choice below.
 
 Options:
 
 | Option | How it works | Tradeoff |
 | --- | --- | --- |
-| **A. Shared directory referenced by config** | Workers resolve skills from one shared Team Mate skills path. | Single source of truth; needs the runtime to support an external skill dir. |
-| **B. Install into each target project** | Copy common + worker skills into `<project>/.agents/skills/`. | Works today; duplicates files and drifts on update. |
-| **C. Install once, per project, on first spawn** | `tm spawn` syncs the shared skills into the project. | Keeps projects current; `tm` becomes a writer to target repos. |
+| **A. Shared directory referenced by config** | Workers resolve skills from one shared Team Mate skills path. | Single source of truth; needs the harness to support an external skill dir. |
+| **B. Install into each target project** | Copy common + worker skills into the project's harness skills directory. | Works today; duplicates files and drifts on update. |
+| **C. Install once, per project, on setup** | `tm skills sync` copies the shared skills into the project. | Keeps projects current; `tm` becomes a writer to target repos. |
 | **D. Encode worker skills in the brief** | The brief carries the worker procedure verbatim. | No distribution problem; bloats every brief and cannot evolve. |
 
-Chosen: **B/C — a sync into the project on spawn.** `tm spawn` copies the
-configured `worker_skills` into `<project>/.agents/skills/` before starting the
-agent, tracked by a manifest so it is idempotent and never overwrites a
-project-owned skill; `tm skills sync` runs the same sync on demand. This matches
-the `.agents/skills` discovery path a worker's agent already uses. Option A (a
-purely shared path) remains a possible optimization once the supporting kinds'
+Chosen: **B/C — a sync into the project.** `tm skills sync` copies the
+configured `worker_skills` into the project's harness skills directory before a
+worker starts, tracked by a manifest so it is idempotent and never overwrites a
+project-owned skill; the installer and `bootstrap-project` run it. This matches
+the skills discovery path a worker's harness already uses. Option A (a purely
+shared path) remains a possible optimization once the supporting harnesses'
 global skill directories are known. Do not start with D — it makes the skill
 library invisible to workers.
 
-The primary already loads Team Mate skills from its own `.agents/skills/`;
-project-local skills keep composing on top, per
+The primary already loads Team Mate skills from its own harness skills
+directory; project-local skills keep composing on top, per
 [Multi-project context](04-multi-project-context.md).
 
 ## Layering: avoiding duplication
@@ -292,7 +298,8 @@ against evidence from the loop.
 - **Purpose:** Ensure any agent reads the target project's own instructions
   before touching it.
 - **Use when:** Starting work in a project, or when instructions might conflict.
-- **Not when:** Continuing an already-loaded task in the same project and tab.
+- **Not when:** Continuing an already-loaded task in the same project and harness
+  context.
 - **Inputs:** Project root, the coding agent's context precedence.
 - **Procedure:** Read `AGENTS.md` and `CONTEXT.md`; discover local skills and
   the project's commands; apply precedence (platform → Team Mate → project →
@@ -403,8 +410,8 @@ with two planned refinements: extract planning and the ledger out of
   status at each transition; recover with `tm task list` /
   `tm task find --worker`; keep statuses to the defined set.
 - **Output:** A durable task record with goal, criteria, iteration, and report.
-- **Failure/escalation:** A worker recorded but absent from `tm status` is
-  orphaned; mark `failed` and escalate (see `recover-run`).
+- **Failure/escalation:** A worker recorded with no report file and no harness
+  subagent state is orphaned; mark `failed` and escalate (see `recover-run`).
 - **Depends on:** `tm` CLI / `task_store.py`.
 
 #### `bootstrap-project` — P0
@@ -491,7 +498,8 @@ with two planned refinements: extract planning and the ledger out of
 - **Use when:** Tasks are genuinely independent and `max_concurrent` allows.
 - **Not when:** Work streams share files or ordering.
 - **Inputs:** The plan, worker names, the project roots.
-- **Procedure:** Spawn without `--wait`; poll with `tm status`; define a merge
+- **Procedure:** Start the subagents through the harness without blocking; poll
+  the harness's subagent state; define a merge
   order; forbid parallel writes to the same files unless a conflict strategy
   exists; merge results in the primary, not in a worker.
 - **Output:** Combined results with a merge/conflict note.
@@ -505,7 +513,7 @@ with two planned refinements: extract planning and the ledger out of
 - **Use when:** The primary restarted; a worker is orphaned, stuck, blocked, or
   `unknown`.
 - **Not when:** A healthy, progressing run.
-- **Inputs:** The ledger, `tm status`, timeouts.
+- **Inputs:** The ledger, harness subagent state, timeouts.
 - **Procedure:** Reconcile the ledger against live agents; classify
   orphan/stuck/blocked/`unknown`; cancel what is unsafe; resume or re-delegate
   what is lost; never resend a prompt that may already be delivered.
@@ -679,8 +687,8 @@ next begins (mirrors `docs/NEXT.md`).
    `investigate-issue`.
    *Gate:* each addresses a failure or scale path observed in a real run.
 
-Distribution (above) is resolved — option B/C, synced on spawn — so no slice is
-blocked by it.
+Distribution (above) is resolved — option B/C, synced on project setup — so no
+slice is blocked by it.
 
 ## Traceability
 
@@ -704,13 +712,13 @@ blocked by it.
 
 ## Open questions
 
-- **Resolved:** common and worker skills reach workers by a project sync on spawn
-  (`tm spawn` / `tm skills sync`, option B/C above).
-- Should the runtime expose a `roles` field, or is category a documentation
+- **Resolved:** common and worker skills reach workers by a project sync
+  (`tm skills sync`, option B/C above).
+- Should the harness expose a `roles` field, or is category a documentation
   concept only?
 - Where is the line between `team-mate` and the extracted `plan-work` /
   `task-ledger` before overlap appears?
-- Which worker skills are genuinely shared across worker kinds, and which are
+- Which worker skills are genuinely shared across harnesses, and which are
   kind-specific?
 - How should a skill be versioned when a project pins an older overlay?
 - Which of the common skills should a *reviewer* worker get versus an

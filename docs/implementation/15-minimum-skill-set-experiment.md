@@ -31,7 +31,8 @@ Everything else is a coordinator concern or a specialization.
    ]
    ```
 
-   `tm spawn` copies exactly these into `<project>/.agents/skills/`.
+   `tm skills sync` copies exactly these into the project's harness skills
+   directory.
 
 ## Run
 
@@ -43,9 +44,8 @@ python3 scripts/tm.py task new --project exp-min --title "Add slugify and a test
   --acceptance "slugify('A B') == 'a-b'" --acceptance "the project's tests pass"
 # tsk_xxxxxxxx
 
-# 2. Spawn a worker that has only the floor skills (note --config).
-python3 scripts/tm.py --config exp.toml spawn \
-  --cwd "$PROJECT" --project exp-min --name dev-alpha --task tsk_xxxxxxxx
+# 2. Install only the floor skills into the project (note --config).
+python3 scripts/tm.py --config exp.toml skills sync --cwd "$PROJECT"
 
 # 3. Hand it a self-contained brief (E2: no path outside the project).
 python3 scripts/tm.py brief dev-alpha --task tsk_xxxxxxxx <<'EOF'
@@ -75,9 +75,13 @@ changed, verified (command and real output), issues, remaining concerns,
 assessment, decision.
 EOF
 
-# 4. Deliver without blocking, then monitor.
-python3 scripts/tm.py send dev-alpha --brief "<printed-path>"
-python3 scripts/tm.py wait dev-alpha            # or poll `status`; background a long wait
+# 4. Spawn a native subagent named dev-alpha through the harness's subagent
+#    tool, passing the printed brief as its prompt, and link it to the task.
+#    `tm` records; the harness runs the worker.
+python3 scripts/tm.py task update tsk_xxxxxxxx --worker dev-alpha --status working
+
+# 5. Observe the subagent through the harness; when it settles, read its report.
+python3 scripts/tm.py report dev-alpha --task tsk_xxxxxxxx
 ```
 
 Then review and record, per [Review and approval](07-review-and-approval.md).

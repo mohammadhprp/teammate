@@ -10,9 +10,14 @@ The styles were deliberately opposite, and both were to be taken end to end with
 independent review. The developer then only observed, and injected the second
 task while the first was running.
 
+> **Historical note.** This run used the then-current Herdr runtime and the
+> `tm spawn` / `tm send` / `tm wait` surface; "workspaces" and "tabs" below are
+> Herdr's. Team Mate now runs workers as the host harness's native subagents and
+> `tm` is ledger-only. The process lessons still stand.
+
 Evidence: the primary's ledger at `~/.teammate/` (`tasks/`, `timeline.jsonl`,
 `briefs/`, `reports/`, `session.json`), the two projects under
-`/Users/black/Developer/`, and the live Herdr agents.
+`/Users/black/Developer/`, and the live Herdr agents at the time.
 
 ## Outcome
 

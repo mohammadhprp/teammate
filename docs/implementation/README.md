@@ -3,19 +3,24 @@
 This directory contains the long-term R&D for Team Mate.
 
 Team Mate is a primary AI engineering agent that coordinates dynamically
-created agents across multiple projects. It runs them on a pluggable worker
-runtime — Herdr by default, or a headless Claude backend — and also ships as a
-Claude plugin for Claude Code and Cowork. The Team Mate repository provides
-reusable skills, scripts, workflows, instructions, and conventions rather than
-an OpenCode plugin.
+created agents across multiple projects. Workers are the host coding harness's
+**native subagents** — `opencode`, `codex`, `claude`, `pi`, or `omp` — and `tm`
+is a ledger-only CLI that records tasks, briefs, reports, and decisions and
+renders each harness's adapter files. The overlay also ships as a Claude plugin
+for Claude Code and Cowork. The Team Mate repository provides reusable skills,
+scripts, workflows, instructions, and conventions rather than an OpenCode
+plugin.
 
 The implementation is intentionally **research-driven**. We should validate the
 operating model with real agents before committing to a large framework.
 
+To install Team Mate rather than research it, start with the
+[Install guide](../INSTALL.md).
+
 ## Reading order
 
 1. [Architecture](01-architecture.md) — the proposed responsibility boundaries
-   between the developer, Team Mate, workers, project context, and Herdr.
+   between the developer, Team Mate, workers, project context, and the harness.
 2. [Skill system](02-skill-system.md) — how shared Team Mate skills and
    project-local skills should compose.
 3. [Agent lifecycle](03-agent-lifecycle.md) — research into creating,
@@ -45,6 +50,9 @@ operating model with real agents before committing to a large framework.
     for the remaining research questions.
 15. [Minimum skill set experiment](15-minimum-skill-set-experiment.md) — the
     runnable protocol for the first experiment: the worker skill floor.
+16. [Harness adapters](16-harness-adapters.md) — the per-harness subagent tool,
+    agent definitions, skills directory, instructions, config, headless command,
+    and background support, with the uncertainties per harness.
 
 ## Core architecture
 
@@ -64,14 +72,14 @@ Team Mate
 Shared Team Mate skills/scripts
             │
             ▼
-      Worker runtime
-      (Herdr default)
+   Harness native subagents
+   (tm is the ledger only)
 ```
 
 Team Mate decides what work needs to happen and which agents are useful. The
-selected worker runtime provides the runtime mechanisms for operating those
-agents. Project-local context defines how work should be performed in each
-project.
+host harness provides the runtime mechanisms for operating those subagents; `tm`
+records the ledger. Project-local context defines how work should be performed
+in each project.
 
 ## Responsibility boundaries
 
@@ -91,10 +99,11 @@ Execute specialized assignments. They can be implementation agents, reviewers,
 debuggers, testers, investigators, planners, documentation agents, or any
 other role Team Mate determines is useful.
 
-### Worker runtime
+### Harness
 
-Provides the agent orchestration runtime. Team Mate uses the selected backend
-rather than implementing another agent-session runtime; Herdr is the default.
+Provides the agent orchestration runtime: the primary's native subagent tool
+spawns, observes, and closes workers. Team Mate uses the host harness rather
+than implementing another agent-session runtime; `tm` keeps the ledger only.
 
 ### Target project
 
@@ -124,7 +133,7 @@ At this stage, avoid turning Team Mate into:
 
 - an OpenCode-only plugin — the overlay is portable and also ships as a
   Claude plugin;
-- a replacement for Herdr;
+- a replacement for a coding harness's own subagent runtime;
 - a mandatory application or daemon;
 - a fixed collection of predefined agents;
 - a large orchestration framework built before the workflows are understood.
