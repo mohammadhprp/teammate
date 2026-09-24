@@ -7,11 +7,9 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 import types
 import unittest
 
-import runtimes
 import task_store
 import tm
 
@@ -23,15 +21,35 @@ class ParserTest(unittest.TestCase):
         self.assertIs(args.func, tm.cmd_skills_sync)
         self.assertEqual(args.cwd, "/tmp/x")
 
-    def test_spawn_distributes_skills_by_default(self):
-        args = tm.build_parser().parse_args(["spawn", "--cwd", "/tmp/x"])
+    def test_harness_is_registered(self):
+        args = tm.build_parser().parse_args(["harness"])
 
-        self.assertTrue(args.skills)
+        self.assertIs(args.func, tm.cmd_harness)
 
-    def test_spawn_can_skip_distribution(self):
-        args = tm.build_parser().parse_args(["spawn", "--cwd", "/tmp/x", "--no-skills"])
+    def test_agents_sync_is_registered(self):
+        args = tm.build_parser().parse_args(["agents", "sync", "--cwd", "/tmp/x"])
 
-        self.assertFalse(args.skills)
+        self.assertIs(args.func, tm.cmd_agents_sync)
+        self.assertEqual(args.cwd, "/tmp/x")
+
+    def test_the_harness_flag_is_parsed(self):
+        args = tm.build_parser().parse_args(["--harness", "codex", "harness"])
+
+        self.assertEqual(args.harness, "codex")
+
+    def test_task_update_accepts_a_worker(self):
+        args = tm.build_parser().parse_args(
+            ["task", "update", "tsk_1", "--worker", "developer-alpha"]
+        )
+
+        self.assertEqual(args.worker, "developer-alpha")
+
+    def test_the_removed_process_commands_are_gone(self):
+        parser = tm.build_parser()
+
+        for name in ("spawn", "send", "status", "wait", "stop", "notify"):
+            with self.subTest(command=name), self.assertRaises(SystemExit):
+                parser.parse_args([name])
 
     def test_task_new_max_iterations_defaults_to_config(self):
         args = tm.build_parser().parse_args(
@@ -95,81 +113,6 @@ class ParserTest(unittest.TestCase):
         args = tm.build_parser().parse_args(["task", "list", "--project", "acme"])
 
         self.assertEqual(args.project, "acme")
-
-
-class SpawnTest(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.state = os.path.join(self.tmp.name, "state")
-        self.project = os.path.join(self.tmp.name, "project")
-        os.makedirs(self.project)
-
-    def test_a_skipped_skill_does_not_clobber_the_worker_name(self):
-        source = os.path.join(self.tmp.name, "source")
-        os.makedirs(os.path.join(source, "worker-role"))
-        with open(os.path.join(source, "worker-role", "SKILL.md"), "w") as fh:
-            fh.write("---\nname: worker-role\n---\n")
-        config = {
-            "skills_source": source,
-            "worker_skills": ["worker-role", "commit-changes"],
-            "worker_kind": "opencode",
-        }
-
-        calls = []
-
-        def fake_herdr(*cmd):
-            calls.append(cmd)
-            if cmd[:2] == ("workspace", "list"):
-                return {
-                    "result": {
-                        "workspaces": [{"label": "project", "workspace_id": "w1"}]
-                    }
-                }
-            if cmd[:2] == ("tab", "create"):
-                return {
-                    "result": {
-                        "root_pane": {"pane_id": "w1:p1"},
-                        "tab": {"tab_id": "w1:t1"},
-                    }
-                }
-            if cmd[:2] == ("agent", "start"):
-                return {"result": {"agent": {"agent_status": "idle"}}}
-            return {}
-
-        task = task_store.create(self.state, "project", "t", "g", ["c"])
-        original_config, original_herdr = tm.load_config, runtimes.herdr
-        tm.load_config = lambda path: config
-        runtimes.herdr = fake_herdr
-        try:
-            args = types.SimpleNamespace(
-                config="ignored",
-                runtime="herdr",
-                kind=None,
-                name="developer-alpha",
-                cwd=self.project,
-                project=None,
-                skills=True,
-                label=None,
-                task=task["id"],
-                state_dir=self.state,
-            )
-            buf = io.StringIO()
-            with (
-                contextlib.redirect_stdout(buf),
-                contextlib.redirect_stderr(io.StringIO()),
-            ):
-                tm.cmd_spawn(args)
-        finally:
-            tm.load_config, runtimes.herdr = original_config, original_herdr
-
-        saved = task_store.load(self.state, task["id"])
-        self.assertEqual(saved["worker"], "developer-alpha")
-        started = [c for c in calls if c[:2] == ("agent", "start")][0]
-        self.assertEqual(started[2], "developer-alpha")
-        self.assertIn("developer-alpha", buf.getvalue())
-        with open(task_store.timeline_path(self.state, "project")) as fh:
-            self.assertIn("developer-alpha in project", fh.read())
 
 
 class GitExcludeTest(unittest.TestCase):
@@ -306,7 +249,6 @@ class RenderTaskTest(unittest.TestCase):
             "project": "acme",
             "root": "/tmp/acme",
             "worker": "acme-1",
-            "workspace": "w1",
             "iteration": 1,
             "max_iterations": 3,
             "goal": "do it",
@@ -329,7 +271,6 @@ class RenderTaskTest(unittest.TestCase):
             "project": "acme",
             "root": "/tmp/acme",
             "worker": "acme-1",
-            "workspace": "w1",
             "iteration": 1,
             "max_iterations": 3,
             "goal": "do it",
@@ -452,7 +393,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_a_review_task_cannot_await_approval(self):
         review = self.make_review()
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             tm.cmd_task_update(
                 types.SimpleNamespace(
                     state_dir=self.state,
@@ -487,7 +428,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_decide_is_refused_for_a_review_task(self):
         review = self.make_review()
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             tm.cmd_task_decide(
                 types.SimpleNamespace(
                     state_dir=self.state,
@@ -531,12 +472,19 @@ class TaskCommandsTest(unittest.TestCase):
             id=self.task["id"],
             status=None,
             iteration=None,
+            worker=None,
             report_file=None,
             note=None,
         )
         args.__dict__.update(overrides)
         with contextlib.redirect_stdout(io.StringIO()):
             tm.cmd_task_update(args)
+
+    def test_update_links_a_worker_to_the_task(self):
+        self.update(worker="developer-alpha")
+
+        task = task_store.load(self.state, self.task["id"])
+        self.assertEqual(task["worker"], "developer-alpha")
 
     def test_inconclusive_verdict_is_stored_and_recorded(self):
         self.update(verdict="inconclusive")
@@ -548,7 +496,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_inconclusive_verdict_blocks_ready_for_approval(self):
         self.update(verdict="inconclusive")
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             self.update(status="ready_for_approval")
 
         self.assertEqual(
@@ -558,7 +506,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_inconclusive_verdict_blocks_an_approval_decision(self):
         self.update(verdict="inconclusive")
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             tm.cmd_task_decide(
                 types.SimpleNamespace(
                     state_dir=self.state,
@@ -594,7 +542,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_pass_is_refused_while_blocking_findings_are_open(self):
         self.add_blocking()
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             tm.cmd_task_update(
                 types.SimpleNamespace(
                     state_dir=self.state,
@@ -641,7 +589,7 @@ class TaskCommandsTest(unittest.TestCase):
     def test_finalize_is_refused_while_blocking_findings_are_open(self):
         self.add_blocking()
 
-        with self.assertRaises(tm.HerdrError):
+        with self.assertRaises(tm.TmError):
             tm.cmd_task_decide(
                 types.SimpleNamespace(
                     state_dir=self.state,
@@ -727,7 +675,7 @@ class TaskNewTest(unittest.TestCase):
         self.assertEqual(task["kind"], "review")
 
 
-class BriefAndReportTest(unittest.TestCase):
+class BriefTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -774,154 +722,111 @@ class BriefAndReportTest(unittest.TestCase):
             .startswith(os.path.join(self.state, "acme", "briefs"))
         )
 
-    def test_report_save_writes_under_state_dir_and_prints_the_path(self):
-        calls = {}
 
-        def fake_read(*cmd):
-            calls["cmd"] = cmd
-            return "worker output\n"
+class ReportCommandTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = os.path.join(self.tmp.name, "state")
+        self.project = os.path.join(self.tmp.name, "project")
+        os.makedirs(self.project)
 
-        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
-        runtimes.herdr_text = fake_read
-        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
-        try:
-            args = types.SimpleNamespace(
-                state_dir=self.state,
-                name="developer-alpha",
-                runtime="herdr",
-                source="recent-unwrapped",
-                lines=300,
-                save=True,
-                task="tsk_1",
-                project="acme",
-            )
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                tm.cmd_report(args)
-        finally:
-            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
+    def write_report(self, text="clean markdown\n"):
+        path = os.path.join(self.project, tm.REPORT_FILE)
+        with open(path, "w") as fh:
+            fh.write(text)
+        return path
 
-        path = buf.getvalue().strip()
-        self.assertTrue(
-            path.startswith(
-                os.path.join(self.state, "acme", "reports", "tsk_1-developer-alpha-")
-            )
+    def tracked_task(self):
+        task = task_store.create(
+            self.state, "acme", "t", "g", ["c"], worker="developer-alpha"
         )
+        task_store.update(self.state, task["id"], root=self.project)
+        return task
+
+    def report(self, **overrides):
+        args = types.SimpleNamespace(
+            state_dir=self.state,
+            name="developer-alpha",
+            task=None,
+            project=None,
+            save=False,
+        )
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_report(args)
+        return buf.getvalue()
+
+    def test_reads_the_project_root_report_file(self):
+        self.write_report("clean markdown\n")
+        task = self.tracked_task()
+
+        self.assertEqual(self.report(task=task["id"]), "clean markdown\n")
+
+    def test_falls_back_to_the_stored_report_path(self):
+        path = os.path.join(self.tmp.name, "stored.md")
+        with open(path, "w") as fh:
+            fh.write("stored text\n")
+        task = self.tracked_task()
+        task_store.update(self.state, task["id"], report_path=path)
+
+        self.assertEqual(self.report(task=task["id"]), "stored text\n")
+
+    def test_falls_back_to_the_inline_report(self):
+        task = self.tracked_task()
+        task_store.update(self.state, task["id"], report="inline text\n")
+
+        self.assertEqual(self.report(task=task["id"]), "inline text\n")
+
+    def test_resolves_the_project_from_the_worker(self):
+        self.write_report("by worker\n")
+        task_store.register_project(self.state, "acme", self.project)
+        task_store.create(self.state, "acme", "t", "g", ["c"], worker="developer-alpha")
+
+        self.assertEqual(self.report(), "by worker\n")
+
+    def test_resolves_the_project_from_the_registry(self):
+        self.write_report("by registry\n")
+        task_store.register_project(self.state, "acme", self.project)
+
+        self.assertEqual(self.report(project="acme"), "by registry\n")
+
+    def test_a_missing_report_is_an_error(self):
+        task = self.tracked_task()
+
+        with self.assertRaises(tm.TmError):
+            self.report(task=task["id"])
+
+    def test_save_writes_under_the_project_reports_dir(self):
+        self.write_report("clean markdown\n")
+        task = self.tracked_task()
+
+        path = self.report(task=task["id"], save=True).strip()
+
+        self.assertTrue(path.startswith(os.path.join(self.state, "acme", "reports")))
         with open(path) as fh:
-            self.assertEqual(fh.read(), "worker output\n")
-        self.assertEqual(calls["cmd"][0], "agent")
+            self.assertEqual(fh.read(), "clean markdown\n")
 
-    def test_report_without_save_prints_the_output(self):
-        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
-        runtimes.herdr_text = lambda *cmd: "shown\n"
-        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
-        try:
-            args = types.SimpleNamespace(
-                state_dir=self.state,
-                name="developer-alpha",
-                runtime="herdr",
-                source="recent-unwrapped",
-                lines=300,
-                save=False,
-                task=None,
-                project=None,
-            )
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                tm.cmd_report(args)
-        finally:
-            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
-
-        self.assertEqual(buf.getvalue(), "shown\n")
-
-    def test_two_saves_in_the_same_second_do_not_collide(self):
-        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
-        runtimes.herdr_text = lambda *cmd: "worker output\n"
-        runtimes.get_agent = lambda name: {"cwd": self.tmp.name}
-        paths = []
-        try:
-            for _ in range(2):
-                args = types.SimpleNamespace(
-                    state_dir=self.state,
-                    name="developer-alpha",
-                    runtime="herdr",
-                    source="recent-unwrapped",
-                    lines=300,
-                    save=True,
-                    task=None,
-                    project="acme",
-                )
-                buf = io.StringIO()
-                with contextlib.redirect_stdout(buf):
-                    tm.cmd_report(args)
-                paths.append(buf.getvalue().strip())
-                time.sleep(0.002)
-        finally:
-            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
-
-        self.assertNotEqual(paths[0], paths[1])
-
-    def test_report_save_prefers_the_workers_clean_report_file(self):
-        project = os.path.join(self.tmp.name, "project")
-        os.makedirs(project)
-        with open(os.path.join(project, tm.REPORT_FILE), "w") as fh:
-            fh.write("### Requested\n\nclean markdown, no TUI chrome\n")
-
-        def fail_pane(*cmd):
-            raise AssertionError("the terminal pane should not be captured")
-
-        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
-        runtimes.herdr_text = fail_pane
-        runtimes.get_agent = lambda name: {"cwd": project}
-        try:
-            args = types.SimpleNamespace(
-                state_dir=self.state,
-                name="developer-alpha",
-                runtime="herdr",
-                source="recent-unwrapped",
-                lines=300,
-                save=True,
-                task="tsk_1",
-                project="acme",
-            )
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                tm.cmd_report(args)
-        finally:
-            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
-
-        path = buf.getvalue().strip()
-        with open(path) as fh:
-            self.assertEqual(
-                fh.read(), "### Requested\n\nclean markdown, no TUI chrome\n"
+    def test_main_prints_an_error_line_and_exits_non_zero(self):
+        task = self.tracked_task()
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = tm.main(
+                [
+                    "--state-dir",
+                    self.state,
+                    "--config",
+                    os.path.join(self.tmp.name, "missing.toml"),
+                    "report",
+                    "developer-alpha",
+                    "--task",
+                    task["id"],
+                ]
             )
 
-    def test_report_visible_source_reads_the_pane_not_the_report_file(self):
-        project = os.path.join(self.tmp.name, "project")
-        os.makedirs(project)
-        with open(os.path.join(project, tm.REPORT_FILE), "w") as fh:
-            fh.write("stale report\n")
-
-        original_text, original_agent = runtimes.herdr_text, runtimes.get_agent
-        runtimes.herdr_text = lambda *cmd: "blocked dialog\n"
-        runtimes.get_agent = lambda name: {"cwd": project}
-        try:
-            args = types.SimpleNamespace(
-                state_dir=self.state,
-                name="developer-alpha",
-                runtime="herdr",
-                source="visible",
-                lines=80,
-                save=False,
-                task=None,
-            )
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                tm.cmd_report(args)
-        finally:
-            runtimes.herdr_text, runtimes.get_agent = original_text, original_agent
-
-        self.assertEqual(buf.getvalue(), "blocked dialog\n")
+        self.assertEqual(code, 1)
+        self.assertIn("error:", stderr.getvalue())
 
 
 class SessionCommandTest(unittest.TestCase):
@@ -1234,6 +1139,106 @@ class ProjectResolutionTest(unittest.TestCase):
         message = self.with_cwd(self.tmp.name, resolve)
 
         self.assertIn("--project", message)
+
+
+class HarnessCommandTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.config_path = os.path.join(self.tmp.name, "team-mate.toml")
+        with open(self.config_path, "w") as fh:
+            fh.write('harness = "opencode"\n')
+
+    def fields(self, **overrides):
+        args = types.SimpleNamespace(config=self.config_path, harness=None)
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_harness(args)
+        return dict(line.split("\t", 1) for line in buf.getvalue().splitlines())
+
+    def test_the_flag_selects_the_harness(self):
+        fields = self.fields(harness="omp")
+
+        self.assertEqual(fields["harness"], "omp")
+        self.assertEqual(fields["subagent_tool"], "task")
+        self.assertEqual(fields["agent_defs_dir"], ".omp/agents")
+        self.assertIn("background", fields)
+
+    def test_the_config_is_used_without_a_flag(self):
+        original = os.environ.pop("TM_HARNESS", None)
+        self.addCleanup(self._restore, original)
+
+        self.assertEqual(self.fields()["harness"], "opencode")
+
+    def _restore(self, original):
+        if original is not None:
+            os.environ["TM_HARNESS"] = original
+
+    def test_an_unknown_harness_is_rejected(self):
+        with self.assertRaises(ValueError):
+            tm.cmd_harness(
+                types.SimpleNamespace(config=self.config_path, harness="bogus")
+            )
+
+
+class AgentsSyncTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.source = os.path.join(self.tmp.name, "agents")
+        os.makedirs(self.source)
+        with open(os.path.join(self.source, "developer.md"), "w") as fh:
+            fh.write(
+                "---\n"
+                "name: developer\n"
+                'description: "Build the change"\n'
+                "tools: Read, Write, Edit, Bash\n"
+                "model: sonnet\n"
+                "---\n\n"
+                "# Developer\n\nDo the work.\n"
+            )
+        self.target = os.path.join(self.tmp.name, "project")
+        os.makedirs(self.target)
+
+    def test_a_markdown_harness_installs_the_original_text(self):
+        installed, target = tm.sync_agents("opencode", self.target, source=self.source)
+
+        self.assertEqual(installed, ["developer.md"])
+        self.assertEqual(target, os.path.join(self.target, ".opencode", "agents"))
+        with open(os.path.join(target, "developer.md")) as fh:
+            text = fh.read()
+        self.assertIn("# Developer", text)
+        self.assertIn("name: developer", text)
+
+    def test_codex_renders_a_toml_definition(self):
+        installed, target = tm.sync_agents("codex", self.target, source=self.source)
+
+        self.assertEqual(installed, ["developer.toml"])
+        with open(os.path.join(target, "developer.toml")) as fh:
+            text = fh.read()
+        self.assertIn('name = "developer"', text)
+        self.assertIn('description = "Build the change"', text)
+        self.assertIn("developer_instructions = ", text)
+        self.assertIn("Do the work.", text)
+
+    def test_the_cli_command_writes_under_the_harness_dir(self):
+        original = tm.PRIMARY_ROOT
+        tm.PRIMARY_ROOT = self.tmp.name
+        self.addCleanup(setattr, tm, "PRIMARY_ROOT", original)
+        args = types.SimpleNamespace(
+            config=os.path.join(self.tmp.name, "missing.toml"),
+            harness="pi",
+            cwd=self.target,
+        )
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_agents_sync(args)
+
+        target = os.path.join(self.target, ".pi", "agents")
+        self.assertIn(target, buf.getvalue())
+        self.assertTrue(os.path.isfile(os.path.join(target, "developer.md")))
 
 
 if __name__ == "__main__":

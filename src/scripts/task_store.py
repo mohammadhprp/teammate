@@ -62,8 +62,6 @@ TASKS_DIR = "tasks"
 ARCHIVE_DIR = "archive"
 BRIEFS_DIR = "briefs"
 REPORTS_DIR = "reports"
-WORKERS_FILE = "workers.json"
-WORKER_OUTPUT_DIR = "workers"
 SESSION_FILE = "session.json"
 TIMELINE_FILE = "timeline.jsonl"
 PROJECTS_FILE = "projects.json"
@@ -297,7 +295,6 @@ def create(
         "constraints": list(constraints or []),
         "project": project,
         "root": None,
-        "workspace": None,
         "worker": worker,
         "session": session or current_session(state_dir, project),
         "kind": kind,
@@ -425,87 +422,6 @@ def find_by_worker(state_dir, worker):
         if task.get("status") in ACTIVE_STATUSES:
             return task
     return matches[0]
-
-
-def workers_path(state_dir, project):
-    """The durable worker registry for one project.
-
-    Sits next to the task ledger so a headless runtime's worker metadata has the
-    same per-project, survives-restart lifetime as a task.
-    """
-    return os.path.join(project_dir(state_dir, project), WORKERS_FILE)
-
-
-def worker_output_dir(state_dir, project):
-    """Where a headless runtime captures a worker turn's JSON output."""
-    return os.path.join(project_dir(state_dir, project), WORKER_OUTPUT_DIR)
-
-
-def _read_workers_file(path):
-    try:
-        with open(path) as fh:
-            data = json.load(fh)
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _project_workers_files(state_dir):
-    """Every ``<state_dir>/<project>/workers.json``, sorted by project name."""
-    base = os.path.expanduser(state_dir)
-    paths = []
-    if not os.path.isdir(base):
-        return paths
-    for name in sorted(os.listdir(base)):
-        path = os.path.join(base, name, WORKERS_FILE)
-        if os.path.isfile(path):
-            paths.append(path)
-    return paths
-
-
-def load_workers(state_dir, project):
-    """A project's worker records, keyed by worker name."""
-    return _read_workers_file(workers_path(state_dir, project))
-
-
-def save_worker(state_dir, project, name, **fields):
-    """Create or update one worker record atomically and return it."""
-    workers = load_workers(state_dir, project)
-    worker = workers.get(name) or {
-        "name": name,
-        "project": project,
-        "created_at": _now(),
-    }
-    worker.update(fields)
-    worker["name"] = name
-    worker["project"] = project
-    worker["updated_at"] = _now()
-    workers[name] = worker
-    _write_json(workers_path(state_dir, project), workers)
-    return worker
-
-
-def find_worker(state_dir, name):
-    """The worker record for ``name`` across every project, or ``None``.
-
-    A worker is named globally, so callers that only have a name (``tm send``,
-    ``tm status``, ``tm stop``) can find it without knowing its project.
-    """
-    for path in _project_workers_files(state_dir):
-        worker = _read_workers_file(path).get(name)
-        if worker:
-            return worker
-    return None
-
-
-def list_workers(state_dir, project=None):
-    """Every worker record, for one project or across all of them."""
-    if project is not None:
-        return list(load_workers(state_dir, project).values())
-    workers = []
-    for path in _project_workers_files(state_dir):
-        workers.extend(_read_workers_file(path).values())
-    return workers
 
 
 def append_event(state_dir, project, task_id, kind, summary):

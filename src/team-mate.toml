@@ -3,23 +3,13 @@
 # `tm` loads one config file: the one passed with `--config` (by default the
 # `team-mate.toml` in the working directory, which is the primary's). There is
 # no merge across the primary's and a target project's file. Task-level flags
-# override it (for example `--kind`, `--max-iterations`).
+# override it (for example `--harness`, `--max-iterations`).
 
-# Worker runtime: "herdr" (default) or "claude". `tm` selects it in this order:
-# the `--runtime` flag, then the TM_RUNTIME env var, then this key, then
-# autodetect (herdr when HERDR_ENV=1 and its binary is on PATH, else claude when
-# its binary is on PATH). TM_HERDR and TM_CLAUDE override the binary paths.
-runtime = "herdr"
-
-# Worker coding agent. Any kind supported by `herdr agent start --kind`
-# (for example: omp, pi, claude, codex, opencode, gemini, cursor, droid, amp,
-# grok). Run `herdr agent` for the live list. Per-task override wins.
-worker_kind = "opencode"
-
-# Workspace where the primary Team Mate agent runs. Each target project gets
-# its own Herdr workspace named after the project, with workers in tabs there.
-# Advisory: not read by `tm`; agent-enforced.
-primary_workspace = "teammate"
+# Coding harness Team Mate runs in. Workers are native subagents of this
+# harness. `tm` resolves it in this order: the `--harness` flag, then the
+# TM_HARNESS env var, then this key, then best-effort detection from the
+# environment. One of: opencode, codex, claude, pi, omp.
+harness = "opencode"
 
 # Directory for the persistent task ledger. It survives the primary session
 # ending and holds one directory per project, named after the project slug:
@@ -28,7 +18,7 @@ primary_workspace = "teammate"
 # root. Legacy root-level state is migrated automatically on the next run.
 state_dir = "~/.teammate"
 
-# Maximum worker agents running at once. Advisory: not read by `tm`;
+# Maximum worker subagents running at once. Advisory: not read by `tm`;
 # agent-enforced.
 max_concurrent = 3
 
@@ -43,24 +33,25 @@ max_iterations = 3
 # Advisory: not read by `tm`; agent-enforced.
 review_policy = "always"
 
-# Desktop notification when work reaches an important state. Advisory: not read
-# by `tm`; agent-enforced (the primary uses `tm notify`).
+# Desktop notification when work reaches an important state. Advisory only:
+# there is no `tm notify` command; the primary raises notifications through its
+# own harness.
 notify = true
 
-# Distribute the common and worker skills into a target project on spawn, so a
-# worker started there can load them: the overlay installs skills only into the
-# primary, but a worker runs in the project's own tab. Set false to manage a
-# project's skills yourself.
+# Distribute the common and worker skills into a target project when it is set
+# up, so a worker there can load them: the overlay installs skills only into the
+# primary, but a worker runs in the project's own harness context. Set false to
+# manage a project's skills yourself.
 distribute_skills = true
 
-# Directory the shared skills are copied from when `tm spawn` or `tm skills
-# sync` distributes them into a project. Default: the primary's
-# `.agents/skills/` (what the installer populates). Point it elsewhere with an
+# Directory the shared skills are copied from when `tm skills sync` distributes
+# them into a project. Default: the resolved harness's skills directory under
+# the primary root (what the installer populates). Point it elsewhere with an
 # absolute or `~` path to copy from a different source.
 # skills_source = "~/my-skills"
 
-# Skills copied into the project. The common layer is shared by the primary and
-# workers; the worker layer runs inside the worker's tab.
+# Skills copied into a project. The common layer is shared by the primary and
+# workers; the worker layer runs inside the worker's harness context.
 worker_skills = [
   "commit-changes", "review-change", "showcase-work", "load-project-context",
   "verify-evidence", "handoff-report", "debug-issue", "agent-browser",

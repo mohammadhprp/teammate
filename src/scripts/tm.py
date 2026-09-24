@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""Team Mate CLI: a thin, low-noise wrapper over the worker runtime.
+"""Team Mate CLI: a thin, low-noise harness-aware ledger.
 
-Team Mate skills call this instead of a runtime's raw CLI so the developer sees
-one concise line per action instead of JSON. Herdr is the default runtime;
-``runtimes.py`` adds a headless Claude backend. The argument surface and the
-one-line output do not depend on which runtime ran.
+Team Mate workers are native subagents of the host coding harness, so this CLI
+does not spawn or manage processes. It records the task ledger and renders the
+adapter-specific pieces (skills, agent definitions, briefs, reports) for the
+resolved harness. The developer sees one concise line per action.
 """
 
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
 import time
 
-import runtimes
+import harnesses
 import task_store
-from runtimes import HerdrError, PromptStalled, REPORT_FILE
+from harnesses import TmError
 
-NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
+REPORT_FILE = ".teammate-report.md"
 
 
 def load_config(path):
@@ -44,7 +44,10 @@ DECISIONS = {
     "request-changes": "rework",
 }
 
+# Fallback skills directory, used only when no harness resolves (for example a
+# direct ``sync_skills`` call in a test). The CLI always passes the harness.
 SKILLS_SUBDIR = os.path.join(".agents", "skills")
+AGENTS_SUBDIR = "agents"
 MANAGED_MARKER = ".teammate-managed.json"
 REPORT_PREVIEW_LINES = 5
 EXCLUDE_BEGIN = "# Team Mate distributed skills (managed)"
@@ -110,16 +113,23 @@ def cmd_permissions_allow(args):
     print(f"permissions\t{added}\t{path}")
 
 
-def skills_source(config):
+def _skills_subdir(harness):
+    """The skills directory for a harness, or the fallback when none is known."""
+    if harness:
+        return harnesses.HARNESS_DESCRIPTORS[harness].skills_dir
+    return SKILLS_SUBDIR
+
+
+def skills_source(config, harness=None):
     """Directory the shared skills are copied from.
 
-    Defaults to the primary's ``.agents/skills`` (the installer's target).
+    Defaults to the resolved harness's skills directory under the primary root,
+    unless the ``skills_source`` config key overrides it.
     """
     override = config.get("skills_source")
     if override:
         return os.path.abspath(os.path.expanduser(override))
-    primary = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(primary, SKILLS_SUBDIR)
+    return os.path.join(PRIMARY_ROOT, _skills_subdir(harness))
 
 
 def _read_manifest(target):
@@ -136,7 +146,7 @@ def _write_manifest(target, names):
         fh.write("\n")
 
 
-def _exclude_from_git(root, names):
+def _exclude_from_git(root, names, subdir):
     """Keep managed skills and the worker report file out of ``git status``.
 
     Only ``.git/info/exclude`` is touched, which is never committed, so a
@@ -153,6 +163,7 @@ def _exclude_from_git(root, names):
     if not os.path.isabs(gitdir):
         gitdir = os.path.join(root, gitdir)
     path = os.path.join(gitdir, "info", "exclude")
+    slash = subdir.replace(os.sep, "/")
     kept, inside = [], False
     if os.path.exists(path):
         with open(path) as fh:
@@ -165,8 +176,8 @@ def _exclude_from_git(root, names):
                     kept.append(line)
     if names:
         kept += [EXCLUDE_BEGIN]
-        kept += [f"/.agents/skills/{name}/" for name in sorted(names)]
-        kept += [f"/.agents/skills/{MANAGED_MARKER}"]
+        kept += [f"/{slash}/{name}/" for name in sorted(names)]
+        kept += [f"/{slash}/{MANAGED_MARKER}"]
         kept += [f"/{REPORT_FILE}"]
         kept += [EXCLUDE_END]
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -174,7 +185,7 @@ def _exclude_from_git(root, names):
         fh.write("\n".join(kept) + "\n")
 
 
-def sync_skills(config, root, names=None):
+def sync_skills(config, root, names=None, harness=None):
     """Copy the shared skills into a project so its workers can load them.
 
     Idempotent, and it never overwrites a skill the project owns: a name is
@@ -182,8 +193,9 @@ def sync_skills(config, root, names=None):
     """
     if names is None:
         names = config.get("worker_skills") or []
-    source = skills_source(config)
-    target = os.path.join(os.path.abspath(root), SKILLS_SUBDIR)
+    source = skills_source(config, harness)
+    subdir = _skills_subdir(harness)
+    target = os.path.join(os.path.abspath(root), subdir)
     managed = _read_manifest(target)
     installed, skipped = [], []
     for name in names:
@@ -207,123 +219,101 @@ def sync_skills(config, root, names=None):
     if installed:
         _write_manifest(target, current)
     if config.get("distribute_git_exclude", True) and current:
-        _exclude_from_git(os.path.abspath(root), current)
+        _exclude_from_git(os.path.abspath(root), current, subdir)
     return installed, skipped, target
 
 
-def _get_runtime(args):
-    """The backend the command acts through, resolved from the CLI and config."""
-    name = runtimes.resolve_runtime(
-        getattr(args, "config_data", None),
-        flag=getattr(args, "runtime", None),
-    )
-    if name == runtimes.RUNTIME_CLAUDE:
-        return runtimes.ClaudeRuntime(args.state_dir)
-    return runtimes.HerdrRuntime()
+def agents_source():
+    """Directory the canonical agent definitions are read from."""
+    return os.path.join(PRIMARY_ROOT, AGENTS_SUBDIR)
 
 
-def cmd_spawn(args):
+def sync_agents(harness, root, source=None):
+    """Render the canonical agent definitions into ``root`` for ``harness``.
+
+    Returns ``(installed_filenames, target_dir)``.
+    """
+    descriptor = harnesses.HARNESS_DESCRIPTORS[harness]
+    source = source or agents_source()
+    target = os.path.join(os.path.abspath(root), descriptor.agent_defs_dir)
+    installed = []
+    for path in sorted(glob.glob(os.path.join(source, "*.md"))):
+        filename, content = harnesses.render_agent(harness, path)
+        os.makedirs(target, exist_ok=True)
+        with open(os.path.join(target, filename), "w") as fh:
+            fh.write(content)
+        installed.append(filename)
+    return installed, target
+
+
+def cmd_harness(args):
     config = load_config(args.config)
-    runtime = _get_runtime(args)
-    kind = args.kind or config.get("worker_kind", "opencode")
-    name = args.name or runtime.next_name()
-    if not NAME_RE.match(name):
-        raise HerdrError(f"invalid worker name: {name}")
-    cwd = os.path.abspath(args.cwd)
-    project = args.project or os.path.basename(cwd)
+    name = harnesses.resolve_harness(config, flag=getattr(args, "harness", None))
+    for key, value in harnesses.describe(name).items():
+        print(f"{key}\t{value}")
 
-    if args.skills and config.get("distribute_skills", True):
-        names = config.get("worker_skills") or []
-        if names:
-            installed, skipped, _ = sync_skills(config, cwd, names)
-            print(f"skills\t{len(installed)}\t{cwd}")
-            for skill in skipped:
-                print(f"warning: skill {skill} not distributed", file=sys.stderr)
-        else:
-            print(
-                "warning: no worker_skills configured; the worker starts "
-                "without Team Mate skills",
-                file=sys.stderr,
-            )
 
-    spawned = runtime.spawn(name, kind, cwd, project, label=args.label)
-    workspace = spawned.get("workspace")
+def cmd_agents_sync(args):
+    config = load_config(args.config)
+    harness = harnesses.resolve_harness(config, flag=getattr(args, "harness", None))
+    installed, target = sync_agents(harness, args.cwd)
+    print(f"agents\t{len(installed)}\t{target}")
+
+
+def _project_root(state_dir, task):
+    """A task's root, falling back to the registered root for its project."""
+    return task.get("root") or task_store.list_projects(state_dir).get(task["project"])
+
+
+def _report_target(args):
+    """The project, root, and task a report command acts on."""
     if args.task:
-        task = task_store.update(
-            args.state_dir,
-            args.task,
-            worker=name,
-            status="working",
-            root=cwd,
-            workspace=workspace,
-        )
-        task_store.append_event(
-            args.state_dir,
-            task["project"],
-            args.task,
-            "worker.spawned",
-            f"{name} in {project}",
-        )
-
-    print(
-        f"{name}\t{spawned.get('status', '?')}\t{project}\t"
-        f"{workspace}\t{spawned.get('tab', '')}"
-    )
+        task = task_store.load(args.state_dir, args.task)
+        return task["project"], _project_root(args.state_dir, task), task
+    if args.project:
+        root = task_store.list_projects(args.state_dir).get(args.project)
+        return args.project, root, None
+    task = task_store.find_by_worker(args.state_dir, args.name)
+    if task:
+        return task["project"], _project_root(args.state_dir, task), task
+    raise TmError(f"no task for worker {args.name}; pass --task or --project")
 
 
-def cmd_send(args):
-    if args.brief == "-":
-        text = sys.stdin.read()
-    else:
-        with open(args.brief) as fh:
-            text = fh.read()
-    runtime = _get_runtime(args)
-    try:
-        state = runtime.send(args.name, text, wait=args.wait, timeout=args.timeout)
-    except PromptStalled:
-        print(
-            "prompt delivered but the agent reported no working state; "
-            "install its Herdr integration or poll with `tm status`",
-            file=sys.stderr,
-        )
-        print(f"{args.name}\tunconfirmed")
-        return
-    print(f"{args.name}\t{state}")
-
-
-def cmd_status(args):
-    runtime = _get_runtime(args)
-    rows = runtime.status(args.name)
-    if not rows:
-        print("no workers")
-        return
-    for a in rows:
-        print(
-            f"{a.get('name', '?')}\t{a.get('status', '?')}\t"
-            f"{a.get('workspace', '')}\t{a.get('cwd', '')}"
-        )
-
-
-def cmd_wait(args):
-    runtime = _get_runtime(args)
-    state = runtime.wait(args.name, timeout=args.timeout)
-    print(f"{args.name}\t{state}")
+def _task_report_text(task):
+    """The report a task stores: its path's contents, else its inline text."""
+    path = task.get("report_path")
+    if path:
+        try:
+            with open(path) as fh:
+                return fh.read()
+        except OSError:
+            pass
+    return task.get("report")
 
 
 def cmd_report(args):
-    runtime = _get_runtime(args)
-    source_file = None
-    if args.source == "recent-unwrapped":
-        source_file = runtime.report_file(args.name)
-    if source_file:
-        with open(source_file) as fh:
-            text = fh.read()
-    else:
-        text = runtime.report(args.name, args.source, args.lines)
+    project, root, task = _report_target(args)
+    text = None
+    if root:
+        path = os.path.join(root, REPORT_FILE)
+        if os.path.isfile(path):
+            with open(path) as fh:
+                text = fh.read()
+    if text is None and task is not None:
+        text = _task_report_text(task)
+    if text is None:
+        if root:
+            raise TmError(
+                f"no report for {args.name}: {os.path.join(root, REPORT_FILE)} "
+                "is missing and the task has no stored report"
+            )
+        raise TmError(
+            f"no report for {args.name}: no project root is known and the task "
+            "has no stored report"
+        )
     if not args.save:
         sys.stdout.write(text)
         return
-    project = _resolve_project(args)
     directory = task_store.reports_dir(args.state_dir, project)
     os.makedirs(directory, exist_ok=True)
     stem = f"{args.task}-{args.name}" if args.task else args.name
@@ -393,12 +383,6 @@ def cmd_session_summary(args):
         )
 
 
-def cmd_stop(args):
-    runtime = _get_runtime(args)
-    runtime.stop(args.name, keep_tab=args.keep_tab)
-    print(f"{args.name}\tstopped")
-
-
 def cmd_diff(args):
     root = os.path.abspath(args.cwd)
 
@@ -418,7 +402,8 @@ def cmd_diff(args):
 
 def cmd_skills_sync(args):
     config = load_config(args.config)
-    installed, skipped, target = sync_skills(config, args.cwd)
+    harness = harnesses.resolve_harness(config, flag=getattr(args, "harness", None))
+    installed, skipped, target = sync_skills(config, args.cwd, harness=harness)
     print(f"skills\t{len(installed)}\t{target}")
     if skipped:
         print(f"skipped\t{len(skipped)}\t{' '.join(sorted(skipped))}")
@@ -436,12 +421,6 @@ def cmd_project_list(args):
         return
     for name in sorted(projects):
         print(f"{name}\t{projects[name]}")
-
-
-def cmd_notify(args):
-    runtime = _get_runtime(args)
-    runtime.notify(args.title, body=args.body, sound=args.sound)
-    print("notified")
 
 
 def _report_lines(task):
@@ -484,7 +463,7 @@ def _render_task(task):
         f"Status: {task['status']}",
         f"Kind: {task.get('kind', 'build')}",
         f"Project: {task['project']} ({task.get('root') or '?'})",
-        f"Worker: {task.get('worker') or '-'} ({task.get('workspace') or '-'})",
+        f"Worker: {task.get('worker') or '-'}",
         f"Iteration: {task['iteration']} of {task['max_iterations']}",
     ]
     if task.get("created_at") is not None and task.get("updated_at") is not None:
@@ -633,7 +612,7 @@ def cmd_task_show(args):
 def cmd_task_find(args):
     task = task_store.find_by_worker(args.state_dir, args.worker)
     if not task:
-        raise HerdrError(f"no task for worker {args.worker}")
+        raise TmError(f"no task for worker {args.worker}")
     print(f"{task['id']}\t{task['status']}\t{task['title']}")
 
 
@@ -641,7 +620,7 @@ def _require_no_open_blocking(state_dir, task_id):
     task = task_store.load(state_dir, task_id)
     blocking = task_store.count_findings(task, "open", task_store.BLOCKING_SEVERITIES)
     if blocking:
-        raise HerdrError(
+        raise TmError(
             f"{blocking} open blocker/major finding(s); resolve them before a pass"
         )
 
@@ -650,7 +629,7 @@ def _require_build_task(state_dir, task_id):
     """Reviews record evidence; only build tasks await the developer (E4)."""
     task = task_store.load(state_dir, task_id)
     if task.get("kind", "build") == "review":
-        raise HerdrError(
+        raise TmError(
             f"{task_id} is a review task; reviews do not await approval "
             "or take a developer decision"
         )
@@ -660,7 +639,7 @@ def _require_pass_verdict(state_dir, task_id):
     """Only a pass may advance to approval; inconclusive escalates instead."""
     verdict = task_store.verdict(task_store.load(state_dir, task_id))
     if verdict != "pass":
-        raise HerdrError(f"verdict is {verdict}; resolve it before approval")
+        raise TmError(f"verdict is {verdict}; resolve it before approval")
 
 
 def cmd_task_update(args):
@@ -674,6 +653,8 @@ def cmd_task_update(args):
         fields["status"] = args.status
     if args.iteration is not None:
         fields["iteration"] = args.iteration
+    if getattr(args, "worker", None):
+        fields["worker"] = args.worker
     if args.report_file:
         with open(args.report_file) as fh:
             fields["report"] = fh.read()
@@ -770,7 +751,7 @@ def cmd_task_decide(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog="tm", description="Team Mate: low-noise Herdr wrapper"
+        prog="tm", description="Team Mate: harness-aware ledger"
     )
     parser.add_argument(
         "--config",
@@ -783,59 +764,33 @@ def build_parser():
         help="task ledger directory (default: state_dir from config, else ~/.teammate)",
     )
     parser.add_argument(
-        "--runtime",
-        choices=list(runtimes.RUNTIMES),
+        "--harness",
+        choices=list(harnesses.HARNESSES),
         default=None,
-        help="worker runtime (default: TM_RUNTIME, the config's runtime, else autodetect)",
+        help="coding harness (default: TM_HARNESS, the config's harness, else detect)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("spawn", help="start a worker in its project workspace")
-    p.add_argument("--cwd", required=True, help="project root")
-    p.add_argument("--project", help="project/workspace name (default: cwd basename)")
-    p.add_argument("--kind", help="agent kind (default from config)")
-    p.add_argument("--name", help="worker name")
-    p.add_argument("--label", help="tab label (default: worker name)")
-    p.add_argument("--task", help="link the worker to a task id")
-    p.add_argument(
-        "--no-skills",
-        dest="skills",
-        action="store_false",
-        help="do not distribute Team Mate skills into the project",
+    p = sub.add_parser("harness", help="print the resolved harness adapter")
+    p.set_defaults(func=cmd_harness)
+
+    p = sub.add_parser(
+        "agents", help="install the resolved harness's agent definitions"
     )
-    p.set_defaults(func=cmd_spawn)
+    actions = p.add_subparsers(dest="action", required=True)
+    a = actions.add_parser("sync", help="render agent definitions into a project")
+    a.add_argument("--cwd", required=True, help="project root")
+    a.set_defaults(func=cmd_agents_sync)
 
-    p = sub.add_parser("send", help="prompt a worker with a brief")
+    p = sub.add_parser("report", help="read a worker's report file")
     p.add_argument("name")
-    p.add_argument("--brief", default="-", help="brief file, or - for stdin")
-    p.add_argument("--wait", action="store_true")
-    p.add_argument("--timeout", type=int, help="milliseconds")
-    p.set_defaults(func=cmd_send)
-
-    p = sub.add_parser("status", help="show worker state")
-    p.add_argument("name", nargs="?")
-    p.set_defaults(func=cmd_status)
-
-    p = sub.add_parser("wait", help="wait for a worker to settle")
-    p.add_argument("name")
-    p.add_argument("--timeout", type=int, help="milliseconds")
-    p.set_defaults(func=cmd_wait)
-
-    p = sub.add_parser("report", help="print or capture a worker's latest output")
-    p.add_argument("name")
-    p.add_argument("--lines", type=int, default=300)
-    p.add_argument(
-        "--source",
-        choices=["visible", "recent", "recent-unwrapped", "detection"],
-        default="recent-unwrapped",
-    )
     p.add_argument(
         "--save",
         action="store_true",
-        help="write the output under <state_dir>/<project>/reports and print the path",
+        help="write the report under <state_dir>/<project>/reports and print the path",
     )
-    p.add_argument("--task", help="task id, used to name a saved report")
-    p.add_argument("--project", help="project name (default: the task's, else cwd)")
+    p.add_argument("--task", help="task id, used to resolve the project")
+    p.add_argument("--project", help="project name (default: resolved from the task)")
     p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("brief", help="write a brief under <state_dir>/<project>/briefs")
@@ -844,21 +799,10 @@ def build_parser():
     p.add_argument("--project", help="project name (default: the task's, else cwd)")
     p.set_defaults(func=cmd_brief)
 
-    p = sub.add_parser("stop", help="interrupt a worker and close its tab")
-    p.add_argument("name")
-    p.add_argument("--keep-tab", action="store_true")
-    p.set_defaults(func=cmd_stop)
-
     p = sub.add_parser("diff", help="show working-copy changes for a project")
     p.add_argument("--cwd", default=".")
     p.add_argument("--stat", action="store_true")
     p.set_defaults(func=cmd_diff)
-
-    p = sub.add_parser("notify", help="raise a desktop notification")
-    p.add_argument("title")
-    p.add_argument("--body")
-    p.add_argument("--sound", choices=["none", "done", "request"])
-    p.set_defaults(func=cmd_notify)
 
     p = sub.add_parser("session", help="mark the primary's session in the ledger")
     actions = p.add_subparsers(dest="action", required=True)
@@ -999,6 +943,7 @@ def build_parser():
     a.add_argument("id")
     a.add_argument("--status", choices=list(task_store.STATUSES))
     a.add_argument("--iteration", type=int)
+    a.add_argument("--worker", help="link a worker to the task")
     a.add_argument("--report-file")
     a.add_argument("--note")
     a.add_argument(
@@ -1028,7 +973,7 @@ def main(argv=None):
                 file=sys.stderr,
             )
         args.func(args)
-    except (HerdrError, ValueError, OSError) as exc:
+    except (TmError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 0
