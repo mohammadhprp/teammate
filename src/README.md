@@ -36,7 +36,11 @@ src/
                        #   worker:   worker-role, accept-assignment,
                        #             implement-task, verify-change,
                        #             raise-blocker, report-result,
-                       #             review-task, investigate-issue
+                       #             review-task, investigate-issue,
+                       #             seo-audit, content-strategy,
+                       #             copywriting, analytics, ab-testing
+                       #             (the last five are vendored from
+                       #              coreyhaines31/marketingskills, MIT)
   scripts/             # Python helpers:
                        #   tm.py — harness-aware ledger CLI (no process spawning)
                        #   task_store.py — file-backed task ledger (~/.teammate)

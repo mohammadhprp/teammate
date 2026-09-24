@@ -57,6 +57,7 @@ worker_skills = [
   "verify-evidence", "handoff-report", "debug-issue", "agent-browser",
   "worker-role", "accept-assignment", "implement-task", "verify-change",
   "raise-blocker", "report-result", "review-task", "investigate-issue",
+  "seo-audit", "content-strategy", "copywriting", "analytics", "ab-testing",
 ]
 
 # Also list the managed skills in the project's .git/info/exclude so they do not
