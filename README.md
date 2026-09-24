@@ -1,11 +1,19 @@
 # Team Mate
 
+[![Release v0.1.0](https://img.shields.io/badge/release-v0.1.0-blue.svg)](CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 <p align="center">
   <img src=".github/assets/overview.png" alt="Team Mate Architecture" />
 </p>
 
 Team Mate is a **primary AI engineering agent** that coordinates the native
 subagents of your coding harness across multiple projects.
+
+It is for developers who work across more than one project and want to direct a
+team of agents from a single session — planning, delegating, reviewing, and
+reporting — without operating each agent session by hand and without giving up
+the final say over consequential actions.
 
 ## Quick start
 
