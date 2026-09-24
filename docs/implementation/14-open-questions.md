@@ -136,9 +136,9 @@ native subagents. Two of the five harnesses need help to expose a subagent tool:
 **omp** (a Pi fork) provides a `task` tool with background subagents, but its
 version-sensitive surface is not verified here. **Codex** exposes `spawn_agent`
 plus `wait_agent` / `send_input` / `close_agent`, but those names are
-source-derived and version-sensitive. OpenCode's `task` tool and Claude's
-`Agent` tool are the most settled. The adapter matrix records each case and its
-uncertainty: [Harness adapters](16-harness-adapters.md).
+source-derived and version-sensitive. OpenCode's `subagent` tool (V2; `task` in
+V1) and Claude's `Agent` tool are the most settled. The adapter matrix records
+each case and its uncertainty: [Harness adapters](16-harness-adapters.md).
 
 **Recommendation.** Verify the subagent tool and its lifecycle surface for the
 harness actually in use before a run, and fail loudly when it is absent rather

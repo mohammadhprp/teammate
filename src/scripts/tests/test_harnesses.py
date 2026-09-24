@@ -174,6 +174,29 @@ class DescribeTest(unittest.TestCase):
         self.assertTrue(harnesses.describe("opencode")["background"])
         self.assertFalse(harnesses.describe("pi")["background"])
 
+    def test_the_subagent_tool_matches_the_harness(self):
+        # opencode V2 exposes a `subagent` tool (V1 called it `task`); the
+        # others are verified in docs/implementation/16-harness-adapters.md.
+        self.assertEqual(harnesses.describe("opencode")["subagent_tool"], "subagent")
+        self.assertEqual(harnesses.describe("codex")["subagent_tool"], "spawn_agent")
+        self.assertEqual(harnesses.describe("claude")["subagent_tool"], "Agent")
+        self.assertEqual(harnesses.describe("pi")["subagent_tool"], "subagent")
+        self.assertEqual(harnesses.describe("omp")["subagent_tool"], "task")
+
+    def test_agent_definitions_dir_and_format_per_harness(self):
+        expected = {
+            "opencode": (".opencode/agents", "md"),
+            "codex": (".codex/agents", "toml"),
+            "claude": (".claude/agents", "md"),
+            "pi": (".pi/agents", "md"),
+            "omp": (".omp/agents", "md"),
+        }
+        for name, (directory, fmt) in expected.items():
+            with self.subTest(harness=name):
+                fields = harnesses.describe(name)
+                self.assertEqual(fields["agent_defs_dir"], directory)
+                self.assertEqual(fields["agent_def_format"], fmt)
+
 
 class RenderAgentTest(unittest.TestCase):
     def setUp(self):

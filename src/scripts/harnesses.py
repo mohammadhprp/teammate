@@ -56,7 +56,7 @@ class Harness:
 HARNESS_DESCRIPTORS = {
     HARNESS_OPENCODE: Harness(
         name=HARNESS_OPENCODE,
-        subagent_tool="task",
+        subagent_tool="subagent",
         agent_defs_dir=".opencode/agents",
         agent_def_format="md",
         skills_dir=".opencode/skills",

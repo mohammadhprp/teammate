@@ -19,7 +19,7 @@ tm --harness codex harness
 
 | Harness | Subagent tool | Agent definitions | Skills directory | Instructions | Config | Headless | Background |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **opencode** | `task` (`subagent_type`, `prompt`, `description`, `background`) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | `opencode.json` | `opencode run` | yes |
+| **opencode** | `subagent` (`agent`, `description`, `prompt`, `background`; legacy `subagent_type` alias) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | `opencode.json` | `opencode run` | yes |
 | **codex** | `spawn_agent` + `wait_agent` / `send_input` / `close_agent` (prompt-mediated) | `.codex/agents/*.toml` | `.agents/skills` | `AGENTS.md` | `.codex/config.toml` | `codex exec` | yes |
 | **claude** | `Agent` tool (`subagent_type`, `prompt`, `run_in_background`) | `.claude/agents/*.md` | `.claude/skills` | `CLAUDE.md` | `.claude/settings.json` | `claude -p` | yes |
 | **pi** | `subagent` tool from a Pi extension/package (no native subagent) | `.pi/agents/*.md` | `.pi/skills` | `AGENTS.md` | `.pi/settings.json` | `pi -p` | extension-dependent |
@@ -28,9 +28,12 @@ tm --harness codex harness
 `tm harness` prints the `background` field as a boolean: `false` means the
 harness does not background a subagent by default (pi's depends on the
 extension). Read the matrix's nuance, not the boolean alone, when it matters.
+Every row is expanded in its own section below, where each agent-dimension
+claim carries its source or is marked unverified.
 
-These are each harness's **native read paths** — where the harness itself looks
-for skills, agents, and instructions. The installer follows them, with one
+These are each harness's read paths — where the harness itself looks for
+skills, agents, and instructions. For `pi` the agent path is the subagent
+*extension's* convention, not native Pi. The installer follows them, with one
 exception: for `claude` it packages the overlay as a plugin at
 `.claude/plugins/teammate/` (carrying the skills, agent definitions, hooks, and
 the `tm` wrapper) and writes `CLAUDE.md` at the root, instead of copying into
@@ -50,84 +53,210 @@ the `tm` wrapper) and writes `CLAUDE.md` at the root, instead of copying into
   when skills/scripts refer to them.
 
 The canonical worker definitions live in `src/agents/`: `developer.md`,
-`reviewer.md`, `tester.md`, and `investigator.md`. A harness with a different
-agent-definition schema gets a rendered form, not a second hand-maintained copy.
+`reviewer.md`, `tester.md`, and `investigator.md`. Each carries the same
+frontmatter — `name`, `description`, `tools`, and `model` — and a markdown
+body. A harness with a different agent-definition schema gets a rendered form,
+not a second hand-maintained copy.
+
+Whether that rendering is **sufficient** depends on the harness (see each
+section): it is complete for codex (the three required TOML fields), claude,
+and the pi example extension; for opencode V2 it is not, because the copied
+frontmatter sets no `mode` (an omitted `mode` defaults to `primary`, so the
+worker is not a subagent) and uses the legacy `tools` field instead of the V2
+`permissions` list; for omp the comma-separated `tools` string and the `sonnet`
+/ `opus` model aliases are not the omp schema. Fixing opencode/omp rendering is
+tracked below, not done here.
 
 ## opencode
 
-- **Subagent tool.** `task`, with `subagent_type`, `prompt`, `description`, and
-  `background`.
-- **Agent definitions.** `.opencode/agents/*.md`; the canonical markdown is
-  copied unchanged.
+Verified against opencode v2.0.10 (`opencode --version`) and the V2 docs
+(<https://opencode.ai/v2/docs/agents/>, <https://opencode.ai/v2/docs/tools/>,
+<https://opencode.ai/v2/docs/config/>); the tool id is also confirmed in the
+installed binary.
+
+- **Subagent tool.** `subagent`, with `agent` (the agent ID), `description`,
+  `prompt`, and `background`. It returns a `sessionID` to continue that child
+  conversation; the legacy `subagent_type` input is still accepted. V1 exposed
+  this as the `task` tool, so a V1 session will not have a `subagent` tool.
+- **Agent definitions.** `.opencode/agents/*.md` (project) and
+  `~/.config/opencode/agents/*.md` (global). The file name is the agent ID; a
+  nested path becomes a namespaced ID (`team/reviewer`). Frontmatter accepts
+  the same fields as an `agents` configuration entry: `description`
+  (required), `mode`, `model`, `permissions`, `system`, `steps`, `hidden`,
+  `color`, `disabled`, and `request`; the body is the system prompt. V1 used
+  `permission`, `tools`, `temperature`, `top_p`, `prompt`, `disable`, and
+  `maxSteps` instead.
+- **Config keys affecting agents.** `opencode.json`/`opencode.jsonc`: `agents`
+  (V2; `agent` in V1) defines/overrides agents, `default_agent` selects the
+  primary agent for a session with none, and V2 `permissions` (an array of
+  `{action, resource, effect}`) gates tools with a `subagent` action that
+  controls which agents a parent may launch. V1 used `permission` with
+  `bash`/`task` action names. `tm permissions init`/`allow` merge the
+  state-dir and project-root rules into this file.
+- **Rendering.** `tm agents sync` copies the canonical markdown unchanged. The
+  result is **not V2-sufficient**: an omitted `mode` defaults a new custom
+  agent to `primary`, and `subagent` only launches subagent-mode agents, so a
+  synced worker must add `mode: subagent` (and should use V2 `permissions`
+  rather than the legacy `tools`, and a `provider/model` id rather than the
+  Claude `sonnet`/`opus` aliases).
 - **Skills.** `.opencode/skills`.
 - **Instructions.** `AGENTS.md`.
-- **Config.** `opencode.json` (also where `tm permissions init`/`allow` merge
-  the state-dir and project-root rules).
 - **Headless.** `opencode run`.
-- **Background.** Supported (`background`).
-- **Detection marker.** `OPENCODE`.
+- **Background.** Supported (`background: true` returns immediately and
+  notifies the parent).
+- **Detection marker.** `OPENCODE` (best-effort; not verified against a live
+  environment here).
 
 ## codex
 
+Verified against the current Codex docs
+(<https://developers.openai.com/codex/agent-configuration/subagents>) and the
+open-source implementation
+(`codex-rs/core/src/tools/handlers/multi_agents_spec.rs` on `openai/codex`
+`main`), which names the tools.
+
 - **Subagent tool.** `spawn_agent`, plus `wait_agent`, `send_input`, and
-  `close_agent` for lifecycle. Communication is prompt-mediated.
-- **Agent definitions.** `.codex/agents/*.toml`; `tm agents sync` renders each
-  canonical definition to TOML.
+  `close_agent`; the v2 surface adds `send_message`, `followup_task`,
+  `resume_agent`, `list_agents`, and `interrupt_agent`. Communication is
+  prompt-mediated and orchestration is the harness's.
+- **Agent definitions.** `.codex/agents/*.toml` (project) and
+  `~/.codex/agents/*.toml` (personal); each file is one agent and is loaded as
+  a configuration layer. Required fields: `name`, `description`,
+  `developer_instructions`. Optional: `model`, `model_reasoning_effort`,
+  `sandbox_mode`, `mcp_servers`, `skills.config`. Built-in agents are
+  `default`, `worker`, and `explorer`; a custom `name` overrides a built-in.
+- **Config keys affecting agents.** `.codex/config.toml` under `[agents]`:
+  `enabled` (default `true`), `max_concurrent_threads_per_session` (legacy
+  alias `max_threads`), `default_subagent_model`,
+  `default_subagent_reasoning_effort`, and `interrupt_message`.
+- **Rendering.** `tm agents sync` renders each canonical definition to TOML
+  with exactly `name`, `description`, and `developer_instructions` — the three
+  required fields, so the rendering is sufficient.
 - **Skills.** `.agents/skills`.
 - **Instructions.** `AGENTS.md`.
-- **Config.** `.codex/config.toml`.
 - **Headless.** `codex exec`.
-- **Background.** Supported.
-- **Detection markers.** `CODEX_HOME`, `CODEX_SANDBOX`.
-- **Uncertainty.** The tool names are source-derived and version-sensitive;
-  confirm them against the installed Codex.
+- **Background.** Supported: agents are spawned in parallel and Codex collects
+  their results (`wait_agent` blocks for a result when the parent needs it).
+- **Detection markers.** `CODEX_HOME`, `CODEX_SANDBOX` (best-effort; not
+  verified against a live environment here).
 
 ## claude
 
-- **Subagent tool.** The `Agent` tool, with `subagent_type`, `prompt`, and
-  `run_in_background`.
-- **Agent definitions.** `.claude/agents/*.md`; the canonical markdown is copied
-  unchanged. The same files back the Claude plugin's `teammate:developer`,
+Verified against the current Claude Code docs
+(<https://code.claude.com/docs/en/sub-agents>,
+<https://code.claude.com/docs/en/tools-reference>).
+
+- **Subagent tool.** The `Agent` tool (renamed from `Task` in v2.1.63), with
+  `subagent_type` (required, unless the session has a `general-purpose`
+  fallback), `prompt`, and `description`, plus `run_in_background`, `model`,
+  and `resume`; a call that carries `name` launches an agent-team teammate
+  instead of a one-shot subagent.
+- **Agent definitions.** `.claude/agents/*.md` (project) and
+  `~/.claude/agents/*.md` (user), plus a plugin's `agents/` directory. A
+  subdirectory is scanned but does not change identity. YAML frontmatter:
+  `name` and `description` are required; `tools`, `disallowedTools`, `model`,
+  `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`,
+  `background`, `omitClaudeMd`, `effort`, `isolation`, `color`,
+  `initialPrompt`, and `experimental` are optional. The body is the system
+  prompt. The same files back the Claude plugin's `teammate:developer`,
   `teammate:reviewer`, `teammate:tester`, and `teammate:investigator`.
+- **Config keys affecting agents.** `.claude/settings.json`: `permissions`
+  (for example denying `Agent` to block delegation, or a tool rule scoped to
+  a subagent), `agent` for the main-session agent, and `env`
+  (`CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`,
+  `CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS`,
+  `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS`). `--agents` takes a JSON
+  definition per session.
+- **Rendering.** `tm agents sync` copies the canonical markdown unchanged; its
+  `name`, `description`, `tools`, and `model` fields are all valid Claude
+  subagent frontmatter, so the rendering is sufficient.
 - **Skills.** `.claude/skills`.
 - **Instructions.** `CLAUDE.md` — **not** `AGENTS.md`. The installer writes the
   overlay's `AGENTS.md` content to `CLAUDE.md` for this harness.
-- **Config.** `.claude/settings.json`.
 - **Headless.** `claude -p`.
-- **Background.** Supported (`run_in_background`).
-- **Detection marker.** `CLAUDECODE`.
+- **Background.** Supported; subagents run in the background by default
+  (`run_in_background` can request it explicitly where fork mode is off).
+- **Detection marker.** `CLAUDECODE` (best-effort).
 - **Plugin.** The Claude plugin (see [PLUGIN.md](../../src/PLUGIN.md)) is the
   packaged form of this adapter for Claude Code and Cowork.
 
 ## pi
 
-- **Subagent tool.** `subagent`, provided by a Pi extension/package. Pi has no
-  native subagent tool, so the adapter is only usable when that extension is
-  installed.
-- **Agent definitions.** `.pi/agents/*.md`.
+Verified against the current Pi docs (<https://pi.dev/docs/latest>:
+`configuration.md`, `settings.md`, `extensions.md`) and the subagent example
+extension in the `earendil-works/pi` source
+(`packages/coding-agent/examples/extensions/subagent/`), which is the
+authoritative definition of the `.pi/agents` convention.
+
+- **Subagent tool.** `subagent`, **provided by an extension**, not by Pi. Pi
+  has no native subagent tool; the example extension registers `subagent` and
+  spawns a separate `pi` process per task with an isolated context. It supports
+  three call shapes: single (`agent`, `task`), parallel (`tasks[]` of
+  `{agent, task}`), and chain (`chain[]` with a `{previous}` placeholder),
+  optionally `cwd`.
+- **Agent definitions.** `.pi/agents/*.md` (project) and
+  `<agent-dir>/agents/*.md` (user; `<agent-dir>` defaults to `~/.pi/agent`).
+  YAML frontmatter: `name`, `description`, `tools` (a comma-separated string or
+  a list), and `model`; the body is the system prompt. This directory is the
+  extension's convention — native Pi discovers only extensions, skills,
+  prompts, and themes.
+- **Config keys affecting agents.** `.pi/settings.json` (and the agent-dir
+  `settings.json`) has `packages`, `extensions`, `skills`, `prompts`,
+  `themes`, and `defaultTools`; Pi itself has no agent-specific setting, so
+  installing and configuring the subagent capability is done through the
+  `extensions`/`packages` lists.
+- **Rendering.** `tm agents sync` copies the canonical markdown unchanged; its
+  `name`, `description`, `tools`, and `model` fields match the example
+  extension's parser, so the rendering is sufficient for that extension.
 - **Skills.** `.pi/skills`.
-- **Instructions.** `AGENTS.md`.
-- **Config.** `.pi/settings.json`.
+- **Instructions.** `AGENTS.md` (plus `CLAUDE.md`), discovered from the agent
+  directory, the working directory, and parent directories.
 - **Headless.** `pi -p`.
-- **Background.** Depends on the extension.
-- **Detection markers.** `PI_CODING_AGENT_DIR`, `PI_SMOL_MODEL`.
-- **Uncertainty.** The extension's exact tool surface and lifecycle are not
-  verified here. Treat Pi as requiring an extension until a live check says
-  otherwise.
+- **Background.** Extension-dependent; the example extension runs each task as
+  a foreground child process and streams its output, so there is no native
+  background default.
+- **Detection markers.** `PI_CODING_AGENT_DIR`, `PI_SMOL_MODEL` (best-effort).
 
 ## omp
 
-- **Subagent tool.** `task`, accepting either a batch (`tasks[]`) or a flat call,
-  with background subagents by default. "Oh My Pi" is a Pi fork.
-- **Agent definitions.** `.omp/agents/*.md`.
+Verified against the installed `omp` v18.2.5 (`omp --version`, `omp --help`,
+`omp agents --help`, `omp config list --json`, and `omp agents unpack`). "Oh My
+Pi" is a Pi fork.
+
+- **Subagent tool.** `task` ("Launch sub-agents for parallel tasks"). It accepts
+  a flat call or a batch; `task.batch` defaults to `true`, so one call carries
+  `{ context, tasks[] }`, one subagent per item, each optionally with its own
+  `agent`. With `async.enabled` (default `true`) each spawn runs as an
+  independent background agent.
+- **Agent definitions.** `.omp/agents/*.md` (project) and
+  `~/.omp/agent/agents/*.md` (user); `omp agents unpack [--project|--user]`
+  writes the bundled ones there. Bundled agents are `task`, `scout`, `sonic`,
+  `reviewer`, and `security-reviewer`. YAML frontmatter: `name`, `description`,
+  `tools` (a list), `model` (a role such as `@smol`/`@slow`/`@task`, or a model
+  id), `thinkingLevel`, `spawns` (allowed child agent types or `"*"`), `output`
+  (a structured-output schema), and `prewalk`; the body is the system prompt.
+- **Config keys affecting agents.** `config.yml` in the agent directory
+  (default `~/.omp/agent/config.yml`) and `.omp/config.yml` for a project.
+  `task.batch`, `task.maxConcurrency`, `task.maxRecursionDepth`,
+  `task.disabledAgents`, `task.agentModelOverrides`,
+  `task.agentServiceTierOverrides`, `task.agentPrewalk`, `task.agentAdvisor`,
+  `task.prewalk`, `task.enableEffort`, `task.enableLsp`, `task.maxRuntimeMs`,
+  `task.agentIdleTtlMs`, `task.softRequestBudget`, `task.maxEffort`,
+  `task.eager`, `task.isolation.*`, `async.enabled`, `async.maxJobs`,
+  `tier.subagent`, and `skills.enableAgentsUser`/`skills.enableAgentsProject`.
+- **Rendering.** `tm agents sync` copies the canonical markdown unchanged; omp
+  expects `tools` as a YAML list and `model` as a role or model id, so the
+  canonical comma-separated `tools` string and the Claude `sonnet`/`opus`
+  aliases are **not** the omp schema. The rendering is **not yet
+  omp-sufficient**.
 - **Skills.** `.omp/skills`.
-- **Instructions.** `.omp/AGENTS.md` (under the `.omp/` tree, unlike the
-  harnesses whose instruction file sits at the project root).
-- **Config.** `.omp/config.yml`.
+- **Instructions.** `.omp/AGENTS.md`; omp loads `AGENTS.md` from `.omp/`
+  directories (it also reads `.agent`/`.agents`, `~/.config/opencode/`, and
+  `~/.codex/AGENTS.md` for compatibility).
 - **Headless.** `omp -p`.
-- **Background.** Supported and the default.
+- **Background.** Supported and the default (`async.enabled`).
 - **Detection marker.** `OMP_PROFILE` (checked before the `PI_*` markers omp may
-  also carry).
+  also carry; best-effort).
 
 ## Uncertainties
 
@@ -135,22 +264,34 @@ The matrix is honest about what is settled and what is not. Before a run,
 confirm the adapter against the installed harness rather than trusting this
 page.
 
-- **Codex tool names are source-derived and version-sensitive.** `spawn_agent`,
-  `wait_agent`, `send_input`, and `close_agent` may differ by Codex version.
-- **OpenCode's directories and config keys differ between V1 and V2.** The
-  agent-definitions directory and the `opencode.json` permission shape
-  (`permissions` array vs `permission` with `bash`/`task` action names) are
-  version-dependent; this page names the V2-style paths.
-- **Pi requires an extension.** There is no native subagent tool, so the
-  `subagent` tool and its lifecycle come from a package that must be installed;
-  background behavior is extension-dependent.
+- **Codex tool names are version-sensitive.** `spawn_agent`, `send_input`,
+  `send_message`, `followup_task`, `resume_agent`, `wait_agent`, `list_agents`,
+  `close_agent`, and `interrupt_agent` are read from the `openai/codex` `main`
+  source; the official docs page names no tool, and the set has grown (v1 vs
+  v2), so confirm the installed Codex's tool list.
+- **OpenCode V1 and V2 differ.** V2 names the tool `subagent` and uses the
+  `agents` key and a `permissions` array; V1 called the tool `task` and used
+  `agent`/`permission`. This page names the V2 (installed v2.0.10) shapes, so a
+  V1 session will not match the `subagent` name.
+- **Pi requires an extension.** There is no native subagent tool; the
+  `subagent` tool and the `.pi/agents` directory are the conventions of the
+  bundled *example* extension. A different subagent package may register a
+  different tool name or read a different directory, and background behavior is
+  extension-dependent.
+- **omp is verified only from the installed binary, not official docs.** The
+  `task` call shape, `.omp/agents`, `.omp/config.yml`, and the `task.*` keys
+  are read from `omp` v18.2.5 and may differ by version. `omp` writes its user
+  config to `<agent-dir>/config.yml` (default `~/.omp/agent/config.yml`), not
+  `.omp/config.yml`, which is the project-level file.
+- **Agent-definition rendering is incomplete for opencode and omp.** `tm agents
+  sync` copies the canonical frontmatter unchanged; it lacks `mode: subagent`
+  for opencode V2 and uses formats omp does not read. Fixing the rendering is
+  out of scope here and is a remaining concern.
 - **Claude's instruction file is `CLAUDE.md`, not `AGENTS.md`.** A reader who
   assumes one instruction filename across harnesses will be wrong for claude.
-- **omp's background semantics and exact `task` call shape** are stated from its
-  Pi-fork lineage and are not verified here.
-- **Detection is best-effort.** The environment markers above can be absent
-  (for example in a fresh shell or CI); pass `--harness` explicitly when it
-  matters.
+- **Detection is best-effort and unverified.** The environment markers above
+  are not confirmed against a live environment (for example in a fresh shell or
+  CI) and can be absent; pass `--harness` explicitly when it matters.
 
 [Open question 6](14-open-questions.md) tracks the per-harness verification that
 would turn these uncertainties into a tested table.

@@ -26,7 +26,7 @@ get to work. Onboard once; a forced tour is worse than none.
 
   | Harness | Subagent tool | Agent defs | Skills | Instructions | Background |
   | --- | --- | --- | --- | --- | --- |
-  | `opencode` | `task` (`subagent_type`, `prompt`, `description`, `background`) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | yes |
+  | `opencode` | `subagent` (`agent`, `description`, `prompt`, `background`; V1 called it `task`) | `.opencode/agents/*.md` | `.opencode/skills` | `AGENTS.md` | yes |
   | `codex` | `spawn_agent` + `wait_agent` / `send_input` / `close_agent` (prompt-mediated; ask explicitly) | `.codex/agents/*.toml` | `.agents/skills` | `AGENTS.md` | yes (parallel) |
   | `claude` | `Agent` (`subagent_type`, `prompt`, `description`, `run_in_background`) | `.claude/agents/*.md` | `.claude/skills` | `CLAUDE.md` | yes |
   | `pi` | `subagent` from a Pi extension/package (no native subagent) | `.pi/agents/*.md` | `.pi/skills` | `AGENTS.md` | extension-dependent |
