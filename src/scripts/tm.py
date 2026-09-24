@@ -383,6 +383,59 @@ def cmd_session_summary(args):
         )
 
 
+def cmd_session_checkpoint(args):
+    project = _resolve_project(args)
+    session = _resolve_session(args.state_dir, project, args.session or "current")
+    if not session:
+        raise TmError(
+            f"no open session for {project}: run `tm session start --project "
+            f"{project}` first, or pass --session <id>"
+        )
+    tasks = task_store.list_tasks(args.state_dir, project, session=session)
+    open_tasks = [
+        task for task in tasks if task.get("status") in task_store.ACTIVE_STATUSES
+    ]
+    packet = {
+        "project": project,
+        "session": session,
+        "created_at": int(time.time() * 1000),
+        "goal": args.goal,
+        "plan": list(args.plan or []),
+        "decisions": list(args.decision or []),
+        "notes": list(args.note or []),
+        "next": args.next,
+        "tasks": [
+            {
+                "id": task["id"],
+                "title": task["title"],
+                "status": task["status"],
+                "worker": task.get("worker"),
+            }
+            for task in open_tasks
+        ],
+    }
+    print(task_store.write_checkpoint(args.state_dir, project, packet))
+
+
+def cmd_session_resume(args):
+    project = _resolve_project(args)
+    packet = task_store.read_checkpoint(args.state_dir, project)
+    if packet is None:
+        raise TmError(
+            f"no checkpoint for {project}: create one with "
+            f"`tm session checkpoint --project {project}`"
+        )
+    requested = _resolve_session(args.state_dir, project, args.session or "current")
+    if requested and packet.get("session") != requested:
+        raise TmError(
+            f"the checkpoint for {project} is for session "
+            f"{packet.get('session')}, not {requested}; resume it with "
+            f"`tm session resume --project {project} --session "
+            f"{packet.get('session')}`"
+        )
+    print(_render_checkpoint(packet))
+
+
 def cmd_diff(args):
     root = os.path.abspath(args.cwd)
 
@@ -442,6 +495,52 @@ def _report_lines(task):
     if len(lines) > REPORT_PREVIEW_LINES:
         out.append(f"  ... {len(lines) - REPORT_PREVIEW_LINES} more line(s)")
     return out
+
+
+def _format_timestamp(ms):
+    """A checkpoint timestamp as ``YYYY-MM-DD HH:MM UTC``, or ``-``."""
+    if not ms:
+        return "-"
+    return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(ms / 1000))
+
+
+def _render_checkpoint(packet):
+    """A resume packet as a compact, labeled block a fresh context can reload.
+
+    Deliberately not the tab-separated shape of ``session summary``: this is
+    read by a model after a compaction, so labels and a little layout help, and
+    it is kept to about one screen.
+    """
+    lines = [f"Team Mate checkpoint — {packet.get('project') or '?'}"]
+    lines.append(
+        f"Session: {packet.get('session') or '-'} "
+        f"({_format_timestamp(packet.get('created_at'))})"
+    )
+    if packet.get("goal"):
+        lines.append(f"Goal: {packet['goal']}")
+    if packet.get("next"):
+        lines.append(f"Next: {packet['next']}")
+    for label, key in (
+        ("Plan", "plan"),
+        ("Decisions", "decisions"),
+        ("Notes", "notes"),
+    ):
+        values = packet.get(key) or []
+        if values:
+            lines.append(f"{label}:")
+            lines += [f"  - {value}" for value in values]
+    tasks = packet.get("tasks") or []
+    lines.append(f"Open tasks ({len(tasks)}):")
+    if tasks:
+        width = max(len(task["id"]) for task in tasks)
+        for task in tasks:
+            lines.append(
+                f"  {task['id']:<{width}}  {task.get('status') or '?':<16}  "
+                f"{task.get('worker') or '-':<16}  {task.get('title') or ''}"
+            )
+    else:
+        lines.append("  none")
+    return "\n".join(lines)
 
 
 def _format_duration(ms):
@@ -824,6 +923,21 @@ def build_parser():
         help="summarize every session, not just the open one",
     )
     a.set_defaults(func=cmd_session_summary)
+    a = actions.add_parser(
+        "checkpoint", help="write a compact resume packet for the open session"
+    )
+    a.add_argument("--project", help="project name (default: the cwd's project)")
+    a.add_argument("--session", help="session id (default: the open session)")
+    a.add_argument("--goal", help="the run's goal in one line")
+    a.add_argument("--next", help="the next action to take after reloading")
+    a.add_argument("--plan", action="append", help="a plan step (repeatable)")
+    a.add_argument("--decision", action="append", help="a decision made (repeatable)")
+    a.add_argument("--note", action="append", help="a note (repeatable)")
+    a.set_defaults(func=cmd_session_checkpoint)
+    a = actions.add_parser("resume", help="print the resume packet for a fresh context")
+    a.add_argument("--project", help="project name (default: the cwd's project)")
+    a.add_argument("--session", help="session id, or 'current' (default: current)")
+    a.set_defaults(func=cmd_session_resume)
 
     p = sub.add_parser(
         "permissions", help="provision the primary's OpenCode permissions"

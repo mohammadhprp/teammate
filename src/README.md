@@ -27,7 +27,8 @@ src/
                        #             run-rework, escalate-decision,
                        #             report-progress, visual-report,
                        #             parallel-coordination,
-                       #             recover-run, multi-project-context
+                       #             recover-run, multi-project-context,
+                       #             compact-context
                        #   common:   commit-changes, review-change,
                        #             showcase-work, load-project-context,
                        #             verify-evidence, handoff-report,
@@ -118,6 +119,7 @@ lowercase form):
     reports/                   # captured worker output
     timeline.jsonl             # append-only events
     session.json               # the open session marker
+    checkpoint.json            # the latest resume packet
 ```
 
 Legacy state that lived directly under `~/.teammate/` is migrated into the
@@ -134,11 +136,14 @@ root and is reported.
   markdown the worker wrote to `.teammate-report.md` in its project root,
   falling back to the report stored on the task, and prints it. With `--save`
   it writes the report under the project's `reports/` and prints the path.
-- `tm session start` / `status` / `end` / `summary` act on one project
-  (`--project`, else the registered project containing the current directory);
-  tasks created while a session is open are tagged with it, so `tm task list`
-  shows the current session and recovery can ignore history. `--all` shows
-  every session.
+- `tm session start` / `status` / `end` / `summary` / `checkpoint` / `resume`
+  act on one project (`--project`, else the registered project containing the
+  current directory); tasks created while a session is open are tagged with it,
+  so `tm task list` shows the current session and recovery can ignore history.
+  `--all` shows every session. `tm session checkpoint` writes a compact resume
+  packet (the goal, open tasks, plan, decisions, next action) to the project's
+  `checkpoint.json`; `tm session resume` prints it for a fresh context. Both are
+  the context discipline in `compact-context`.
 - `tm task list` spans every project by default; pass `--project <name>` to
   scope it. `tm task prune` archives closed tasks (moved to the project's
   `archive/`) so the live ledger stops accumulating stale work; scope it with

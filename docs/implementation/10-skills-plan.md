@@ -93,9 +93,9 @@ Out of scope:
 ## Current state
 
 All 30 planned skills are now built under `src/skills/`, plus the teammate
-`visual-report` and the tool skills `find-skills` and `agent-browser` (a
-`herdr` tool skill was later removed with the Herdr runtime). It started from
-six primary (teammate) skills:
+`visual-report` and `compact-context` and the tool skills `find-skills` and
+`agent-browser` (a `herdr` tool skill was later removed with the Herdr
+runtime). It started from six primary (teammate) skills:
 
 | Skill | Category | Notes |
 | --- | --- | --- |

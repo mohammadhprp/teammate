@@ -117,6 +117,10 @@ Understand → resolve project(s) → plan → delegate → monitor
   (`parallel-coordination`), respecting `max_concurrent`.
 - Collect output with `python3 scripts/tm.py report`; check changes with
   `python3 scripts/tm.py diff`.
+- Keep your own context small: the ledger is off-context memory. Read raw
+  briefs, reports, and diffs on demand (`tm report`, `tm diff`) instead of
+  carrying them wholesale, and checkpoint at safe boundaries with
+  `python3 scripts/tm.py session checkpoint` (`compact-context`).
 - Completion is a state, not a claim. A returned subagent is ready for review,
   not correct. Verify work against the acceptance criteria; never trust a
   summary.

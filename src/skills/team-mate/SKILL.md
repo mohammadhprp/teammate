@@ -51,6 +51,11 @@ after a restart or a lost worker. Open a session when a run starts
 (`python3 scripts/tm.py session start --project <name>`) so the run's tasks are
 tagged and `task list` does not inherit stale work.
 
+Keep your own context small: raw briefs, reports, and diffs stay in the ledger
+and are read on demand (`tm report`, `tm diff`), never carried wholesale.
+Checkpoint at safe boundaries with `python3 scripts/tm.py session checkpoint`
+and reload with `session resume` — follow `compact-context`.
+
 ## Procedure
 
 1. **Understand.** Restate the goal only; `plan-work` derives the acceptance

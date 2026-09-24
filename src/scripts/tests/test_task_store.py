@@ -170,6 +170,10 @@ class ProjectPathsTest(unittest.TestCase):
             os.path.join(base, "session.json"),
         )
         self.assertEqual(
+            task_store.checkpoint_path(self.state, "My Project"),
+            os.path.join(base, "checkpoint.json"),
+        )
+        self.assertEqual(
             task_store.timeline_path(self.state, "My Project"),
             os.path.join(base, "timeline.jsonl"),
         )
@@ -277,6 +281,26 @@ class SessionTest(unittest.TestCase):
             task_store.reports_dir(self.state, "acme"),
             os.path.join(self.state, "acme", "reports"),
         )
+
+    def test_checkpoint_round_trips_and_overwrites(self):
+        self.assertIsNone(task_store.read_checkpoint(self.state, "acme"))
+
+        path = task_store.write_checkpoint(self.state, "acme", {"goal": "one"})
+
+        self.assertEqual(path, os.path.join(self.state, "acme", "checkpoint.json"))
+        self.assertEqual(task_store.read_checkpoint(self.state, "acme")["goal"], "one")
+
+        task_store.write_checkpoint(self.state, "acme", {"goal": "two"})
+
+        self.assertEqual(task_store.read_checkpoint(self.state, "acme")["goal"], "two")
+
+    def test_read_checkpoint_ignores_a_corrupt_file(self):
+        path = task_store.checkpoint_path(self.state, "acme")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write("not json")
+
+        self.assertIsNone(task_store.read_checkpoint(self.state, "acme"))
 
 
 class PruneTest(unittest.TestCase):

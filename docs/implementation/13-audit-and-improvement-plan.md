@@ -49,10 +49,10 @@ reports) and the shipped `agent-browser` tool skill.
 ## What is solid
 
 - **The skill library is internally consistent.** The 30 planned skills, plus
-  `visual-report` and the tool skills `find-skills` and `agent-browser` (a
-  `herdr` tool skill was later removed with the Herdr runtime) — with valid
-  frontmatter, names matching directories; every `tm` command and flag
-  referenced in a skill resolves against `build_parser()`.
+  `visual-report`, `compact-context`, and the tool skills `find-skills` and
+  `agent-browser` (a `herdr` tool skill was later removed with the Herdr
+  runtime) — with valid frontmatter, names matching directories; every `tm`
+  command and flag referenced in a skill resolves against `build_parser()`.
 - **The ledger model matches its design.** Findings as data, derived verdict,
   session tagging, and prune all line up with
   [07-review-and-approval.md](07-review-and-approval.md).

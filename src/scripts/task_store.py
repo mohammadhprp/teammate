@@ -10,6 +10,7 @@ under ``<state_dir>/``::
     <state_dir>/<slug>/reports/        # captured worker output
     <state_dir>/<slug>/timeline.jsonl  # append-only events
     <state_dir>/<slug>/session.json    # the open session marker
+    <state_dir>/<slug>/checkpoint.json # the latest resume packet
 
 State is local to the primary repository and survives the primary agent's
 session ending. Legacy state that lived directly under ``<state_dir>`` is moved
@@ -63,6 +64,7 @@ ARCHIVE_DIR = "archive"
 BRIEFS_DIR = "briefs"
 REPORTS_DIR = "reports"
 SESSION_FILE = "session.json"
+CHECKPOINT_FILE = "checkpoint.json"
 TIMELINE_FILE = "timeline.jsonl"
 PROJECTS_FILE = "projects.json"
 
@@ -125,6 +127,32 @@ def reports_dir(state_dir, project):
 def session_path(state_dir, project):
     """A project's open-session marker."""
     return os.path.join(project_dir(state_dir, project), SESSION_FILE)
+
+
+def checkpoint_path(state_dir, project):
+    """A project's latest resume packet, ``<slug>/checkpoint.json``."""
+    return os.path.join(project_dir(state_dir, project), CHECKPOINT_FILE)
+
+
+def write_checkpoint(state_dir, project, packet):
+    """Overwrite a project's resume packet and return its path.
+
+    Idempotent: a second checkpoint replaces the first, so the packet is always
+    the project's latest state, never a growing log.
+    """
+    path = checkpoint_path(state_dir, project)
+    _write_json(path, packet)
+    return path
+
+
+def read_checkpoint(state_dir, project):
+    """A project's resume packet as a dict, or ``None`` when none exists."""
+    try:
+        with open(checkpoint_path(state_dir, project)) as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def timeline_path(state_dir, project):

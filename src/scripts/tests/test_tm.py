@@ -83,6 +83,18 @@ class ParserTest(unittest.TestCase):
         self.assertIs(args.func, tm.cmd_session_summary)
         self.assertFalse(args.all)
 
+    def test_session_checkpoint_is_registered(self):
+        args = tm.build_parser().parse_args(["session", "checkpoint"])
+
+        self.assertIs(args.func, tm.cmd_session_checkpoint)
+        self.assertIsNone(args.session)
+
+    def test_session_resume_is_registered(self):
+        args = tm.build_parser().parse_args(["session", "resume"])
+
+        self.assertIs(args.func, tm.cmd_session_resume)
+        self.assertIsNone(args.session)
+
     def test_task_new_project_is_optional(self):
         args = tm.build_parser().parse_args(
             ["task", "new", "--title", "t", "--goal", "g", "--acceptance", "c"]
@@ -1038,6 +1050,146 @@ class SessionSummaryTest(unittest.TestCase):
 
     def test_no_tasks(self):
         self.assertEqual(self.summary(), "no tasks\n")
+
+
+class SessionCheckpointTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = self.tmp.name
+
+    def checkpoint(self, **overrides):
+        args = types.SimpleNamespace(
+            state_dir=self.state,
+            project="acme",
+            session=None,
+            goal=None,
+            next=None,
+            plan=None,
+            decision=None,
+            note=None,
+        )
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_session_checkpoint(args)
+        return buf.getvalue().strip()
+
+    def resume(self, **overrides):
+        args = types.SimpleNamespace(state_dir=self.state, project="acme", session=None)
+        args.__dict__.update(overrides)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            tm.cmd_session_resume(args)
+        return buf.getvalue()
+
+    def test_round_trip_writes_and_prints_the_packet(self):
+        session = task_store.new_session(self.state, "acme")
+        task = task_store.create(
+            self.state, "acme", "Add subtract()", "g", ["c"], worker="developer-alpha"
+        )
+
+        path = self.checkpoint(
+            goal="ship subtract",
+            next="review the diff",
+            plan=["record the task", "delegate"],
+            decision=["use pytest"],
+            note=["alpha is running"],
+        )
+
+        self.assertEqual(path, os.path.join(self.state, "acme", "checkpoint.json"))
+        out = self.resume()
+        self.assertIn(f"Session: {session}", out)
+        self.assertIn("Goal: ship subtract", out)
+        self.assertIn("Next: review the diff", out)
+        self.assertIn("- record the task", out)
+        self.assertIn("- use pytest", out)
+        self.assertIn("- alpha is running", out)
+        self.assertIn(task["id"], out)
+        self.assertIn("developer-alpha", out)
+
+    def test_defaults_to_the_open_session(self):
+        session = task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="current run")
+
+        out = self.resume()
+
+        self.assertIn(session, out)
+        self.assertIn("current run", out)
+
+    def test_missing_checkpoint_names_the_command(self):
+        with self.assertRaises(tm.TmError) as ctx:
+            self.resume(project="beta")
+
+        self.assertIn("tm session checkpoint", str(ctx.exception))
+
+    def test_checkpoints_are_isolated_per_project(self):
+        task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="acme goal")
+        task_store.new_session(self.state, "beta")
+        self.checkpoint(project="beta", goal="beta goal")
+
+        acme = self.resume(project="acme")
+        beta = self.resume(project="beta")
+
+        self.assertIn("acme goal", acme)
+        self.assertNotIn("beta goal", acme)
+        self.assertIn("beta goal", beta)
+        with self.assertRaises(tm.TmError):
+            self.resume(project="gamma")
+
+    def test_a_second_checkpoint_overwrites_the_first(self):
+        task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="first")
+
+        self.checkpoint(goal="second")
+
+        out = self.resume()
+        self.assertIn("second", out)
+        self.assertNotIn("first", out)
+
+    def test_an_explicit_session_must_match(self):
+        session = task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="run")
+
+        self.assertIn("run", self.resume(session=session))
+        with self.assertRaises(tm.TmError):
+            self.resume(session="sess_deadbeef")
+
+    def test_the_default_session_is_the_open_one(self):
+        old = task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="run one")
+        task_store.end_session(self.state, "acme")
+        task_store.new_session(self.state, "acme")
+
+        with self.assertRaises(tm.TmError):
+            self.resume()
+        self.assertIn("run one", self.resume(session=old))
+
+    def test_resume_still_works_after_the_session_ends(self):
+        task_store.new_session(self.state, "acme")
+        self.checkpoint(goal="closed run")
+        task_store.end_session(self.state, "acme")
+
+        self.assertIn("closed run", self.resume())
+
+    def test_checkpoint_requires_an_open_session(self):
+        with self.assertRaises(tm.TmError) as ctx:
+            self.checkpoint(goal="orphan")
+
+        self.assertIn("tm session start", str(ctx.exception))
+
+    def test_only_open_tasks_are_listed(self):
+        task_store.new_session(self.state, "acme")
+        done = task_store.create(self.state, "acme", "done", "g", ["c"])
+        task_store.update(self.state, done["id"], status="approved")
+        live = task_store.create(self.state, "acme", "live", "g", ["c"])
+
+        self.checkpoint()
+
+        out = self.resume()
+        self.assertIn(live["id"], out)
+        self.assertNotIn(done["id"], out)
 
 
 class PermissionsTest(unittest.TestCase):
