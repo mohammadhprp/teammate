@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-24
+
+### Fixed
+
+- **OpenCode V2 and omp worker agent rendering** — `tm agents sync` now renders
+  each canonical worker into the harness's own agent schema: an OpenCode V2
+  subagent (`mode: subagent`, a V2 `permissions` allow-list, and no legacy
+  `tools`/`model`) and an omp definition (a YAML `tools` list and an `@role`
+  model). Previously the copied frontmatter left synced OpenCode workers
+  unlaunchable — the `subagent` tool reported `Unknown agent: <name>`.
+- **OpenCode worker skill access** — the rendered V2 `permissions` allow-list
+  now includes `skill`, so a launched worker can load Team Mate skills; without
+  it the deny-all rule failed opencode's `skill` permission check.
+
 ## [0.2.0] - 2026-09-24
 
 ### Added
@@ -71,6 +85,7 @@ coordinates the native subagents of a coding harness across multiple projects.
 - **Documentation** — an install guide, product vision, repository context, and
   a harness-adapter matrix.
 
-[Unreleased]: https://github.com/mohammadhprp/teammate/commits/master
+[Unreleased]: https://github.com/mohammadhprp/teammate/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/mohammadhprp/teammate/releases/tag/v0.2.1
 [0.2.0]: https://github.com/mohammadhprp/teammate/releases/tag/v0.2.0
 [0.1.0]: https://github.com/mohammadhprp/teammate/releases/tag/v0.1.0

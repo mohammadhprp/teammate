@@ -1,6 +1,6 @@
 {
   "name": "teammate",
   "description": "Team Mate as a Claude plugin: worker subagents and Team Mate skills that run inside Claude Code and Cowork, with the same task ledger and tm CLI.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "repository": "https://github.com/mohammadhprp/teammate"
 }
