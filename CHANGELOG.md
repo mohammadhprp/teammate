@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
+### Added
+
+- **Marketing skills (vendored)** — five worker skills discovered with the
+  Skills CLI and copied unmodified from
+  [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills)
+  (MIT, ~51K stars):
+  - `seo-audit` — technical and on-page SEO audit with a prioritized action
+    plan (upstream 213K installs);
+  - `content-strategy` — topic planning, content pillars, editorial calendar
+    (upstream 145K installs);
+  - `copywriting` — persuasive copy for pages, headlines, and CTAs (upstream
+    207K installs);
+  - `analytics` — GA4/GTM event and conversion tracking plans (upstream 68K
+    installs);
+  - `ab-testing` — experiment design, sample size, and growth experimentation
+    (upstream 62K installs).
+
+  Each directory keeps the upstream `SKILL.md` and bundled `references/` and
+  `evals/`, plus the upstream `LICENSE` and a `SOURCE.md` attribution note.
+  Distributed to target projects through `worker_skills` in `team-mate.toml`.
+
+### Fixed
+
+- **OpenCode V2 subagent tool name** — the adapter now reports the V2
+  `subagent` tool (`agent`, `description`, `prompt`, `background`) instead of
+  the V1 `task` tool, and the harness-adapter page documents the V2 shapes.
+
 ## [0.1.0] - 2026-09-24
 
 The first release of Team Mate: a portable primary-agent overlay that
@@ -43,4 +72,5 @@ coordinates the native subagents of a coding harness across multiple projects.
   a harness-adapter matrix.
 
 [Unreleased]: https://github.com/mohammadhprp/teammate/commits/master
+[0.2.0]: https://github.com/mohammadhprp/teammate/releases/tag/v0.2.0
 [0.1.0]: https://github.com/mohammadhprp/teammate/releases/tag/v0.1.0

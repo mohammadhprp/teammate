@@ -3,7 +3,7 @@
 ## Supported versions
 
 Team Mate is pre-1.0. Security fixes are applied to the latest released version
-— currently `0.1.0` — on the `master` branch.
+— currently `0.2.0` — on the `master` branch.
 
 ## Reporting a vulnerability
 
