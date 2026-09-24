@@ -17,9 +17,9 @@ findings drive rework, and how the developer approves the result.
 
 ## Review trigger
 
-Review starts when a worker settles into `idle` or `done`, as observed through
-the `tm` CLI (`tm wait`, `tm status`). The primary agent then pulls fresh
-evidence before deciding anything.
+Review starts when a worker subagent settles — the harness reports it `idle` or
+`done`, or the primary observes its completion through the harness's subagent
+tool. The primary agent then pulls fresh evidence before deciding anything.
 
 Before reviewing, the primary agent assembles:
 
@@ -104,8 +104,8 @@ A `pass` verdict must not include open blocker or major findings.
 
 Gather evidence before the verdict. Do not review from memory.
 
-1. Read the worker transcript with
-   `python3 scripts/tm.py report <worker> --lines 300`.
+1. Read the worker's report with
+   `python3 scripts/tm.py report <worker>`.
 2. Inspect the project's working copy with `python3 scripts/tm.py diff --cwd
    <root>` (it lists untracked files) and
    `python3 scripts/tm.py diff --cwd <root> --stat` for the summary. Read each

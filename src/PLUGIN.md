@@ -1,9 +1,9 @@
 # Team Mate — Claude plugin
 
 Team Mate packaged as a Claude Code / Cowork plugin named **`teammate`**. It
-brings the Team Mate worker roles and skills into Claude Code and Cowork
-alongside the existing Herdr runtime, so the same coordination model runs in
-either place.
+brings the Team Mate worker roles and skills into Claude Code and Cowork — the
+Claude harness adapter of the harness-native subagent model — so the same
+coordination model runs wherever Claude Code runs.
 
 The plugin root is `src/`, the same tree as the rest of the Team Mate overlay:
 its `skills/`, `scripts/`, `templates/`, and `team-mate.toml` are the
@@ -17,7 +17,7 @@ src/                           # plugin root
   .claude-plugin/plugin.json   # plugin manifest (name, description, version, repository)
   agents/                      # developer, reviewer, tester, investigator subagents
   skills/                      # Team Mate skills, namespaced /teammate:<skill>
-  scripts/                     # tm.py, task_store.py, runtimes.py
+  scripts/                     # tm.py, task_store.py, harnesses.py
   templates/                   # worker brief, developer report, project AGENTS
   team-mate.toml               # default Team Mate config
   bin/tm                       # POSIX sh wrapper over scripts/tm.py, on the Bash PATH
@@ -43,7 +43,7 @@ claude plugin install teammate@<marketplace>
 The marketplace entry must reference the plugin root `src/`; the repository
 ships the plugin but does not itself define a catalog.
 
-### 2. `--plugin-dir` (development)
+### 2. From a checkout (development)
 
 Load the plugin straight from a checkout for one session, with no install step:
 
@@ -51,24 +51,25 @@ Load the plugin straight from a checkout for one session, with no install step:
 claude --plugin-dir /path/to/teammate-dev/src
 ```
 
-### 3. `--plugin` (installer)
+### 3. Installer (automatic)
 
-The repository installer installs the plugin alongside the primary it creates:
+Installing Team Mate for the `claude` harness sets up the plugin automatically —
+there is no separate flag:
 
 ```bash
-./install.sh --plugin
+curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh | sh -s -- --harness claude
 ```
 
 That installs `src/` to `<dir>/.claude/plugins/teammate` (default `<dir>` is
-`./teammate`), excluding `tests/`, `__pycache__/`, and `*.pyc`, prints the
-command that loads it, and stops without requiring or launching Herdr:
+`./teammate`), excluding `tests/`, `__pycache__/`, and `*.pyc`, and prints the
+command that loads it:
 
 ```bash
 claude --plugin-dir "<dir>/.claude/plugins/teammate"
 ```
 
-Use `--dir DIR` to choose the primary directory. Every other `install.sh` option
-and the default behavior are unchanged when `--plugin` is absent.
+Use `--dir DIR` to choose the primary directory. The full installer guide is
+[docs/INSTALL.md](../docs/INSTALL.md).
 
 ## Usage
 
@@ -88,24 +89,25 @@ With the plugin enabled:
   its final report to `.teammate-report.md` in the project root, in the
   `handoff-report` shape.
 - **`tm`** is added to the Bash tool PATH while the plugin is enabled, so a
-  session can run `tm task list`, `tm spawn`, and the other ledger commands.
+  session can run `tm task list`, `tm brief`, and the other ledger commands.
 - **Hooks** are best-effort and never block a session:
   - `SessionStart` records an open Team Mate session.
   - `SubagentStop` captures the worker's `.teammate-report.md` into the task
     ledger. If `tm` is missing or fails, both hooks exit 0.
 
-## Runtime selection
+## Harness selection
 
-`tm` chooses its runtime in this order:
+Inside the plugin the harness is Claude: the plugin supplies the `claude`
+adapter, and workers are Claude Code subagents. `tm` resolves the harness in
+this order:
 
-1. the `--runtime` flag,
-2. the `TM_RUNTIME` environment variable,
-3. the `runtime` key in `team-mate.toml`.
+1. the `--harness` flag,
+2. the `TM_HARNESS` environment variable,
+3. the `harness` key in `team-mate.toml`,
+4. best-effort detection.
 
-Valid values are `herdr` and `claude`. **Herdr is the default**; `claude` is the
-optional headless backend that this plugin makes usable inside Claude Code and
-Cowork. The plugin does not implement runtime selection — it relies on the `tm`
-contract above.
+Valid values are `opencode`, `codex`, `claude`, `pi`, and `omp`. The plugin does
+not implement harness selection — it relies on the `tm` contract above.
 
 ## Validate
 

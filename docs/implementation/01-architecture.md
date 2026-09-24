@@ -3,7 +3,7 @@
 Team Mate is the primary agent. It is not an OpenCode plugin, and it is not a
 fixed orchestration service — nor an agent runtime. It is a reusable operating
 model built from skills, scripts, instructions, and workflows that the primary
-agent runs on a pluggable worker runtime.
+agent runs inside a coding harness, using that harness's native subagents.
 
 ## Components
 
@@ -11,11 +11,12 @@ agent runs on a pluggable worker runtime.
 | --- | --- |
 | Developer | Defines goals and makes consequential decisions. |
 | Team Mate | Primary agent that plans, delegates, monitors, reviews, and reports. |
-| Worker agents | Dynamically created agents that execute specialized work. |
+| Worker agents | Dynamically created native subagents of the host harness that execute specialized work. |
 | Team Mate skills | Shared capabilities for coordination and engineering workflows. |
 | Project skills | Capabilities specific to the target project. |
 | Project context | `AGENTS.md`, `CONTEXT.md`, docs, commands, and conventions. |
-| Worker runtime | `tm` selects the backend (`--runtime`, `TM_RUNTIME`, `team-mate.toml`, then autodetect): Herdr by default, or a headless Claude backend. |
+| Harness | The coding environment the primary runs in (`opencode`, `codex`, `claude`, `pi`, or `omp`). Its native subagent tool runs workers; `tm` resolves it from `--harness`, `TM_HARNESS`, `team-mate.toml`, then detection. |
+| `tm` ledger CLI | Records tasks, briefs, reports, findings, and decisions, and renders the per-harness skills and agent definitions. It never spawns or manages processes. |
 | Claude plugin | The overlay packaged for Claude Code and Cowork: skills, worker subagents, a `bin/tm` wrapper, and best-effort hooks. |
 
 ## Control flow
@@ -31,7 +32,7 @@ Team Mate
    ├── Plan / delegate
    │
    ▼
-Runtime (Herdr default)
+Harness native subagents
    │
    ├── Agent A ── implementation
    ├── Agent B ── review
@@ -96,16 +97,17 @@ type.
 
 ## Responsibility boundary
 
-Team Mate owns **judgment and coordination**. The worker runtime owns the
-**agent runtime** (Herdr by default, or the headless Claude backend). Project
-repositories own **project-specific knowledge and execution rules**.
+Team Mate owns **judgment and coordination**. The coding harness owns the
+**agent runtime**: spawning, observing, and closing its native subagents. `tm`
+owns the **ledger** — durable tasks, briefs, reports, findings, and decisions.
+Project repositories own **project-specific knowledge and execution rules**.
 
 This boundary should prevent Team Mate from growing into another general agent
 runtime.
 
 ## R&D questions
 
-- How should Team Mate discover available Herdr capabilities?
+- How should Team Mate discover a harness's available subagent capabilities?
 - How should it choose between serial and parallel agents?
 - How should it associate an agent with a project safely?
 - How should task state survive the primary agent's session ending?

@@ -4,56 +4,39 @@
   <img src=".github/assets/overview.png" alt="Team Mate Architecture" />
 </p>
 
-Team Mate is a **primary AI engineering agent** that coordinates other coding
-agents across multiple projects.
+Team Mate is a **primary AI engineering agent** that coordinates the native
+subagents of your coding harness across multiple projects.
 
-The developer talks to Team Mate through any supported coding agent such as
-OpenCode, Codex, Pi, or Claude Code. Team Mate understands its role from the
-project's `AGENTS.md` and runs workers on a pluggable runtime:
-[Herdr](https://herdr.dev) by default, or a headless Claude backend. The overlay
-also ships as a Claude plugin for Claude Code and Cowork.
+## Quick start
 
-Each project keeps its own context, `AGENTS.md`, skills, scripts, and other
-project-specific resources. Team Mate supplies shared capabilities on top of
-that project context.
+**Ask your Agent** — paste this into your AI agent to install and get an intro:
 
-## Install
+```text
+Set up Team Mate and tell me what it can do.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh \
-  | sh -s -- --kind opencode
+1. Read and install this for user https://github.com/mohammadhprp/teammate
+2. Read the installed `teammate/AGENTS.md`.
+3. Introduce Team Mate and give me 3 example prompts I can try.
 ```
 
-- Options:
-  -  `--dir DIR` (default `./teammate`)
-  -  `--kind KIND` Any Herdr worker kind (for example `pi`, `codex`,
-`claude`, or `omp`).
-  - `--force` (overwrite, keeping a `.bak`)
-  - `--no-launch` (set up only).
-  - `--plugin` (install the Claude plugin from `src/`, then stop; no Herdr).
-
-After installing, run `/reload-plugins` (or restart Claude Code). You get the
-Team Mate skills as `/teammate:<skill>`, four worker subagents (`developer`,
-`reviewer`, `tester`, `investigator`), the `tm` CLI on the Bash `PATH`, and
-best-effort session and report hooks.
-
-In **Cowork**, enable the plugin for your claude.ai account; Claude Code
-downloads it into the session, which has no Herdr.
-
-To delegate workers to headless Claude instead of Herdr, select the `claude`
-runtime:
+**One command** — installs into `./teammate` and detects your harness:
 
 ```bash
-tm --runtime claude spawn --cwd <project> --name developer-alpha
+curl -fsSL https://raw.githubusercontent.com/mohammadhprp/teammate/master/install.sh | sh -s --
 ```
 
-Or set it persistently with `runtime = "claude"` in `team-mate.toml`, or
-`TM_RUNTIME=claude`. Herdr stays the default. The `--runtime` flag must come
-before the subcommand.
+Then `cd teammate` and open your harness. The full walkthrough is in the
+[Install guide](docs/INSTALL.md).
 
-## Overview
+## Supported harnesses
 
+`opencode` · `codex` · `claude` · `pi` ·
+`omp`.
+
+## Documentation
+
+- [Install guide](docs/INSTALL.md) — install paths, options, legacy replacement.
 - [Vision](docs/VISION.md) — product vision and operating model.
 - [Context](docs/CONTEXT.md) — repository guidance.
-- [Research and architecture](docs/implementation/README.md) — research and implementation
+- [Research and architecture](docs/implementation/README.md).
 - [Overlay](src/README.md) — the portable overlay.

@@ -3,16 +3,17 @@
 **Team Mate is a primary AI engineering agent that manages a team of other
 agents across multiple software projects.**
 
-The developer talks to one Team Mate session through a coding agent such as
-OpenCode, Codex, Pi, or Claude Code. Team Mate understands its role from
-`AGENTS.md`, uses shared Team Mate capabilities, and runs workers on a
-pluggable runtime: Herdr by default, or a headless Claude backend.
+The developer talks to one Team Mate session inside a coding harness — OpenCode,
+Codex, Claude Code, Pi, or omp. Team Mate understands its role from the
+harness's instruction file (`AGENTS.md`, or `CLAUDE.md` for Claude Code), uses
+shared Team Mate capabilities, and delegates work to the harness's **native
+subagents**.
 
 Team Mate is not itself an OpenCode plugin, and it is not an agent runtime. It
 is a portable coordination overlay — skills, scripts, workflows, prompts, and
 documentation that make the Team Mate operating model reusable across
-coding-agent environments. It also ships as a Claude plugin, so the same model
-runs in Claude Code and Cowork.
+coding-agent harnesses. It also ships as a Claude plugin, so the same model runs
+in Claude Code and Cowork.
 
 ## Core idea
 
@@ -107,42 +108,54 @@ while still allowing Team Mate to coordinate the overall work.
 ## How a session starts
 
 The developer can open a normal coding-agent session and say what they want.
-The repository's `AGENTS.md` establishes that the agent is operating as Team
-Mate.
+The repository's instruction file (`AGENTS.md`, or `CLAUDE.md` for Claude Code)
+establishes that the agent is operating as Team Mate.
 
 Conceptually:
 
 ```text
-Developer opens OpenCode / Codex / Pi
+Developer opens OpenCode / Codex / Claude Code / Pi / omp
                 │
                 ▼
-        AGENTS.md is loaded
+   Harness loads its instruction file (AGENTS.md / CLAUDE.md)
                 │
                 ▼
-       Agent assumes Team Mate role
+        Agent assumes Team Mate role
                 │
                 ▼
-      Developer gives a task or goal
+       Developer gives a task or goal
                 │
                 ▼
-       Team Mate coordinates work
+        Team Mate coordinates work
 ```
 
 There is no requirement for the developer to manually create every worker
-session.
+subagent.
 
-## The worker runtime
+## The harness-native subagent model
 
-Team Mate runs workers on a **pluggable runtime**. Herdr is the default: it
-provides the live capabilities Team Mate needs to coordinate agents, and Team
-Mate should build on those capabilities rather than reimplementing an agent
-runtime. A headless Claude backend is also available, and the overlay ships as
-a Claude plugin so the same model runs where Herdr is absent, such as Cowork.
+Team Mate does not run its own agent runtime. The primary runs **inside one
+coding harness** — `opencode`, `codex`, `claude`, `pi`, or `omp` — and workers
+are that harness's **native subagents**, spawned by the primary through the
+harness's own subagent tool. Team Mate builds on the runtime the harness already
+provides rather than reimplementing one.
 
-The Team Mate repository should therefore focus on the **coordination layer**:
+`tm` is a **ledger-only CLI**. It records tasks, briefs, reports, findings, and
+decisions, and renders the adapter-specific pieces (skills and agent
+definitions) for the resolved harness — it does not spawn, send to, or stop
+processes. The primary's harness supplies the live capability: spawning a
+subagent, waiting for it, sending it more input, and closing it.
+
+Because the harness is the runtime, Team Mate adapts to each harness's shape:
+its subagent tool, its agent-definition and skills directories, its instruction
+and config files, and whether it supports background subagents. The per-harness
+adapter matrix is in
+[Harness adapters](implementation/16-harness-adapters.md).
+
+The Team Mate repository therefore focuses on the **coordination layer**:
 
 - reusable skills;
-- reusable scripts;
+- reusable scripts (the `tm` ledger CLI);
 - agent instructions;
 - workflows;
 - project-context conventions;
@@ -150,8 +163,9 @@ The Team Mate repository should therefore focus on the **coordination layer**:
 - monitoring and reporting patterns;
 - experiments and research.
 
-Herdr is the default implementation dependency of the coordination model, not
-the product itself.
+The harness is an implementation dependency of the coordination model, not the
+product itself. Team Mate stays portable across harnesses by describing each
+one's adapter rather than by shipping a runtime of its own.
 
 ## Shared and project-specific capabilities
 
@@ -339,8 +353,8 @@ and later:
 > "Now investigate the bug in project B and have two agents look at it."
 
 Team Mate should understand the active project context, create the appropriate
-agents, coordinate them through the worker runtime, use the shared Team Mate
-capabilities, and report the outcome.
+agents, coordinate them through the harness's native subagent tool, use the
+shared Team Mate capabilities, and report the outcome.
 
 The developer should think about **what needs to happen**, not about manually
 operating a collection of agent sessions.

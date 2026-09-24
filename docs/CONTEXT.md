@@ -7,11 +7,13 @@ Repository-specific guidance for working in Team Mate.
 Team Mate is a research and tooling project for building a reusable operating
 model for a primary AI engineering agent.
 
-The primary agent can run in a coding-agent environment such as OpenCode, Codex,
-Pi, or Claude Code. It runs workers on a pluggable runtime — Herdr by default,
-or a headless Claude backend — and can create and manage multiple agents across
-multiple software projects. The overlay also ships as a Claude plugin for
-Claude Code and Cowork.
+The primary agent runs inside a coding harness — OpenCode, Codex, Claude Code,
+Pi, or omp. Workers are the harness's **native subagents**, spawned by the
+primary through that harness's own subagent tool, and can be created and managed
+across multiple software projects. `tm` is a ledger-only CLI: it records tasks,
+briefs, reports, findings, and decisions and renders each harness's adapter
+files; it does not spawn processes. The overlay also ships as a Claude plugin
+for Claude Code and Cowork.
 
 The repository focuses on shared skills, scripts, workflows, agent instructions,
 conventions, and research.
@@ -45,8 +47,8 @@ directory per project named after the project's slug (`slug()` in
   <project-slug>/
     tasks/<id>.json      # the live ledger
     archive/<id>.json    # pruned tasks (moved, never deleted)
-    briefs/              # briefs the primary sends workers
-    reports/             # captured worker output
+    briefs/              # briefs the primary hands workers
+    reports/             # saved worker reports
     timeline.jsonl       # append-only events
     session.json         # the open session marker
 ```
@@ -65,10 +67,11 @@ root-level state is migrated into the per-project directories on the next run
   decisions.
 - `docs/NEXT.md` — what to build next.
 - `src/` — the portable Team Mate overlay. `src/AGENTS.md` defines the role;
-  `src/skills/` holds the skills, `src/scripts/` deterministic helpers,
-  and `src/templates/` the brief and report templates. Skills are installed
-  into the primary's `.agents/skills/`, so the overlay is copied into a primary
-  repository to make it a Team Mate primary.
+  `src/skills/` holds the skills, `src/agents/` the canonical worker
+  definitions, `src/scripts/` deterministic helpers, and `src/templates/` the
+  brief and report templates. Skills are installed into the primary's harness
+  skills directory, so the overlay is copied into a primary repository to make
+  it a Team Mate primary.
 
 ## Two skill sets
 
@@ -79,9 +82,9 @@ This repository carries two unrelated skill sets:
   `ponytail`). This is tooling, not the product; `install.sh` does not install
   it.
 - `src/skills/` — the Team Mate product overlay installed into a primary
-  repository. These are the skills the product ships; `herdr` and `find-skills`
-  exist in both, in the root set for working here and in the overlay as product
-  skills.
+  repository. These are the skills the product ships; `find-skills` and
+  `agent-browser` exist in both, in the root set for working here and in the
+  overlay as product skills.
 
 Do not confuse the two: the root set is not the product.
 
@@ -90,30 +93,43 @@ Do not confuse the two: the root set is not the product.
 - Read `docs/VISION.md` before changing the product model.
 - Read the relevant `docs/implementation/` pages before making architectural
   decisions.
-- Keep the documentation consistent with the runtime capabilities Team Mate
-  depends on (Herdr by default).
+- Keep the documentation consistent with the harness capabilities Team Mate
+  depends on (the adapter matrix in
+  `docs/implementation/16-harness-adapters.md`).
 - Treat implementation details as research until they are validated in a real
   environment.
 - Prefer simple, reusable skills and scripts over application-specific
   abstractions.
 
-## Herdr
+## Harness
 
-Herdr is the **default** worker runtime used by Team Mate. `tm` selects the
-runtime from `--runtime`, then `TM_RUNTIME`, then the `runtime` key in
-`team-mate.toml`, then autodetection; a headless **Claude** backend also exists,
-and the overlay ships as a **Claude plugin** rooted at `src/` for Claude Code and
-Cowork. Do not duplicate the runtime's agent-runtime responsibilities inside
-this repository unless research shows a clear need.
+Team Mate runs inside one **coding harness**: `opencode`, `codex`, `claude`,
+`pi`, or `omp`. Workers are that harness's **native subagents**, spawned through
+its subagent tool. `tm` selects the harness from the `--harness` flag, then
+`TM_HARNESS`, then the `harness` key in `team-mate.toml`, then best-effort
+detection; the flag must precede the subcommand, for example
+`tm --harness claude task list`. The overlay also ships as a **Claude plugin**
+rooted at `src/` for Claude Code and Cowork.
 
-When documenting Herdr-dependent behavior, distinguish between:
+`tm` is **ledger-only**: `session`, `project`, `task` (including
+`update --worker`), `brief`, `report`, `diff`, `skills sync --cwd`,
+`agents sync --cwd`, `permissions`, and `harness`. It never spawns, sends to,
+waits on, or stops a process. Spawning a worker, waiting for it, and closing it
+are the primary's harness tools.
 
-1. capabilities guaranteed by Herdr;
+The per-harness adapter matrix — subagent tool, agent definitions, skills
+directory, instruction file, config file, headless command, and background
+support — is in
+[Harness adapters](implementation/16-harness-adapters.md).
+
+When documenting harness-dependent behavior, distinguish between:
+
+1. capabilities guaranteed by the harness;
 2. behavior implemented by Team Mate skills/scripts;
 3. behavior provided by the target project.
 
-Verify Herdr behavior against its current documentation and real usage before
-committing to an architecture.
+Verify harness behavior against its current documentation and real usage before
+committing to an architecture; the adapter matrix marks what is uncertain.
 
 ## Agent design principles
 
@@ -140,11 +156,11 @@ explore:
 - the best skill structure;
 - how Team Mate discovers and loads shared skills;
 - how project-local skills compose with Team Mate skills;
-- reliable agent lifecycle management across runtimes;
+- reliable agent lifecycle management across harnesses;
 - multi-project context isolation;
 - progress and log collection;
 - review and feedback workflows;
 - failure recovery and cancellation;
 - persistent task history;
 - security and permission boundaries;
-- portability across coding-agent environments.
+- portability across coding-agent harnesses.
