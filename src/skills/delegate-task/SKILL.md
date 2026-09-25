@@ -68,37 +68,63 @@ fields; prefer that over hardcoding.
    # <state_dir>/<project>/briefs/<id>-<name>.md
    ```
 
-4. **Call the harness's subagent tool** with the brief as the prompt, using the
-   tool `tm harness` reports:
+4. **Choose background or foreground, then call the harness's subagent tool**
+   with the brief as the prompt, using the tool `tm harness` reports.
+
+   **Default to background.** Dispatch a worker in the background unless the
+   primary's very next step depends on its result within this same turn. A
+   foreground call holds the turn and makes the primary unreachable, so the
+   developer cannot steer, correct, or ask anything while it runs; a background
+   call returns immediately and notifies on completion. As a rule of thumb, if
+   the worker is expected to do more than a moment's work — anything beyond a
+   trivial, fast step the primary must have before it can continue — dispatch it
+   in the background.
+
+   Foreground is the exception, and the primary should be able to name the
+   reason in one clause ("needs this result to decide the next step now"). Never
+   leave a worker foreground merely because foreground is the pattern in use; a
+   rework, a review, an investigation, or any multi-file change is background.
+
+   Background dispatch changes how the turn ends: the primary starts the
+   worker, briefly says what it launched, and ends its turn, then acts on the
+   completion notification. Do not sleep, poll, or wait after a background
+   dispatch.
+
+   Per-harness argument:
 
    - `opencode`: `subagent` with `agent` (the worker role), `prompt` (the
-     brief), `description` (a short label), and `background` for parallel work.
+     brief), `description` (a short label), and `background: true` by default.
    - `codex`: `spawn_agent` with the brief, then `wait_agent` to collect,
      `send_input` to follow up, and `close_agent` when done. It is
      prompt-mediated, so ask explicitly for what you need.
    - `claude`: `Agent` with `subagent_type`, `prompt`, `description`, and
-     `run_in_background` for parallel work.
+     `run_in_background: true` by default.
    - `pi`: the `subagent` tool from a Pi extension/package; there is no native
      subagent, so this depends on the extension.
    - `omp`: `task` with a batch `tasks[]` (or a flat call); background by
      default.
 
-5. **Link the worker to its task.** The harness owns the worker; the ledger
-   records who owns the task:
+   If the resolved harness cannot background, say so plainly instead of holding
+   the turn silently.
+
+5. **Link the worker to its task.** Do this *before* the subagent call so a
+   background worker is recorded the moment it starts (the harness owns the
+   worker; the ledger records who owns the task):
 
    ```bash
    python3 scripts/tm.py task update "<id>" --worker "<name>" --status working
    ```
 
-6. **For parallel work, use the harness's background support.** A foreground
-   subagent call returns its result; a background one notifies on completion.
-   Start every stream, then let the notifications arrive — do not block on the
-   first (`parallel-coordination`), and respect `max_concurrent`.
+6. **For several streams, start each as a background subagent.** A background
+   one notifies on completion. Start every stream, then end the turn and let the
+   notifications arrive — do not block on the first (`parallel-coordination`),
+   and respect `max_concurrent`.
 
 ## Output
 
 The worker linked to its ledger task and, when the subagent returns, its result
-and `.teammate-report.md`.
+and `.teammate-report.md`. A background worker returns control immediately; its
+result arrives on the completion notification.
 
 ## Failure
 

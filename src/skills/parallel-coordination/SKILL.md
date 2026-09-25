@@ -90,21 +90,27 @@ in the report.
    subagents you started and have not yet seen complete.
 3. **Record each stream** as its own task before dispatching (`task-ledger`), so
    a lost primary can still reconstruct the batch.
-4. **Start every stream as a background subagent.** Persist each brief, call the
-   harness's subagent tool with it, and link the worker:
+4. **Start every stream as a background subagent**, and link each worker
+   *before* the call so the ledger records it the moment it starts — a
+   background worker returns immediately, so a link written afterwards would
+   leave a window with a running worker the ledger does not know about. Persist
+   each brief, link the worker, then call the harness's subagent tool:
 
    ```bash
    python3 scripts/tm.py brief "<name>" --task "<id>" <<'EOF'
    <brief>
    EOF
-   # call the harness subagent tool with the brief; background where supported
    python3 scripts/tm.py task update "<id>" --worker "<name>" --status working
+   # then call the harness subagent tool with the brief, background by default
    ```
 
-   Start all of them, then let the harness notify you as each completes — do not
-   block on the first, which turns the batch back into serial work. Where the
-   harness cannot background (`pi` depends on the extension), run the streams
-   serially instead, letting each return before starting the next.
+   Background is the default for every stream, not only for parallel work: a
+   foreground call holds the whole turn and leaves the developer unable to
+   steer, correct, or ask (see `delegate-task`). Start all of them, then let the
+   harness notify you as each completes — do not block on the first, which turns
+   the batch back into serial work. Where the harness cannot background (`pi`
+   depends on the extension), run the streams serially instead, letting each
+   return before starting the next.
 5. **Await completion.** A background subagent notifies when it finishes; a
    foreground one returns. Then read each report with `tm report`. A worker that
    never returns belongs to `recover-run`; a worker that returns a question

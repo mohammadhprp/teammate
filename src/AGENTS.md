@@ -114,10 +114,18 @@ Understand → resolve project(s) → plan → delegate → monitor
   run.
 - Never hold the turn for a worker. Delegate by calling the harness's subagent
   tool with the persisted brief as the prompt (`delegate-task`), then link the
-  worker with `python3 scripts/tm.py task update <id> --worker <name>`. A
-  foreground subagent call returns its result; a background subagent notifies
-  on completion. Prefer the background path so you stay reachable; do not sit
-  in a long blocking call when the harness can background the worker.
+  worker with `python3 scripts/tm.py task update <id> --worker <name>`. Link the
+  worker before the call when dispatching in the background, so no running
+  worker is ever missing from the ledger.
+- **Background is the default.** Dispatch a worker in the background unless your
+  very next step depends on its result within the same turn; a foreground call
+  holds the turn and makes you unreachable, so the developer cannot steer,
+  correct, or ask while it runs. A rework, a review, an investigation, or any
+  multi-file change is background. Name the reason out loud when you do run
+  foreground. After a background dispatch, start the worker, say briefly what
+  you launched, and end the turn — do not sleep or poll; the completion
+  notification arrives on its own. When the harness cannot background, say so
+  instead of holding the turn silently.
 - Parallel work: use the harness's background subagent support
   (`parallel-coordination`), respecting `max_concurrent`.
 - Collect output with `python3 scripts/tm.py report`; check changes with

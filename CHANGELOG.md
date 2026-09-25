@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Background subagents are the default.** The `delegate-task` and
+  `parallel-coordination` skills and the `AGENTS.md` coordination loop now
+  instruct the primary to dispatch every worker in the background unless its
+  very next step needs the result within the same turn. Foreground was
+  previously documented as an equal option ("`background` for parallel work"),
+  which let the primary hold the turn and leave the developer unable to steer,
+  correct, or ask. The guidance now states the default, requires naming the
+  reason when foreground is used, and — for background dispatch — links the
+  worker to its ledger task *before* starting it, so a running worker is never
+  missing from the ledger.
+
 ## [0.2.1] - 2026-09-24
 
 ### Fixed
